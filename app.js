@@ -484,6 +484,9 @@ const T = {
   ttHint:{ja:"科目をタップすると詳細へ", en:"Tap a course for details"},
   chooseDay:{ja:"時間割の曜日を選択", en:"Choose a timetable day"},
   emptyPeriod:{ja:"空き時間", en:"Free period"},
+  studyDetails:{ja:"教員・授業外学修", en:"Instructors & preparation"},
+  navigation:{ja:"表示を切り替え", en:"Dashboard views"},
+  changeTheme:{ja:"テーマを切り替え", en:"Change theme"},
   lunch:{ja:"昼休み 12:10–13:00", en:"Lunch break 12:10-13:00"},
   courses:{ja:"科目一覧", en:"Course list"},
   creditsAll:{ja:"合計単位", en:"Total credits"},
@@ -597,6 +600,7 @@ function isDark(){ return resolvedTheme()==="dark"; }
 function applyTheme(){
   document.documentElement.dataset.theme = resolvedTheme();
   $("theme-btn").textContent = THEME==="auto" ? t("themeAuto") : THEME==="light" ? t("themeLight") : t("themeDark");
+  $("theme-btn").title = t("changeTheme");
 }
 function cycleTheme(){
   THEME = THEME==="auto" ? "light" : THEME==="light" ? "dark" : "auto";
@@ -776,10 +780,10 @@ function renderWeek(){
   h += '<div class="weekbar">'
      + '<button class="nav-w" type="button" id="w-prev"'+(WEEK===1?" disabled":"")+'>‹ '+t("prevW")+'</button>'
      + '<div class="weeknums">';
-  for(let i=1;i<=15;i++) h += '<button type="button" data-week="'+i+'" aria-pressed="'+(i===WEEK)+'">'+i+'</button>';
+  for(let i=1;i<=15;i++) h += '<button type="button" data-week="'+i+'" aria-label="'+fill(t("weekOf"),{n:i})+'" aria-pressed="'+(i===WEEK)+'">'+i+'</button>';
   h += '</div><button class="nav-w" type="button" id="w-next"'+(WEEK===15?" disabled":"")+'>'+t("nextW")+' ›</button></div>';
 
-  h += '<div class="panel">';
+  h += '<div class="week-board">';
   DAYS.forEach((d,di)=>{
     const items = [];
     COURSES.forEach(c=>c.slots.forEach(s=>{
@@ -788,8 +792,8 @@ function renderWeek(){
     }));
     items.sort((a,b)=>a.s.period-b.s.period);
 
-    h += '<div class="dayrow"><div class="daylab">'+d.s[LANG]
-       + '<small>'+fmtDate(dateOf(di,WEEK))+'</small></div><div class="daycells">';
+    h += '<section class="dayrow" aria-labelledby="week-day-'+di+'"><h3 class="daylab" id="week-day-'+di+'">'+d[LANG]
+       + '<small>'+fmtDate(dateOf(di,WEEK))+'</small></h3><div class="daycells">';
 
     if(di===0 && WEEK<8) h += '<div class="sidenote">'+t("eceNote")+'</div>';
 
@@ -800,17 +804,18 @@ function renderWeek(){
         const c=it.c, sess=c.schedule[it.n-1];
         h += '<div class="wk" style="--c:'+cc(c)+'">'
           + '<div class="top"><span class="p">'+periodLabel(it.s.period,it.s.span||1)+' '+slotTime(it.s.period,it.s.span||1)+'</span>'
-          + '<span class="nm">'+esc(L(c))+'</span>'
+          + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button>'
           + modeBadge(sess?sess.mode:"f2f",true)
-          + '<span class="p">'+esc(L(c.teachers))+'</span></div>';
+          + '</div>';
         if(sess){
           h += '<p class="topic"><span class="sn">'
              + fill(t(c.unit==="week"?"weekLabel":"session"),{n:c.unit==="week"?WEEK:it.n})+'</span>'+esc(L(sess))+'</p>';
         }
-        h += '<p class="hw">'+esc(L(c.homework))+'</p></div>';
+        h += '<details class="study-details"><summary>'+t("studyDetails")+'</summary>'
+           + '<p class="p">'+esc(L(c.teachers))+'</p><p class="hw">'+esc(L(c.homework))+'</p></details></div>';
       });
     }
-    h += '</div></div>';
+    h += '</div></section>';
   });
   h += '</div>';
   $("view-week").innerHTML = h;
@@ -978,25 +983,51 @@ function setView(v){
   ["home","week","course","mats"].forEach(k=>{
     $("view-"+k).hidden = (k!==v);
     $("tab-"+k).setAttribute("aria-selected", k===v);
+    $("tab-"+k).tabIndex = k===v ? 0 : -1;
   });
   window.scrollTo(0,0);
 }
 function setWeek(n){
+  const active = document.activeElement;
+  const inWeek = active && active.closest('#view-week');
+  const focusWeek = active && active.dataset.week;
+  const focusId = active && active.id;
   WEEK = Math.min(15,Math.max(1,n));
   renderWeek();
   if(VIEW==="course") renderCourse();
+  if(VIEW==="week"){
+    const target = focusWeek ? document.querySelector('[data-week="'+WEEK+'"]')
+      : focusId==="w-prev" || focusId==="w-next" ? $(focusId)
+      : inWeek ? document.querySelector('[data-week="'+WEEK+'"]') : null;
+    if(target) (target.disabled ? document.querySelector('[data-week="'+WEEK+'"]') : target).focus({preventScroll:true});
+  }
 }
-function openCourse(id){ COURSE = id; renderCourse(); setView("course"); }
+function openCourse(id){
+  const fromPicker = document.activeElement.closest('.picker');
+  COURSE = id; renderCourse(); setView("course");
+  const target = fromPicker ? document.querySelector('.picker [data-course="'+id+'"]') : document.querySelector('.chead h2');
+  if(!fromPicker) target.tabIndex = -1;
+  target.focus({preventScroll:true});
+}
 
 function renderAll(){
   $("eyebrow").textContent = t("eyebrow");
-  $("ttl").textContent = t("title");
+  const title = t("title").split(" ");
+  $("ttl").innerHTML = '<span>'+esc(title.slice(0,2).join(" "))+'</span> <span>'+esc(title.slice(2).join(" "))+'</span>';
   $("sub").textContent = t("sub");
   $("tab-home").textContent   = t("tabHome");
   $("tab-week").textContent   = t("tabWeek");
   $("tab-course").textContent = t("tabCourse");
   $("tab-mats").textContent   = t("tabMats");
   $("foot").textContent = t("foot");
+  document.querySelector('.tabs').setAttribute('aria-label', t("navigation"));
+  ["home","week","course","mats"].forEach(k=>{
+    $("tab-"+k).setAttribute('aria-controls', 'view-'+k);
+    $("tab-"+k).tabIndex = k===VIEW ? 0 : -1;
+    $("view-"+k).setAttribute('role', 'tabpanel');
+    $("view-"+k).setAttribute('aria-labelledby', 'tab-'+k);
+    $("view-"+k).tabIndex = 0;
+  });
   renderHome(); renderWeek(); renderCourse(); renderMats();
 }
 
@@ -1024,9 +1055,28 @@ $("btn-ja").addEventListener("click", ()=>setLang("ja"));
 $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
 document.addEventListener("keydown", e=>{
+  const tab = e.target.closest('[role="tab"]');
+  if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
+    const views = ["home","week","course","mats"];
+    const i = views.indexOf(VIEW);
+    const next = e.key==="Home" ? 0 : e.key==="End" ? 3 : (i+(e.key==="ArrowRight"?1:3))%4;
+    e.preventDefault(); setView(views[next]); $("tab-"+views[next]).focus(); return;
+  }
   if(VIEW!=="week") return;
-  if(e.key==="ArrowLeft") setWeek(WEEK-1);
-  if(e.key==="ArrowRight") setWeek(WEEK+1);
+  if(e.key==="ArrowLeft"){ e.preventDefault(); setWeek(WEEK-1); }
+  if(e.key==="ArrowRight"){ e.preventDefault(); setWeek(WEEK+1); }
+});
+
+/* 印刷中は折りたたんだ学修情報も出し、終了後に元の開閉状態へ戻す。 */
+let printDetails = null;
+window.addEventListener("beforeprint", ()=>{
+  if(printDetails) return;
+  printDetails = Array.from(document.querySelectorAll('.study-details:not([open])'));
+  printDetails.forEach(d=>{ d.open = true; });
+});
+window.addEventListener("afterprint", ()=>{
+  if(printDetails) printDetails.forEach(d=>{ d.open = false; });
+  printDetails = null;
 });
 
 /* ---------- 起動 ---------- */

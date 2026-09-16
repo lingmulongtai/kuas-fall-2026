@@ -71,6 +71,7 @@ button:disabled{cursor:default}
 .masthead-in{max-width:1320px;margin:auto;padding:24px 28px 18px;display:flex;align-items:center;gap:20px}
 .brand{min-width:0}
 .brand h1{font-size:clamp(23px,2.2vw,31px);margin:3px 0 6px;letter-spacing:.035em;text-wrap:balance}
+.brand h1 span{display:inline-block}
 .brand p{font-size:12px;color:var(--ink-2);margin:0}
 .brand .eyebrow{font:600 10px/1.5 var(--gothic);letter-spacing:.16em;color:var(--vermilion)}
 .spacer{flex:1}
@@ -124,7 +125,7 @@ main{max-width:1320px;margin:auto;padding:30px 28px 56px}
 }
 .blk:hover{background:var(--hl)}
 .blk:focus-visible{position:relative;z-index:1;outline-offset:-3px}
-.blk .nm{font-family:var(--gothic);font-size:15px;font-weight:700;line-height:1.65;line-break:strict;overflow-wrap:anywhere;text-wrap:pretty}
+.blk .nm{font-family:var(--gothic);font-size:15px;font-weight:700;line-height:1.65;line-break:strict;overflow-wrap:anywhere;text-wrap:balance}
 .blk .mt{font-size:11px;color:var(--ink-2);line-height:1.6;overflow-wrap:anywhere}
 .blk .cr{display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;font-size:10px;color:var(--ink-2);margin-top:auto;padding-top:4px;line-height:1.6}
 .blk .badge{border-color:transparent;padding:0 3px}
@@ -161,19 +162,25 @@ table.grid td:first-child{min-width:180px}
 .weeknums button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .nav-w{border:1px solid var(--rule);background:transparent;border-radius:2px;padding:7px 12px;min-height:42px;font-size:12px}
 .nav-w:disabled{color:var(--ink-3);border-style:dashed}
-.dayrow{display:grid;grid-template-columns:92px minmax(0,1fr);border-bottom:1px solid var(--rule)}
-.dayrow:last-child{border-bottom:0}
-.daylab{padding:14px 12px;background:var(--band);border-right:1px solid var(--rule);font-family:var(--mincho);font-size:19px}
+.week-board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;align-items:start}
+.dayrow{min-width:0;border-top:2px solid var(--ink);border-bottom:1px solid var(--rule)}
+.daylab{margin:0;padding:13px 12px;background:var(--band);border-bottom:1px solid var(--rule);font-family:var(--mincho);font-size:20px}
 .daylab small{display:block;font-family:var(--gothic);font-size:11px;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .daycells{background:var(--surface);min-width:0}
 .wk{padding:14px;border-bottom:1px solid var(--rule-2);border-left:3px solid var(--c)}
 .wk:last-child{border-bottom:0}
 .wk .top{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 10px}
+.wk .top>.p{width:100%;font-size:10px;letter-spacing:.01em}
 .wk .p{font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .wk .nm{font-weight:700;font-size:14px;overflow-wrap:anywhere}
+.week-course{background:none;border:0;padding:0;text-align:left;line-height:1.65;width:100%}
+.week-course:hover{text-decoration:underline;text-underline-offset:4px}
 .wk .topic{margin:8px 0 0;font-size:13px;line-height:1.8}
-.wk .sn{color:var(--ink-3);font-size:11px;margin-right:6px}
+.wk .sn{display:block;color:var(--ink-3);font-size:10px;margin-bottom:2px}
 .wk .hw{margin:6px 0 0;font-size:12px;color:var(--ink-2)}
+.study-details{margin-top:12px;border-top:1px dotted var(--rule);font-size:11px;color:var(--ink-2)}
+.study-details summary{cursor:pointer;padding:9px 0;line-height:1.7}
+.study-details .p{margin:0 0 4px}
 .dayoff,.sidenote{padding:12px 14px;color:var(--ink-3);font-size:12px}
 .sidenote{border-bottom:1px solid var(--rule-2);background:var(--surface-2)}
 
@@ -228,6 +235,7 @@ ul.goals li{margin-bottom:8px}
   .blk{padding:10px 9px}
   .blk .nm{font-size:14px}
   .facts{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .week-board{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:900px){
   .cbody{grid-template-columns:1fr}
@@ -260,7 +268,7 @@ ul.goals li{margin-bottom:8px}
   .day-switch button[aria-pressed="true"]{background:var(--ink);color:var(--surface);font-weight:700}
   .tt{grid-template-columns:58px minmax(0,1fr);grid-template-rows:34px repeat(2,minmax(68px,auto)) 24px repeat(4,minmax(68px,auto))}
   .tt [data-day]{grid-column:2!important}
-  .tt .day-hidden{display:none}
+  .tt [data-day].day-hidden{display:none}
   .tt .hd{font-size:12px;letter-spacing:.08em}
   .tt .per{padding:7px 0}
   .tt .per b{font-size:20px}
@@ -279,10 +287,14 @@ ul.goals li{margin-bottom:8px}
   .weekbar{gap:8px;justify-content:space-between;margin-bottom:18px}
   .weeknums{order:3;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));width:100%;gap:4px}
   .weeknums button{width:100%;min-height:40px}
-  .dayrow{grid-template-columns:60px minmax(0,1fr)}
-  .daylab{font-size:18px;padding:12px 8px}
+  .week-board{grid-template-columns:1fr;gap:20px}
+  .daylab{display:flex;align-items:baseline;justify-content:space-between;font-size:19px;padding:10px 12px}
   .daylab small{font-size:10px;letter-spacing:0}
   .wk{padding:12px}
+  .wk .top{gap:6px 10px}
+  .wk .week-course{width:auto;flex:1}
+  .wk .sn{display:inline;margin-right:6px}
+  .study-details summary{padding:10px 0}
   .picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
   .picker button{font-size:11px;padding:8px}
   .chead{padding:18px 16px}
@@ -329,5 +341,12 @@ ul.goals li{margin-bottom:8px}
   .bookttl{min-width:0;font-size:11px}
   .cbody{grid-template-columns:minmax(0,1fr) 270px;gap:16px}
   .box{padding:12px}
+  .week-board{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .daylab{padding:8px;font-size:15px}
+  .wk{padding:8px;break-inside:avoid}
+  .wk .nm,.wk .topic{font-size:11px}
+  .study-details>summary{display:none}
+  .study-details::details-content{content-visibility:visible;display:block}
+  .study-details>:not(summary){display:block!important}
   .foot{padding:16px 0 0}
 }
