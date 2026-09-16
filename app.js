@@ -612,6 +612,15 @@ if(mq && mq.addEventListener) mq.addEventListener("change", ()=>{ if(THEME==="au
 /* ---------- 共通ヘルパ ---------- */
 const cc = c => isDark() ? c.colorD : c.color;
 
+/* 中黒でつながる名前は語の途中で割らず、区切りごとに折り返す。 */
+function courseName(c){
+  const name = L(c);
+  if(!name.includes("・")) return esc(name);
+  return name.split("・").map((part,i,parts)=>
+    '<span class="name-part">'+esc(part)+(i<parts.length-1?"・":"")+'</span>'
+  ).join('<wbr>');
+}
+
 function periodLabel(p,span){
   return span>1 ? fill(t("periodRange"),{a:p,b:p+span-1}) : fill(t("period"),{n:p});
 }
@@ -702,7 +711,7 @@ function renderHome(){
       if(cell && cell.start){
         const c = cell.c;
         h += '<button class="blk'+(d===DAY?'':' day-hidden')+'" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-day="'+d+'" data-course="'+c.id+'">'
-           + '<span class="nm">'+esc(L(c))+'</span>'
+           + '<span class="nm">'+courseName(c)+'</span>'
            + '<span class="mt">'+esc(L(c.teachers))+'</span>'
            + '<span class="cr"><span>'+c.credits+(LANG==="ja"?"単位":" cr")+'</span>'+modeBadge(mainMode(c),true)
            + (c.firstWeek>1 ? ' <span class="badge tagopt">'+t("eceShort")+'</span>' : '')
@@ -804,7 +813,7 @@ function renderWeek(){
         const c=it.c, sess=c.schedule[it.n-1];
         h += '<div class="wk" style="--c:'+cc(c)+'">'
           + '<div class="top"><span class="p">'+periodLabel(it.s.period,it.s.span||1)+' '+slotTime(it.s.period,it.s.span||1)+'</span>'
-          + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button>'
+          + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+courseName(c)+'</button>'
           + modeBadge(sess?sess.mode:"f2f",true)
           + '</div>';
         if(sess){

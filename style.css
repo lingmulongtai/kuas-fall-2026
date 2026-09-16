@@ -126,6 +126,7 @@ main{max-width:1320px;margin:auto;padding:30px 28px 56px}
 .blk:hover{background:var(--hl)}
 .blk:focus-visible{position:relative;z-index:1;outline-offset:-3px}
 .blk .nm{font-family:var(--gothic);font-size:15px;font-weight:700;line-height:1.65;line-break:strict;overflow-wrap:anywhere;text-wrap:balance}
+.name-part{display:inline-block}
 .blk .mt{font-size:11px;color:var(--ink-2);line-height:1.6;overflow-wrap:anywhere}
 .blk .cr{display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;font-size:10px;color:var(--ink-2);margin-top:auto;padding-top:4px;line-height:1.6}
 .blk .badge{border-color:transparent;padding:0 3px}
