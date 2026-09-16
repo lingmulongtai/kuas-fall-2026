@@ -469,6 +469,7 @@ const COURSES = [
 
 /* ---------- UI 文言 ---------- */
 const T = {
+  eyebrow:{ja:"履修手帳 / COURSE PLANNER", en:"COURSE PLANNER / FALL SEMESTER"},
   title:{ja:"2026年度 秋学期 履修ダッシュボード", en:"Fall 2026 Course Dashboard"},
   sub:{ja:"工学部 機械電気システム工学科 2年 4セメスタ ／ 太秦キャンパス ／ 9月24日〜1月18日",
        en:"Mechanical and Electrical Systems Engineering, Year 2, Semester 4 / Uzumasa Campus / Sep 24 - Jan 18"},
@@ -481,6 +482,8 @@ const T = {
   themeDark:{ja:"テーマ：ダーク", en:"Theme: Dark"},
   timetable:{ja:"時間割", en:"Timetable"},
   ttHint:{ja:"科目をタップすると詳細へ", en:"Tap a course for details"},
+  chooseDay:{ja:"時間割の曜日を選択", en:"Choose a timetable day"},
+  emptyPeriod:{ja:"空き時間", en:"Free period"},
   lunch:{ja:"昼休み 12:10–13:00", en:"Lunch break 12:10-13:00"},
   courses:{ja:"科目一覧", en:"Course list"},
   creditsAll:{ja:"合計単位", en:"Total credits"},
@@ -573,6 +576,7 @@ let THEME = "auto";
 let VIEW = "home";
 let WEEK = 1;
 let COURSE = COURSES[0].id;
+let DAY = Math.min(4, Math.max(0, new Date().getDay()-1));
 
 const $ = id => document.getElementById(id);
 const byId = id => COURSES.find(c=>c.id===id);
@@ -668,10 +672,13 @@ function renderHome(){
     + stat(nRemote, t("nRemote"), LANG==="ja"?"科目":"")
     + '</div></div>';
 
-  /* 時間割 */
-  h += '<div class="sec"><div class="sec-head"><h2>'+t("timetable")+'</h2><span>'+t("ttHint")+'</span></div>';
-  h += '<div class="ttwrap"><div class="tt"><div></div>';
-  DAYS.forEach(d=>{ h += '<div class="hd">'+d[LANG]+'</div>'; });
+  const summary = h;
+  /* 同じ時間割を、PCでは5列、スマホでは選択曜日の1列で表示する。 */
+  h = '<div class="sec timetable-section"><div class="sec-head"><h2>'+t("timetable")+'</h2><span>'+t("ttHint")+'</span></div>';
+  h += '<div class="day-switch" role="group" aria-label="'+t("chooseDay")+'">';
+  DAYS.forEach((d,i)=>{ h += '<button type="button" data-day-select="'+i+'" aria-pressed="'+(i===DAY)+'">'+d.s[LANG]+'</button>'; });
+  h += '</div><div class="ttwrap"><div class="tt"><div class="tt-corner">'+t("colSlot")+'</div>';
+  DAYS.forEach((d,i)=>{ h += '<div class="hd'+(i===DAY?'':' day-hidden')+'" data-day="'+i+'">'+d[LANG]+'</div>'; });
 
   const occ = {};
   COURSES.forEach(c=>c.slots.forEach(s=>{
@@ -684,24 +691,24 @@ function renderHome(){
   h += '<div class="lunch" style="grid-row:4">'+t("lunch")+'</div>';
 
   for(let p=1;p<=6;p++){
-    h += '<div class="per" style="grid-column:1;grid-row:'+rowOf(p)+'"><b>'+p+'</b>'+PERIODS[p]+'</div>';
+    h += '<div class="per" style="grid-column:1;grid-row:'+rowOf(p)+'"><b>'+p+'</b><span>'+PERIODS[p].replace('–','<br>– ')+'</span></div>';
     for(let d=0;d<5;d++){
       const cell = occ[d+"-"+p], col = d+2, row = rowOf(p);
       if(cell && cell.covered) continue;
       if(cell && cell.start){
         const c = cell.c;
-        h += '<button class="blk" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-course="'+c.id+'">'
+        h += '<button class="blk'+(d===DAY?'':' day-hidden')+'" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-day="'+d+'" data-course="'+c.id+'">'
            + '<span class="nm">'+esc(L(c))+'</span>'
            + '<span class="mt">'+esc(L(c.teachers))+'</span>'
-           + '<span class="cr">'+c.credits+(LANG==="ja"?"単位":" cr")+' '+modeBadge(mainMode(c),true)
+           + '<span class="cr"><span>'+c.credits+(LANG==="ja"?"単位":" cr")+'</span>'+modeBadge(mainMode(c),true)
            + (c.firstWeek>1 ? ' <span class="badge tagopt">'+t("eceShort")+'</span>' : '')
            + '</span></button>';
       } else {
-        h += '<div class="empty" style="grid-column:'+col+';grid-row:'+row+'"></div>';
+        h += '<div class="empty'+(d===DAY?'':' day-hidden')+'" data-day="'+d+'" style="grid-column:'+col+';grid-row:'+row+'"><span>'+t("emptyPeriod")+'</span></div>';
       }
     }
   }
-  h += '</div></div></div>';
+  h += '</div></div></div>'+summary;
 
   /* 科目一覧 */
   h += '<div class="sec"><div class="sec-head"><h2>'+t("courses")+'</h2><span>'+(LANG==="ja"?"成績評価の割合・開講期間・欠席の目安":"grade weights, term and absence guide")+'</span></div>';
@@ -982,6 +989,7 @@ function setWeek(n){
 function openCourse(id){ COURSE = id; renderCourse(); setView("course"); }
 
 function renderAll(){
+  $("eyebrow").textContent = t("eyebrow");
   $("ttl").textContent = t("title");
   $("sub").textContent = t("sub");
   $("tab-home").textContent   = t("tabHome");
@@ -994,6 +1002,13 @@ function renderAll(){
 
 /* イベント委譲：再描画してもハンドラを付け直さなくていい */
 document.addEventListener("click", e=>{
+  const db = e.target.closest("[data-day-select]");
+  if(db){
+    DAY = Number(db.dataset.daySelect);
+    document.querySelectorAll('[data-day-select]').forEach(b=>b.setAttribute('aria-pressed', Number(b.dataset.daySelect)===DAY));
+    document.querySelectorAll('.tt [data-day]').forEach(cell=>cell.classList.toggle('day-hidden', Number(cell.dataset.day)!==DAY));
+    return;
+  }
   const cb = e.target.closest("[data-course]");
   if(cb){ openCourse(cb.dataset.course); return; }
   const wb = e.target.closest("[data-week]");
