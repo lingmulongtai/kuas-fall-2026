@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="2026年度秋学期の履修科目・時間割・週ごとの授業内容・成績評価・教材をまとめたページ">
+<title>2026年度 秋学期 履修ダッシュボード</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📘</text></svg>">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-in">
+    <div class="brand">
+      <h1 id="ttl">2026年度 秋学期 履修ダッシュボード</h1>
+      <p id="sub"></p>
+    </div>
+    <div class="spacer"></div>
+    <div class="switches">
+      <button id="theme-btn" class="iconbtn" type="button" title="テーマ切り替え"></button>
+      <div class="langswitch" role="group" aria-label="Language">
+        <button id="btn-ja" type="button" aria-pressed="true">日本語</button>
+        <button id="btn-en" type="button" aria-pressed="false">English</button>
+      </div>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-home"   type="button" aria-selected="true"></button>
+    <button role="tab" id="tab-week"   type="button" aria-selected="false"></button>
+    <button role="tab" id="tab-course" type="button" aria-selected="false"></button>
+    <button role="tab" id="tab-mats"   type="button" aria-selected="false"></button>
+  </nav>
+</header>
+
+<main>
+  <section class="view" id="view-home"></section>
+  <section class="view" id="view-week" hidden></section>
+  <section class="view" id="view-course" hidden></section>
+  <section class="view" id="view-mats" hidden></section>
+</main>
+
+<footer class="foot"><p id="foot"></p></footer>
+
+<script src="app.js"></script>
+</body>
+</html>
