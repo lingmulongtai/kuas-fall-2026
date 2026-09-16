@@ -28,6 +28,7 @@
   --shine:rgba(255,255,255,.9);
   --shadow:0 4px 20px rgba(25,32,50,.06),0 1px 3px rgba(25,32,50,.04);
   --float-shadow:0 10px 32px rgba(25,32,50,.1),inset 0 1px 0 var(--shine);
+  --wallpaper-wash:rgba(245,245,247,.22);
 }
 [data-theme="dark"]{
   color-scheme:dark;
@@ -56,11 +57,13 @@
   --shine:rgba(255,255,255,.12);
   --shadow:0 4px 20px rgba(0,0,0,.18),0 1px 3px rgba(0,0,0,.15);
   --float-shadow:0 10px 32px rgba(0,0,0,.3),inset 0 1px 0 var(--shine);
+  --wallpaper-wash:rgba(12,13,16,.32);
 }
 *{box-sizing:border-box}
 html{scroll-padding-top:150px}
 html,body{margin:0;padding:0}
 body{
+  isolation:isolate;min-height:100vh;
   background:var(--paper);color:var(--ink);font-family:var(--gothic);
   font-size:14px;line-height:1.75;-webkit-font-smoothing:antialiased;
 }
@@ -73,6 +76,11 @@ button{cursor:pointer}
 button:disabled{cursor:default}
 :focus-visible{outline:3px solid var(--indigo);outline-offset:3px}
 [hidden]{display:none!important}
+
+/* Photographs stay behind opaque reading surfaces and never capture input. */
+.wallpaper{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.wallpaper img{display:block;width:100%;height:100%;object-fit:cover}
+.wallpaper::after{content:"";position:absolute;inset:0;background:var(--wallpaper-wash)}
 
 /* Shared moving selection lenses; the actual buttons keep their native focus. */
 .segmented{overflow:clip}
@@ -87,7 +95,7 @@ button:disabled{cursor:default}
 .tabs.segmented button[aria-selected="true"],.day-switch.segmented button[aria-pressed="true"]{background:transparent;box-shadow:none}
 
 /* A floating control layer above the course content. */
-.masthead{background:var(--paper);padding-bottom:6px}
+.masthead{background:var(--glass);padding-bottom:16px}
 .masthead-in{max-width:1320px;margin:auto;padding:32px 28px 24px;display:flex;align-items:center;gap:20px}
 .brand{min-width:0}
 .brand h1{font-size:clamp(25px,2.25vw,32px);font-weight:750;margin:6px 0 8px;letter-spacing:-.035em;text-wrap:balance}
@@ -110,10 +118,10 @@ button:disabled{cursor:default}
 main{max-width:1320px;margin:auto;padding:30px 28px 56px}
 .view{min-width:0}
 .sec{margin:0 0 36px}
-.sec-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 18px;margin-bottom:16px;padding-bottom:0}
+.sec-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 18px;margin-bottom:16px;padding:9px 14px;background:var(--surface);border-radius:12px}
 .sec-head h2{font-size:21px;margin:0}
 .sec-head>span{font-size:12px;color:var(--ink-3)}
-.timetable-section .sec-head{border:0;padding:0;margin-bottom:14px;justify-content:space-between}
+.timetable-section .sec-head{border:0;margin-bottom:14px;justify-content:space-between}
 .timetable-section h2{font-size:26px}
 .panel{background:var(--surface);border:1px solid var(--rule-2);border-radius:16px;box-shadow:var(--shadow)}
 .badge{display:inline-block;width:fit-content;max-width:100%;font-size:10px;line-height:1.7;padding:1px 7px;border:1px solid currentColor;border-radius:6px;white-space:normal;vertical-align:1px}
@@ -179,7 +187,7 @@ table.grid td:first-child{min-width:180px}
 .notice b{font-weight:700}
 
 /* Weekly lesson index. */
-.weekbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 22px}
+.weekbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 22px;padding:12px;background:var(--surface);border-radius:16px}
 .weeknums{display:flex;flex-wrap:wrap;gap:4px;background:var(--band);padding:4px;border-radius:15px}
 .weeknums button{width:38px;min-height:40px;padding:4px;border:0;background:transparent;border-radius:11px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink-2)}
 .weeknums button:hover,.nav-w:hover:not(:disabled){background:var(--band)}
@@ -248,7 +256,8 @@ ul.goals li{margin-bottom:8px}
 .isbn{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px;color:var(--ink-2)}
 .bookttl{font-family:var(--mincho);font-size:15px;line-height:1.65;min-width:210px}
 .foot{max-width:1320px;margin:auto;padding:0 28px 36px}
-.foot p{font-size:11px;color:var(--ink-3);margin:0;border-top:1px solid var(--rule);padding-top:16px;max-width:900px}
+.foot p{font-size:11px;color:var(--ink-3);margin:0;padding:14px 16px;max-width:900px;background:var(--surface);border-radius:12px}
+.foot .photo-credit{display:table;margin-top:10px;padding:8px 12px}
 
 @media(max-width:1100px){
   .masthead-in{align-items:flex-start;flex-wrap:wrap;gap:12px}
@@ -338,6 +347,8 @@ ul.goals li{margin-bottom:8px}
 }
 
 @media screen and (prefers-reduced-motion:no-preference){
+  .wallpaper img{animation:wallpaper-in .8s ease-out both}
+  @keyframes wallpaper-in{from{opacity:0}to{opacity:1}}
   .segmented::before{transition:transform .44s cubic-bezier(.22,1,.36,1),width .44s cubic-bezier(.22,1,.36,1),height .3s ease}
   button{transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s ease}
   button:active:not(:disabled){transform:scale(.96)}
@@ -358,6 +369,7 @@ ul.goals li{margin-bottom:8px}
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
 @media(prefers-reduced-transparency:reduce),(prefers-contrast:more){
+  .masthead{background:var(--paper)}
   .tabs{background:var(--surface);backdrop-filter:none;-webkit-backdrop-filter:none;border-color:var(--rule)}
 }
 
@@ -372,7 +384,7 @@ ul.goals li{margin-bottom:8px}
   }
   @page{size:A4 landscape;margin:12mm}
   body{background:#FFF;font-size:10px}
-  .masthead,.tabs,.switches,.weekbar,.picker,.day-switch{display:none!important}
+  .wallpaper,.photo-credit,.masthead,.tabs,.switches,.weekbar,.picker,.day-switch{display:none!important}
   main{padding:0;max-width:none}
   .view[hidden]{display:block!important}
   .view+.view{break-before:page}

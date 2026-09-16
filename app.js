@@ -487,6 +487,7 @@ const T = {
   studyDetails:{ja:"教員・授業外学修", en:"Instructors & preparation"},
   navigation:{ja:"表示を切り替え", en:"Dashboard views"},
   changeTheme:{ja:"テーマを切り替え", en:"Change theme"},
+  photoCredit:{ja:"背景写真：{name} / Unsplash", en:"Photo: {name} / Unsplash"},
   lunch:{ja:"昼休み 12:10–13:00", en:"Lunch break 12:10-13:00"},
   courses:{ja:"科目一覧", en:"Course list"},
   creditsAll:{ja:"合計単位", en:"Total credits"},
@@ -593,6 +594,108 @@ const store = {
   set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 };
 
+/* Curated Unsplash photographs: no API key or runtime library required. */
+const WALLPAPERS = {
+  light: [
+    {id:'1454111186746-109ec09571b2',author:'Tj Holowaychuk',page:'wWlYFcLnKco'},
+    {id:'1456940769015-a80506d591da',author:'Austin Smart',page:'-rIC_DZaUW8'},
+    {id:'1464822759023-fed622ff2c3b',author:'Kalen Emsley',page:'Bkci_8qcdvQ'},
+    {id:'1454496522488-7a8e488e8606',author:'Rohit Tandon',page:'9wg5jCEPBsw'},
+    {id:'1506905925346-21bda4d32df4',author:'Sam Ferrara',page:'1527pjeb6jg'},
+    {id:'1501785888041-af3ef285b470',author:'Pietro De Grandi',page:'T7K4aEPoGGk'}
+  ],
+  dark: [
+    {id:'1768222780460-3cb1027f51e2',author:'Nguyen Vanh',page:'1m8E6OTLzRk'},
+    {id:'1475274047050-1d0c0975c63e',author:'Paul Lichtblau',page:'qVotvbsuM_c'},
+    {id:'1444080748397-f442aa95c3e5',author:'Ryan Hutton',page:'Jztmx9yqjBw'},
+    {id:'1472552944129-b035e9ea3744',author:'Gregoire Jeanneau',page:'9sxeKzuCVoE'},
+    {id:'1477840539360-4a1d23071046',author:'Manuel Will',page:'gd3t5Dtbwkw'},
+    {id:'1519681393784-d120267933ba',author:'Benjamin Voros',page:'phIFdC6lA4E'}
+  ]
+};
+const wallpaperCache = {};
+let wallpaperTheme = null;
+let wallpaperRequest = 0;
+let wallpaperPhoto = null;
+
+function nextWallpaper(theme){
+  const photos = WALLPAPERS[theme];
+  const key = 'wallpaper-'+theme;
+  let saved;
+  try{ saved = JSON.parse(store.get(key)); }catch(e){}
+  const last = saved && saved.last;
+  let remaining = saved && Array.isArray(saved.remaining) ? saved.remaining : [];
+  remaining = [...new Set(remaining)].filter(id=>id!==last && photos.some(photo=>photo.id===id));
+  if(!remaining.length){
+    remaining = photos.filter(photo=>photo.id!==last).map(photo=>photo.id);
+    for(let i=remaining.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [remaining[i],remaining[j]] = [remaining[j],remaining[i]];
+    }
+  }
+  const id = remaining.shift();
+  store.set(key,JSON.stringify({last:id,remaining:remaining}));
+  return photos.find(photo=>photo.id===id);
+}
+function loadWallpaperImage(photo){
+  return new Promise((resolve,reject)=>{
+    const image = new Image();
+    image.alt = '';
+    image.decoding = 'async';
+    image.fetchPriority = 'low';
+    image.referrerPolicy = 'no-referrer';
+    let settled = false;
+    const finish = success=>{
+      if(settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      image.onload = image.onerror = null;
+      if(success) resolve(image);
+      else{ image.removeAttribute('src'); reject(new Error('Wallpaper unavailable')); }
+    };
+    const timeout = setTimeout(()=>finish(false),8000);
+    image.onload = async()=>{
+      try{ if(image.decode) await image.decode(); finish(true); }catch(e){ finish(false); }
+    };
+    image.onerror = ()=>finish(false);
+    const scale = Math.min(window.devicePixelRatio||1,2);
+    const width = Math.min(2400,Math.ceil(window.innerWidth*scale/100)*100);
+    const height = Math.min(1800,Math.ceil(window.innerHeight*scale/100)*100);
+    image.src = 'https://images.unsplash.com/photo-'+photo.id+'?auto=format&fit=crop&w='+width+'&h='+height+'&q=80';
+  });
+}
+async function loadThemeWallpaper(theme){
+  for(let attempt=0;attempt<Math.min(3,WALLPAPERS[theme].length);attempt++){
+    const photo = nextWallpaper(theme);
+    try{ return {photo:photo,image:await loadWallpaperImage(photo)}; }catch(e){}
+  }
+  return null;
+}
+function renderPhotoCredit(){
+  const credit = $('photo-credit');
+  credit.hidden = !wallpaperPhoto;
+  if(!wallpaperPhoto) return;
+  credit.innerHTML = '<a href="https://unsplash.com/photos/'+wallpaperPhoto.page+'?utm_source=kuas_course_planner&amp;utm_medium=referral" target="_blank" rel="noopener noreferrer">'
+    +esc(fill(t('photoCredit'),{name:wallpaperPhoto.author}))+'</a>';
+}
+async function updateWallpaper(){
+  const theme = resolvedTheme();
+  if(wallpaperTheme===theme){ renderPhotoCredit(); return; }
+  wallpaperTheme = theme;
+  const request = ++wallpaperRequest;
+  const layer = $('wallpaper');
+  layer.hidden = true;
+  wallpaperPhoto = null;
+  renderPhotoCredit();
+  if(!wallpaperCache[theme]) wallpaperCache[theme] = loadThemeWallpaper(theme);
+  const result = await wallpaperCache[theme];
+  if(request!==wallpaperRequest || !result) return;
+  layer.replaceChildren(result.image);
+  layer.hidden = false;
+  wallpaperPhoto = result.photo;
+  renderPhotoCredit();
+}
+
 /* Motion never delays state changes, focus, or interaction. */
 const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 const runningMotion = new Map();
@@ -642,6 +745,7 @@ function applyTheme(){
   $("theme-btn").innerHTML = uiIcon(THEME==="light" ? "light" : THEME==="dark" ? "dark" : "auto")
     + '<span>'+t(THEME==="auto" ? "themeAuto" : THEME==="light" ? "themeLight" : "themeDark")+'</span>';
   $("theme-btn").title = t("changeTheme");
+  updateWallpaper();
 }
 function cycleTheme(){
   THEME = THEME==="auto" ? "light" : THEME==="light" ? "dark" : "auto";
