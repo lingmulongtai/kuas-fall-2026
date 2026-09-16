@@ -469,7 +469,7 @@ const COURSES = [
 
 /* ---------- UI 文言 ---------- */
 const T = {
-  eyebrow:{ja:"履修手帳 / COURSE PLANNER", en:"COURSE PLANNER / FALL SEMESTER"},
+  eyebrow:{ja:"COURSE PLANNER", en:"COURSE PLANNER"},
   title:{ja:"2026年度 秋学期 履修ダッシュボード", en:"Fall 2026 Course Dashboard"},
   sub:{ja:"工学部 機械電気システム工学科 2年 4セメスタ ／ 太秦キャンパス ／ 9月24日〜1月18日",
        en:"Mechanical and Electrical Systems Engineering, Year 2, Semester 4 / Uzumasa Campus / Sep 24 - Jan 18"},
@@ -599,7 +599,8 @@ function resolvedTheme(){ return THEME==="auto" ? (mq && mq.matches ? "dark" : "
 function isDark(){ return resolvedTheme()==="dark"; }
 function applyTheme(){
   document.documentElement.dataset.theme = resolvedTheme();
-  $("theme-btn").textContent = THEME==="auto" ? t("themeAuto") : THEME==="light" ? t("themeLight") : t("themeDark");
+  $("theme-btn").innerHTML = uiIcon(THEME==="light" ? "light" : THEME==="dark" ? "dark" : "auto")
+    + '<span>'+t(THEME==="auto" ? "themeAuto" : THEME==="light" ? "themeLight" : "themeDark")+'</span>';
   $("theme-btn").title = t("changeTheme");
 }
 function cycleTheme(){
@@ -611,6 +612,20 @@ if(mq && mq.addEventListener) mq.addEventListener("change", ()=>{ if(THEME==="au
 
 /* ---------- 共通ヘルパ ---------- */
 const cc = c => isDark() ? c.colorD : c.color;
+
+/* Small inline symbols keep the interface independent of icon fonts and CDNs. */
+function uiIcon(name){
+  const paths = {
+    home:'<rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4m10-4v4M3 11h18M8 15h2m4 0h2m-8 3h2"/>',
+    week:'<rect x="4" y="3" width="16" height="18" rx="4"/><path d="M8 8h8m-8 4h8m-8 4h5"/>',
+    course:'<path d="M12 6c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v15"/>',
+    mats:'<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 3v18m4-13h3m-3 4h3"/>',
+    light:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
+    dark:'<path d="M20.5 14.2A8.7 8.7 0 0 1 9.8 3.5a8.8 8.8 0 1 0 10.7 10.7Z"/>',
+    auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18Z" fill="currentColor" stroke="none"/>'
+  };
+  return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[name]+'</svg>';
+}
 
 /* 中黒でつながる名前は語の途中で割らず、区切りごとに折り返す。 */
 function courseName(c){
@@ -1024,10 +1039,9 @@ function renderAll(){
   const title = t("title").split(" ");
   $("ttl").innerHTML = '<span>'+esc(title.slice(0,2).join(" "))+'</span> <span>'+esc(title.slice(2).join(" "))+'</span>';
   $("sub").textContent = t("sub");
-  $("tab-home").textContent   = t("tabHome");
-  $("tab-week").textContent   = t("tabWeek");
-  $("tab-course").textContent = t("tabCourse");
-  $("tab-mats").textContent   = t("tabMats");
+  ["home","week","course","mats"].forEach((k,i)=>{
+    $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats"][i])+'</span>';
+  });
   $("foot").textContent = t("foot");
   document.querySelector('.tabs').setAttribute('aria-label', t("navigation"));
   ["home","week","course","mats"].forEach(k=>{
