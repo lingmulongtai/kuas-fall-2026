@@ -469,6 +469,7 @@ const COURSES = [
 
 /* ---------- UI 文言 ---------- */
 const T = {
+  eyebrow:{ja:"COURSE PLANNER", en:"COURSE PLANNER"},
   title:{ja:"2026年度 秋学期 履修ダッシュボード", en:"Fall 2026 Course Dashboard"},
   sub:{ja:"工学部 機械電気システム工学科 2年 4セメスタ ／ 太秦キャンパス ／ 9月24日〜1月18日",
        en:"Mechanical and Electrical Systems Engineering, Year 2, Semester 4 / Uzumasa Campus / Sep 24 - Jan 18"},
@@ -481,6 +482,12 @@ const T = {
   themeDark:{ja:"テーマ：ダーク", en:"Theme: Dark"},
   timetable:{ja:"時間割", en:"Timetable"},
   ttHint:{ja:"科目をタップすると詳細へ", en:"Tap a course for details"},
+  chooseDay:{ja:"時間割の曜日を選択", en:"Choose a timetable day"},
+  emptyPeriod:{ja:"空き時間", en:"Free period"},
+  studyDetails:{ja:"教員・授業外学修", en:"Instructors & preparation"},
+  navigation:{ja:"表示を切り替え", en:"Dashboard views"},
+  changeTheme:{ja:"テーマを切り替え", en:"Change theme"},
+  photoCredit:{ja:"背景写真：{name} / Unsplash", en:"Photo: {name} / Unsplash"},
   lunch:{ja:"昼休み 12:10–13:00", en:"Lunch break 12:10-13:00"},
   courses:{ja:"科目一覧", en:"Course list"},
   creditsAll:{ja:"合計単位", en:"Total credits"},
@@ -573,6 +580,7 @@ let THEME = "auto";
 let VIEW = "home";
 let WEEK = 1;
 let COURSE = COURSES[0].id;
+let DAY = Math.min(4, Math.max(0, new Date().getDay()-1));
 
 const $ = id => document.getElementById(id);
 const byId = id => COURSES.find(c=>c.id===id);
@@ -586,23 +594,192 @@ const store = {
   set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 };
 
+/* Curated Unsplash photographs: no API key or runtime library required. */
+const WALLPAPERS = {
+  light: [
+    {id:'1454111186746-109ec09571b2',author:'Tj Holowaychuk',page:'wWlYFcLnKco'},
+    {id:'1456940769015-a80506d591da',author:'Austin Smart',page:'-rIC_DZaUW8'},
+    {id:'1464822759023-fed622ff2c3b',author:'Kalen Emsley',page:'Bkci_8qcdvQ'},
+    {id:'1454496522488-7a8e488e8606',author:'Rohit Tandon',page:'9wg5jCEPBsw'},
+    {id:'1506905925346-21bda4d32df4',author:'Sam Ferrara',page:'1527pjeb6jg'},
+    {id:'1501785888041-af3ef285b470',author:'Pietro De Grandi',page:'T7K4aEPoGGk'}
+  ],
+  dark: [
+    {id:'1768222780460-3cb1027f51e2',author:'Nguyen Vanh',page:'1m8E6OTLzRk'},
+    {id:'1475274047050-1d0c0975c63e',author:'Paul Lichtblau',page:'qVotvbsuM_c'},
+    {id:'1444080748397-f442aa95c3e5',author:'Ryan Hutton',page:'Jztmx9yqjBw'},
+    {id:'1472552944129-b035e9ea3744',author:'Gregoire Jeanneau',page:'9sxeKzuCVoE'},
+    {id:'1477840539360-4a1d23071046',author:'Manuel Will',page:'gd3t5Dtbwkw'},
+    {id:'1519681393784-d120267933ba',author:'Benjamin Voros',page:'phIFdC6lA4E'}
+  ]
+};
+const wallpaperCache = {};
+let wallpaperTheme = null;
+let wallpaperRequest = 0;
+let wallpaperPhoto = null;
+
+function nextWallpaper(theme){
+  const photos = WALLPAPERS[theme];
+  const key = 'wallpaper-'+theme;
+  let saved;
+  try{ saved = JSON.parse(store.get(key)); }catch(e){}
+  const last = saved && saved.last;
+  let remaining = saved && Array.isArray(saved.remaining) ? saved.remaining : [];
+  remaining = [...new Set(remaining)].filter(id=>id!==last && photos.some(photo=>photo.id===id));
+  if(!remaining.length){
+    remaining = photos.filter(photo=>photo.id!==last).map(photo=>photo.id);
+    for(let i=remaining.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [remaining[i],remaining[j]] = [remaining[j],remaining[i]];
+    }
+  }
+  const id = remaining.shift();
+  store.set(key,JSON.stringify({last:id,remaining:remaining}));
+  return photos.find(photo=>photo.id===id);
+}
+function loadWallpaperImage(photo){
+  return new Promise((resolve,reject)=>{
+    const image = new Image();
+    image.alt = '';
+    image.decoding = 'async';
+    image.fetchPriority = 'low';
+    image.referrerPolicy = 'no-referrer';
+    let settled = false;
+    const finish = success=>{
+      if(settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      image.onload = image.onerror = null;
+      if(success) resolve(image);
+      else{ image.removeAttribute('src'); reject(new Error('Wallpaper unavailable')); }
+    };
+    const timeout = setTimeout(()=>finish(false),8000);
+    image.onload = async()=>{
+      try{ if(image.decode) await image.decode(); finish(true); }catch(e){ finish(false); }
+    };
+    image.onerror = ()=>finish(false);
+    const scale = Math.min(window.devicePixelRatio||1,2);
+    const width = Math.min(2400,Math.ceil(window.innerWidth*scale/100)*100);
+    const height = Math.min(1800,Math.ceil(window.innerHeight*scale/100)*100);
+    image.src = 'https://images.unsplash.com/photo-'+photo.id+'?auto=format&fit=crop&w='+width+'&h='+height+'&q=80';
+  });
+}
+async function loadThemeWallpaper(theme){
+  for(let attempt=0;attempt<Math.min(3,WALLPAPERS[theme].length);attempt++){
+    const photo = nextWallpaper(theme);
+    try{ return {photo:photo,image:await loadWallpaperImage(photo)}; }catch(e){}
+  }
+  return null;
+}
+function renderPhotoCredit(){
+  const credit = $('photo-credit');
+  credit.hidden = !wallpaperPhoto;
+  if(!wallpaperPhoto) return;
+  credit.innerHTML = '<a href="https://unsplash.com/photos/'+wallpaperPhoto.page+'?utm_source=kuas_course_planner&amp;utm_medium=referral" target="_blank" rel="noopener noreferrer">'
+    +esc(fill(t('photoCredit'),{name:wallpaperPhoto.author}))+'</a>';
+}
+async function updateWallpaper(){
+  const theme = resolvedTheme();
+  if(wallpaperTheme===theme){ renderPhotoCredit(); return; }
+  wallpaperTheme = theme;
+  const request = ++wallpaperRequest;
+  const layer = $('wallpaper');
+  layer.hidden = true;
+  wallpaperPhoto = null;
+  renderPhotoCredit();
+  if(!wallpaperCache[theme]) wallpaperCache[theme] = loadThemeWallpaper(theme);
+  const result = await wallpaperCache[theme];
+  if(request!==wallpaperRequest || !result) return;
+  layer.replaceChildren(result.image);
+  layer.hidden = false;
+  wallpaperPhoto = result.photo;
+  renderPhotoCredit();
+}
+
+/* Motion never delays state changes, focus, or interaction. */
+const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+const runningMotion = new Map();
+let printing = false;
+function stopMotion(){
+  runningMotion.forEach(animation=>animation.cancel());
+  runningMotion.clear();
+}
+function moveIn(element, direction=0, delay=0){
+  if(!element || !element.animate || printing || (motionPreference && motionPreference.matches)) return;
+  if(runningMotion.has(element)) runningMotion.get(element).cancel();
+  const animation = element.animate([
+    {opacity:0, transform:direction ? 'translateX('+direction*12+'px)' : 'translateY(14px)'},
+    {opacity:1, transform:'translate(0,0)'}
+  ], {duration:380, delay:delay, easing:'cubic-bezier(.16,1,.3,1)', fill:'backwards'});
+  runningMotion.set(element, animation);
+  const clear = ()=>{ if(runningMotion.get(element)===animation) runningMotion.delete(element); };
+  animation.finished.then(clear, clear);
+}
+function revealView(){
+  const view = $('view-'+VIEW);
+  Array.from(view.children).forEach((element,i)=>moveIn(element,0,Math.min(i,3)*40));
+}
+function syncSelections(){
+  document.querySelectorAll('.tabs,.day-switch').forEach(group=>{
+    if(!group.offsetWidth) return;
+    const selected = group.querySelector('[aria-selected="true"],[aria-pressed="true"]');
+    if(!selected) return;
+    group.style.setProperty('--pill-x', selected.offsetLeft+'px');
+    group.style.setProperty('--pill-y', selected.offsetTop+'px');
+    group.style.setProperty('--pill-w', selected.offsetWidth+'px');
+    group.style.setProperty('--pill-h', selected.offsetHeight+'px');
+    group.classList.add('segmented');
+  });
+}
+window.addEventListener('resize', ()=>{ stopMotion(); syncSelections(); });
+if(motionPreference && motionPreference.addEventListener){
+  motionPreference.addEventListener('change', ()=>{ if(motionPreference.matches) stopMotion(); });
+}
+
 /* ---------- テーマ ---------- */
 const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
 function resolvedTheme(){ return THEME==="auto" ? (mq && mq.matches ? "dark" : "light") : THEME; }
 function isDark(){ return resolvedTheme()==="dark"; }
 function applyTheme(){
   document.documentElement.dataset.theme = resolvedTheme();
-  $("theme-btn").textContent = THEME==="auto" ? t("themeAuto") : THEME==="light" ? t("themeLight") : t("themeDark");
+  $("theme-btn").innerHTML = uiIcon(THEME==="light" ? "light" : THEME==="dark" ? "dark" : "auto")
+    + '<span>'+t(THEME==="auto" ? "themeAuto" : THEME==="light" ? "themeLight" : "themeDark")+'</span>';
+  $("theme-btn").title = t("changeTheme");
+  updateWallpaper();
 }
 function cycleTheme(){
   THEME = THEME==="auto" ? "light" : THEME==="light" ? "dark" : "auto";
   store.set("theme", THEME);
   applyTheme(); renderAll();
+  moveIn($("theme-btn").querySelector('.ui-icon'));
 }
 if(mq && mq.addEventListener) mq.addEventListener("change", ()=>{ if(THEME==="auto"){ applyTheme(); renderAll(); } });
 
 /* ---------- 共通ヘルパ ---------- */
 const cc = c => isDark() ? c.colorD : c.color;
+
+/* Small inline symbols keep the interface independent of icon fonts and CDNs. */
+function uiIcon(name){
+  const paths = {
+    home:'<rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4m10-4v4M3 11h18M8 15h2m4 0h2m-8 3h2"/>',
+    week:'<rect x="4" y="3" width="16" height="18" rx="4"/><path d="M8 8h8m-8 4h8m-8 4h5"/>',
+    course:'<path d="M12 6c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v15"/>',
+    mats:'<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 3v18m4-13h3m-3 4h3"/>',
+    light:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
+    dark:'<path d="M20.5 14.2A8.7 8.7 0 0 1 9.8 3.5a8.8 8.8 0 1 0 10.7 10.7Z"/>',
+    auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18Z" fill="currentColor" stroke="none"/>'
+  };
+  return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[name]+'</svg>';
+}
+
+/* 中黒でつながる名前は語の途中で割らず、区切りごとに折り返す。 */
+function courseName(c){
+  const name = L(c);
+  if(!name.includes("・")) return esc(name);
+  return name.split("・").map((part,i,parts)=>
+    '<span class="name-part">'+esc(part)+(i<parts.length-1?"・":"")+'</span>'
+  ).join('<wbr>');
+}
 
 function periodLabel(p,span){
   return span>1 ? fill(t("periodRange"),{a:p,b:p+span-1}) : fill(t("period"),{n:p});
@@ -668,10 +845,13 @@ function renderHome(){
     + stat(nRemote, t("nRemote"), LANG==="ja"?"科目":"")
     + '</div></div>';
 
-  /* 時間割 */
-  h += '<div class="sec"><div class="sec-head"><h2>'+t("timetable")+'</h2><span>'+t("ttHint")+'</span></div>';
-  h += '<div class="ttwrap"><div class="tt"><div></div>';
-  DAYS.forEach(d=>{ h += '<div class="hd">'+d[LANG]+'</div>'; });
+  const summary = h;
+  /* 同じ時間割を、PCでは5列、スマホでは選択曜日の1列で表示する。 */
+  h = '<div class="sec timetable-section"><div class="sec-head"><h2>'+t("timetable")+'</h2><span>'+t("ttHint")+'</span></div>';
+  h += '<div class="day-switch" role="group" aria-label="'+t("chooseDay")+'">';
+  DAYS.forEach((d,i)=>{ h += '<button type="button" data-day-select="'+i+'" aria-pressed="'+(i===DAY)+'">'+d.s[LANG]+'</button>'; });
+  h += '</div><div class="ttwrap"><div class="tt"><div class="tt-corner">'+t("colSlot")+'</div>';
+  DAYS.forEach((d,i)=>{ h += '<div class="hd'+(i===DAY?'':' day-hidden')+'" data-day="'+i+'">'+d[LANG]+'</div>'; });
 
   const occ = {};
   COURSES.forEach(c=>c.slots.forEach(s=>{
@@ -684,24 +864,24 @@ function renderHome(){
   h += '<div class="lunch" style="grid-row:4">'+t("lunch")+'</div>';
 
   for(let p=1;p<=6;p++){
-    h += '<div class="per" style="grid-column:1;grid-row:'+rowOf(p)+'"><b>'+p+'</b>'+PERIODS[p]+'</div>';
+    h += '<div class="per" style="grid-column:1;grid-row:'+rowOf(p)+'"><b>'+p+'</b><span>'+PERIODS[p].replace('–','<br>– ')+'</span></div>';
     for(let d=0;d<5;d++){
       const cell = occ[d+"-"+p], col = d+2, row = rowOf(p);
       if(cell && cell.covered) continue;
       if(cell && cell.start){
         const c = cell.c;
-        h += '<button class="blk" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-course="'+c.id+'">'
-           + '<span class="nm">'+esc(L(c))+'</span>'
+        h += '<button class="blk'+(d===DAY?'':' day-hidden')+'" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-day="'+d+'" data-course="'+c.id+'">'
+           + '<span class="nm">'+courseName(c)+'</span>'
            + '<span class="mt">'+esc(L(c.teachers))+'</span>'
-           + '<span class="cr">'+c.credits+(LANG==="ja"?"単位":" cr")+' '+modeBadge(mainMode(c),true)
+           + '<span class="cr"><span>'+c.credits+(LANG==="ja"?"単位":" cr")+'</span>'+modeBadge(mainMode(c),true)
            + (c.firstWeek>1 ? ' <span class="badge tagopt">'+t("eceShort")+'</span>' : '')
            + '</span></button>';
       } else {
-        h += '<div class="empty" style="grid-column:'+col+';grid-row:'+row+'"></div>';
+        h += '<div class="empty'+(d===DAY?'':' day-hidden')+'" data-day="'+d+'" style="grid-column:'+col+';grid-row:'+row+'"><span>'+t("emptyPeriod")+'</span></div>';
       }
     }
   }
-  h += '</div></div></div>';
+  h += '</div></div></div>'+summary;
 
   /* 科目一覧 */
   h += '<div class="sec"><div class="sec-head"><h2>'+t("courses")+'</h2><span>'+(LANG==="ja"?"成績評価の割合・開講期間・欠席の目安":"grade weights, term and absence guide")+'</span></div>';
@@ -769,10 +949,10 @@ function renderWeek(){
   h += '<div class="weekbar">'
      + '<button class="nav-w" type="button" id="w-prev"'+(WEEK===1?" disabled":"")+'>‹ '+t("prevW")+'</button>'
      + '<div class="weeknums">';
-  for(let i=1;i<=15;i++) h += '<button type="button" data-week="'+i+'" aria-pressed="'+(i===WEEK)+'">'+i+'</button>';
+  for(let i=1;i<=15;i++) h += '<button type="button" data-week="'+i+'" aria-label="'+fill(t("weekOf"),{n:i})+'" aria-pressed="'+(i===WEEK)+'">'+i+'</button>';
   h += '</div><button class="nav-w" type="button" id="w-next"'+(WEEK===15?" disabled":"")+'>'+t("nextW")+' ›</button></div>';
 
-  h += '<div class="panel">';
+  h += '<div class="week-board">';
   DAYS.forEach((d,di)=>{
     const items = [];
     COURSES.forEach(c=>c.slots.forEach(s=>{
@@ -781,8 +961,8 @@ function renderWeek(){
     }));
     items.sort((a,b)=>a.s.period-b.s.period);
 
-    h += '<div class="dayrow"><div class="daylab">'+d.s[LANG]
-       + '<small>'+fmtDate(dateOf(di,WEEK))+'</small></div><div class="daycells">';
+    h += '<section class="dayrow" aria-labelledby="week-day-'+di+'"><h3 class="daylab" id="week-day-'+di+'">'+d[LANG]
+       + '<small>'+fmtDate(dateOf(di,WEEK))+'</small></h3><div class="daycells">';
 
     if(di===0 && WEEK<8) h += '<div class="sidenote">'+t("eceNote")+'</div>';
 
@@ -793,17 +973,18 @@ function renderWeek(){
         const c=it.c, sess=c.schedule[it.n-1];
         h += '<div class="wk" style="--c:'+cc(c)+'">'
           + '<div class="top"><span class="p">'+periodLabel(it.s.period,it.s.span||1)+' '+slotTime(it.s.period,it.s.span||1)+'</span>'
-          + '<span class="nm">'+esc(L(c))+'</span>'
+          + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+courseName(c)+'</button>'
           + modeBadge(sess?sess.mode:"f2f",true)
-          + '<span class="p">'+esc(L(c.teachers))+'</span></div>';
+          + '</div>';
         if(sess){
           h += '<p class="topic"><span class="sn">'
              + fill(t(c.unit==="week"?"weekLabel":"session"),{n:c.unit==="week"?WEEK:it.n})+'</span>'+esc(L(sess))+'</p>';
         }
-        h += '<p class="hw">'+esc(L(c.homework))+'</p></div>';
+        h += '<details class="study-details"><summary>'+t("studyDetails")+'</summary>'
+           + '<p class="p">'+esc(L(c.teachers))+'</p><p class="hw">'+esc(L(c.homework))+'</p></details></div>';
       });
     }
-    h += '</div></div>';
+    h += '</div></section>';
   });
   h += '</div>';
   $("view-week").innerHTML = h;
@@ -965,35 +1146,91 @@ function setLang(l){
   $("btn-en").setAttribute("aria-pressed", l==="en");
   applyTheme();
   renderAll();
+  revealView();
 }
 function setView(v){
+  const changed = VIEW!==v;
+  stopMotion();
   VIEW = v;
   ["home","week","course","mats"].forEach(k=>{
     $("view-"+k).hidden = (k!==v);
     $("tab-"+k).setAttribute("aria-selected", k===v);
+    $("tab-"+k).tabIndex = k===v ? 0 : -1;
   });
   window.scrollTo(0,0);
+  syncSelections();
+  if(changed) revealView();
 }
 function setWeek(n){
-  WEEK = Math.min(15,Math.max(1,n));
+  const next = Math.min(15,Math.max(1,n));
+  if(next===WEEK) return;
+  const direction = Math.sign(next-WEEK);
+  stopMotion();
+  const active = document.activeElement;
+  const inWeek = active && active.closest('#view-week');
+  const focusWeek = active && active.dataset.week;
+  const focusId = active && active.id;
+  WEEK = next;
   renderWeek();
   if(VIEW==="course") renderCourse();
+  if(VIEW==="week"){
+    const target = focusWeek ? document.querySelector('[data-week="'+WEEK+'"]')
+      : focusId==="w-prev" || focusId==="w-next" ? $(focusId)
+      : inWeek ? document.querySelector('[data-week="'+WEEK+'"]') : null;
+    if(target) (target.disabled ? document.querySelector('[data-week="'+WEEK+'"]') : target).focus({preventScroll:true});
+    document.querySelectorAll('.dayrow').forEach((day,i)=>moveIn(day,direction,i*25));
+  }
 }
-function openCourse(id){ COURSE = id; renderCourse(); setView("course"); }
+function openCourse(id){
+  const fromPicker = document.activeElement.closest('.picker');
+  const alreadyInCourse = VIEW==="course";
+  COURSE = id; renderCourse(); setView("course");
+  const target = fromPicker ? document.querySelector('.picker [data-course="'+id+'"]') : document.querySelector('.chead h2');
+  if(!fromPicker) target.tabIndex = -1;
+  target.focus({preventScroll:true});
+  if(alreadyInCourse){
+    moveIn(document.querySelector('.chead'));
+    moveIn(document.querySelector('.cbody'),0,45);
+  }
+}
 
 function renderAll(){
-  $("ttl").textContent = t("title");
+  stopMotion();
+  $("eyebrow").textContent = t("eyebrow");
+  const title = t("title").split(" ");
+  $("ttl").innerHTML = '<span>'+esc(title.slice(0,2).join(" "))+'</span> <span>'+esc(title.slice(2).join(" "))+'</span>';
   $("sub").textContent = t("sub");
-  $("tab-home").textContent   = t("tabHome");
-  $("tab-week").textContent   = t("tabWeek");
-  $("tab-course").textContent = t("tabCourse");
-  $("tab-mats").textContent   = t("tabMats");
+  ["home","week","course","mats"].forEach((k,i)=>{
+    $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats"][i])+'</span>';
+  });
   $("foot").textContent = t("foot");
+  document.querySelector('.tabs').setAttribute('aria-label', t("navigation"));
+  ["home","week","course","mats"].forEach(k=>{
+    $("tab-"+k).setAttribute('aria-controls', 'view-'+k);
+    $("tab-"+k).tabIndex = k===VIEW ? 0 : -1;
+    $("view-"+k).setAttribute('role', 'tabpanel');
+    $("view-"+k).setAttribute('aria-labelledby', 'tab-'+k);
+    $("view-"+k).tabIndex = 0;
+  });
   renderHome(); renderWeek(); renderCourse(); renderMats();
+  syncSelections();
 }
 
 /* イベント委譲：再描画してもハンドラを付け直さなくていい */
 document.addEventListener("click", e=>{
+  const db = e.target.closest("[data-day-select]");
+  if(db){
+    const direction = Math.sign(Number(db.dataset.daySelect)-DAY);
+    DAY = Number(db.dataset.daySelect);
+    document.querySelectorAll('[data-day-select]').forEach(b=>b.setAttribute('aria-pressed', Number(b.dataset.daySelect)===DAY));
+    document.querySelectorAll('.tt [data-day]').forEach(cell=>cell.classList.toggle('day-hidden', Number(cell.dataset.day)!==DAY));
+    syncSelections();
+    if(direction && window.matchMedia('(max-width:700px)').matches){
+      stopMotion();
+      document.querySelectorAll('.tt [data-day="'+DAY+'"]:not(.hd)').forEach((cell,i)=>moveIn(cell,direction,i*22));
+    }
+    return;
+  }
   const cb = e.target.closest("[data-course]");
   if(cb){ openCourse(cb.dataset.course); return; }
   const wb = e.target.closest("[data-week]");
@@ -1009,9 +1246,31 @@ $("btn-ja").addEventListener("click", ()=>setLang("ja"));
 $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
 document.addEventListener("keydown", e=>{
+  const tab = e.target.closest('[role="tab"]');
+  if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
+    const views = ["home","week","course","mats"];
+    const i = views.indexOf(VIEW);
+    const next = e.key==="Home" ? 0 : e.key==="End" ? 3 : (i+(e.key==="ArrowRight"?1:3))%4;
+    e.preventDefault(); setView(views[next]); $("tab-"+views[next]).focus(); return;
+  }
   if(VIEW!=="week") return;
-  if(e.key==="ArrowLeft") setWeek(WEEK-1);
-  if(e.key==="ArrowRight") setWeek(WEEK+1);
+  if(e.key==="ArrowLeft"){ e.preventDefault(); setWeek(WEEK-1); }
+  if(e.key==="ArrowRight"){ e.preventDefault(); setWeek(WEEK+1); }
+});
+
+/* 印刷中は折りたたんだ学修情報も出し、終了後に元の開閉状態へ戻す。 */
+let printDetails = null;
+window.addEventListener("beforeprint", ()=>{
+  printing = true;
+  stopMotion();
+  if(printDetails) return;
+  printDetails = Array.from(document.querySelectorAll('.study-details:not([open])'));
+  printDetails.forEach(d=>{ d.open = true; });
+});
+window.addEventListener("afterprint", ()=>{
+  if(printDetails) printDetails.forEach(d=>{ d.open = false; });
+  printDetails = null;
+  printing = false;
 });
 
 /* ---------- 起動 ---------- */
@@ -1025,4 +1284,5 @@ document.addEventListener("keydown", e=>{
   $("btn-en").setAttribute("aria-pressed", LANG==="en");
   applyTheme();
   renderAll();
+  revealView();
 })();
