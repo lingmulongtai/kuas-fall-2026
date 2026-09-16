@@ -593,6 +593,46 @@ const store = {
   set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 };
 
+/* Motion never delays state changes, focus, or interaction. */
+const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+const runningMotion = new Map();
+let printing = false;
+function stopMotion(){
+  runningMotion.forEach(animation=>animation.cancel());
+  runningMotion.clear();
+}
+function moveIn(element, direction=0, delay=0){
+  if(!element || !element.animate || printing || (motionPreference && motionPreference.matches)) return;
+  if(runningMotion.has(element)) runningMotion.get(element).cancel();
+  const animation = element.animate([
+    {opacity:0, transform:direction ? 'translateX('+direction*12+'px)' : 'translateY(14px)'},
+    {opacity:1, transform:'translate(0,0)'}
+  ], {duration:380, delay:delay, easing:'cubic-bezier(.16,1,.3,1)', fill:'backwards'});
+  runningMotion.set(element, animation);
+  const clear = ()=>{ if(runningMotion.get(element)===animation) runningMotion.delete(element); };
+  animation.finished.then(clear, clear);
+}
+function revealView(){
+  const view = $('view-'+VIEW);
+  Array.from(view.children).forEach((element,i)=>moveIn(element,0,Math.min(i,3)*40));
+}
+function syncSelections(){
+  document.querySelectorAll('.tabs,.day-switch').forEach(group=>{
+    if(!group.offsetWidth) return;
+    const selected = group.querySelector('[aria-selected="true"],[aria-pressed="true"]');
+    if(!selected) return;
+    group.style.setProperty('--pill-x', selected.offsetLeft+'px');
+    group.style.setProperty('--pill-y', selected.offsetTop+'px');
+    group.style.setProperty('--pill-w', selected.offsetWidth+'px');
+    group.style.setProperty('--pill-h', selected.offsetHeight+'px');
+    group.classList.add('segmented');
+  });
+}
+window.addEventListener('resize', ()=>{ stopMotion(); syncSelections(); });
+if(motionPreference && motionPreference.addEventListener){
+  motionPreference.addEventListener('change', ()=>{ if(motionPreference.matches) stopMotion(); });
+}
+
 /* ---------- テーマ ---------- */
 const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
 function resolvedTheme(){ return THEME==="auto" ? (mq && mq.matches ? "dark" : "light") : THEME; }
@@ -607,6 +647,7 @@ function cycleTheme(){
   THEME = THEME==="auto" ? "light" : THEME==="light" ? "dark" : "auto";
   store.set("theme", THEME);
   applyTheme(); renderAll();
+  moveIn($("theme-btn").querySelector('.ui-icon'));
 }
 if(mq && mq.addEventListener) mq.addEventListener("change", ()=>{ if(THEME==="auto"){ applyTheme(); renderAll(); } });
 
@@ -1001,8 +1042,11 @@ function setLang(l){
   $("btn-en").setAttribute("aria-pressed", l==="en");
   applyTheme();
   renderAll();
+  revealView();
 }
 function setView(v){
+  const changed = VIEW!==v;
+  stopMotion();
   VIEW = v;
   ["home","week","course","mats"].forEach(k=>{
     $("view-"+k).hidden = (k!==v);
@@ -1010,13 +1054,19 @@ function setView(v){
     $("tab-"+k).tabIndex = k===v ? 0 : -1;
   });
   window.scrollTo(0,0);
+  syncSelections();
+  if(changed) revealView();
 }
 function setWeek(n){
+  const next = Math.min(15,Math.max(1,n));
+  if(next===WEEK) return;
+  const direction = Math.sign(next-WEEK);
+  stopMotion();
   const active = document.activeElement;
   const inWeek = active && active.closest('#view-week');
   const focusWeek = active && active.dataset.week;
   const focusId = active && active.id;
-  WEEK = Math.min(15,Math.max(1,n));
+  WEEK = next;
   renderWeek();
   if(VIEW==="course") renderCourse();
   if(VIEW==="week"){
@@ -1024,17 +1074,24 @@ function setWeek(n){
       : focusId==="w-prev" || focusId==="w-next" ? $(focusId)
       : inWeek ? document.querySelector('[data-week="'+WEEK+'"]') : null;
     if(target) (target.disabled ? document.querySelector('[data-week="'+WEEK+'"]') : target).focus({preventScroll:true});
+    document.querySelectorAll('.dayrow').forEach((day,i)=>moveIn(day,direction,i*25));
   }
 }
 function openCourse(id){
   const fromPicker = document.activeElement.closest('.picker');
+  const alreadyInCourse = VIEW==="course";
   COURSE = id; renderCourse(); setView("course");
   const target = fromPicker ? document.querySelector('.picker [data-course="'+id+'"]') : document.querySelector('.chead h2');
   if(!fromPicker) target.tabIndex = -1;
   target.focus({preventScroll:true});
+  if(alreadyInCourse){
+    moveIn(document.querySelector('.chead'));
+    moveIn(document.querySelector('.cbody'),0,45);
+  }
 }
 
 function renderAll(){
+  stopMotion();
   $("eyebrow").textContent = t("eyebrow");
   const title = t("title").split(" ");
   $("ttl").innerHTML = '<span>'+esc(title.slice(0,2).join(" "))+'</span> <span>'+esc(title.slice(2).join(" "))+'</span>';
@@ -1052,15 +1109,22 @@ function renderAll(){
     $("view-"+k).tabIndex = 0;
   });
   renderHome(); renderWeek(); renderCourse(); renderMats();
+  syncSelections();
 }
 
 /* イベント委譲：再描画してもハンドラを付け直さなくていい */
 document.addEventListener("click", e=>{
   const db = e.target.closest("[data-day-select]");
   if(db){
+    const direction = Math.sign(Number(db.dataset.daySelect)-DAY);
     DAY = Number(db.dataset.daySelect);
     document.querySelectorAll('[data-day-select]').forEach(b=>b.setAttribute('aria-pressed', Number(b.dataset.daySelect)===DAY));
     document.querySelectorAll('.tt [data-day]').forEach(cell=>cell.classList.toggle('day-hidden', Number(cell.dataset.day)!==DAY));
+    syncSelections();
+    if(direction && window.matchMedia('(max-width:700px)').matches){
+      stopMotion();
+      document.querySelectorAll('.tt [data-day="'+DAY+'"]:not(.hd)').forEach((cell,i)=>moveIn(cell,direction,i*22));
+    }
     return;
   }
   const cb = e.target.closest("[data-course]");
@@ -1093,6 +1157,8 @@ document.addEventListener("keydown", e=>{
 /* 印刷中は折りたたんだ学修情報も出し、終了後に元の開閉状態へ戻す。 */
 let printDetails = null;
 window.addEventListener("beforeprint", ()=>{
+  printing = true;
+  stopMotion();
   if(printDetails) return;
   printDetails = Array.from(document.querySelectorAll('.study-details:not([open])'));
   printDetails.forEach(d=>{ d.open = true; });
@@ -1100,6 +1166,7 @@ window.addEventListener("beforeprint", ()=>{
 window.addEventListener("afterprint", ()=>{
   if(printDetails) printDetails.forEach(d=>{ d.open = false; });
   printDetails = null;
+  printing = false;
 });
 
 /* ---------- 起動 ---------- */
@@ -1113,4 +1180,5 @@ window.addEventListener("afterprint", ()=>{
   $("btn-en").setAttribute("aria-pressed", LANG==="en");
   applyTheme();
   renderAll();
+  revealView();
 })();
