@@ -507,6 +507,7 @@ const T = {
   nRemote:{ja:"遠隔科目", en:"Remote"},
   colCourse:{ja:"科目", en:"Course"},
   colSlot:{ja:"曜日・時限", en:"Day / period"},
+  colLocation:{ja:"教室・配信", en:"Room / delivery"},
   colCredit:{ja:"単位", en:"Cr."},
   colMode:{ja:"形態", en:"Format"},
   colEval:{ja:"成績評価の内訳", en:"Grade breakdown"},
@@ -801,6 +802,10 @@ function slotTime(p,span){
 function slotText(c){
   return c.slots.map(s=>DAYS[s.day].s[LANG]+" "+periodLabel(s.period,s.span||1)).join(LANG==="ja"?"／":", ");
 }
+function locationText(c,mode){
+  if(mode==="ondemand" || (mode==="live" && c.classMode!=="remote")) return L(MODES[mode]);
+  return L(c.location);
+}
 function fmtDate(iso){
   const [y,m,d] = iso.split("-").map(Number);
   const wd = ["日","月","火","水","木","金","土"][new Date(y,m-1,d).getDay()];
@@ -881,6 +886,7 @@ function renderHome(){
         const c = cell.c;
         h += '<button class="blk'+(d===DAY?'':' day-hidden')+'" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-day="'+d+'" data-course="'+c.id+'">'
            + '<span class="nm">'+courseName(c)+'</span>'
+           + '<span class="location">'+esc(locationText(c))+'</span>'
            + '<span class="mt">'+esc(L(c.teachers))+'</span>'
            + '<span class="cr"><span>'+c.credits+(LANG==="ja"?"単位":" cr")+'</span>'+modeBadge(mainMode(c),true)
            + (c.firstWeek>1 ? ' <span class="badge tagopt">'+t("eceShort")+'</span>' : '')
@@ -895,7 +901,7 @@ function renderHome(){
   /* 科目一覧 */
   h += '<div class="sec"><div class="sec-head"><h2>'+t("courses")+'</h2><span>'+(LANG==="ja"?"成績評価の割合・開講期間・欠席の目安":"grade weights, term and absence guide")+'</span></div>';
   h += '<div style="overflow-x:auto"><table class="grid"><thead><tr>'
-     + '<th>'+t("colCourse")+'</th><th>'+t("colSlot")+'</th><th>'+t("colCredit")+'</th>'
+     + '<th>'+t("colCourse")+'</th><th>'+t("colSlot")+'<br>'+t("colLocation")+'</th><th>'+t("colCredit")+'</th>'
      + '<th>'+t("colMode")+'</th><th>'+t("colTerm")+'</th><th>'+t("colEval")+'</th><th>'+t("colTotal")+'</th><th>'+t("colAbs")+'</th>'
      + '</tr></thead><tbody>';
   COURSES.forEach(c=>{
@@ -903,7 +909,7 @@ function renderHome(){
       + '<td><span class="swatch" style="background:'+cc(c)+'"></span>'
       +   '<button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button>'
       +   '<div style="font-size:11.5px;color:var(--ink-3)">'+esc(L(c.teachers))+'</div></td>'
-      + '<td>'+slotText(c)+'</td>'
+      + '<td>'+slotText(c)+'<div class="location">'+esc(locationText(c))+'</div></td>'
       + '<td class="num">'+c.credits+'</td>'
       + '<td>'+courseModeLabel(c)+'</td>'
       + '<td style="white-space:nowrap;font-size:12.5px">'+termText(c)+'</td>'
@@ -984,7 +990,7 @@ function renderWeek(){
           + '<div class="top"><span class="p">'+periodLabel(it.s.period,it.s.span||1)+' '+slotTime(it.s.period,it.s.span||1)+'</span>'
           + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+courseName(c)+'</button>'
           + modeBadge(sess?sess.mode:"f2f",true)
-          + '</div>';
+          + '</div><p class="location">'+t("colLocation")+(LANG==="ja"?"：":": ")+esc(locationText(c,sess?sess.mode:undefined))+'</p>';
         if(sess){
           h += '<p class="topic"><span class="sn">'
              + fill(t(c.unit==="week"?"weekLabel":"session"),{n:c.unit==="week"?WEEK:it.n})+'</span>'+esc(L(sess))+'</p>';
@@ -1015,7 +1021,8 @@ function renderCourse(){
     + fact(t("teacher"), esc(L(c.teachers)))
     + fact(t("credh"), c.credits+(LANG==="ja"?" 単位":" credits"))
     + fact(t("langh"), L(c.lang))
-    + fact(t("colSlot"), slotText(c)+"　"+t("campus"))
+    + fact(t("colSlot"), slotText(c))
+    + fact(t("colLocation"), esc(locationText(c))+(c.classMode==="f2f"?"　"+t("campus"):""))
     + fact(t("colMode"), courseModeLabel(c))
     + fact(t("sessh"), totalPeriods(c)+(LANG==="ja"?" コマ":" periods"))
     + fact(t("firstDay"), fmtDate(dateOf(c.slots[0].day, c.firstWeek)))
