@@ -49,6 +49,7 @@ const COURSES = [
   teachers:{ja:"生津 資大、Amit BANERJEE", en:"NAMAZU Takahiro, Amit BANERJEE"},
   credits:4, lang:{ja:"英語", en:"English"},
   code:"MM214411", ttcode:"JM0001401", classMode:"f2f",
+  location:{ja:"嵯峨野ホールA", en:"Sagano Hall A"},
   slots:[{day:1,period:2,span:1,pick:w=>[2*w-1]},{day:4,period:1,span:1,pick:w=>[2*w]}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
   outline:{
@@ -108,6 +109,7 @@ const COURSES = [
   teachers:{ja:"今井 欽之、堀井 滋", en:"IMAI Tadayuki, HORII Shigeru"},
   credits:4, lang:{ja:"英語", en:"English"},
   code:"MM314415", ttcode:"JM0001601", classMode:"f2f",
+  location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:1,period:3,span:1,pick:w=>[2*w-1]},{day:4,period:3,span:1,pick:w=>[2*w]}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
   outline:{
@@ -166,6 +168,7 @@ const COURSES = [
   teachers:{ja:"Martin SERA、中村 浩一", en:"Martin SERA, NAKAMURA Koichi"},
   credits:3, lang:{ja:"英語", en:"English"},
   code:"MC221306", ttcode:"JM0000401", classMode:"f2f",
+  location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:0,period:2,span:1,pick:w=>[2*w-1]},{day:1,period:5,span:1,pick:w=>[2*w]}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
   outline:{
@@ -225,6 +228,7 @@ const COURSES = [
   teachers:{ja:"今井 欽之", en:"IMAI Tadayuki"},
   credits:2, lang:{ja:"英語", en:"English"},
   code:"MM311223", ttcode:"JMS525402", classMode:"f2f",
+  location:{ja:"嵯峨野ホールA", en:"Sagano Hall A"},
   slots:[{day:1,period:1,span:1,pick:w=>[w]}],
   total:15, perWeek:1, firstWeek:1, lastWeek:15,
   outline:{
@@ -268,6 +272,7 @@ const COURSES = [
   teachers:{ja:"Alberto Castellazzi", en:"Alberto Castellazzi"},
   credits:1, lang:{ja:"英語", en:"English"},
   code:"MM334124", ttcode:"JM0001701", classMode:"f2f",
+  location:{ja:"S303A教室", en:"Room S303A"},
   note:{ja:"「電気回路」とは別科目", en:"A separate subject from Electric Circuits"},
   slots:[{day:0,period:3,span:2,pick:w=>(w>=8?[w-7]:[])}],
   total:8, perWeek:1, unit:"week", firstWeek:8, lastWeek:15,
@@ -309,6 +314,7 @@ const COURSES = [
   teachers:{ja:"足立 伸太郎、川上 浩司、生津 資大、的場 洋嗣", en:"ADACHI Shintarou, KAWAKAMI Hiroshi, NAMAZU Takahiro, MATOBA Hirotsugu"},
   credits:3, lang:{ja:"英語", en:"English"},
   code:"MX241301", ttcode:"JMX430301", classMode:"f2f",
+  location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:3,period:3,span:3,pick:w=>[w]}],
   total:15, perWeek:1, unit:"week", firstWeek:1, lastWeek:15,
   outline:{
@@ -351,6 +357,7 @@ const COURSES = [
   teachers:{ja:"西 正之、今井 欽之、的場 洋嗣", en:"NISHI Masayuki, IMAI Tadayuki, MATOBA Hirotsugu"},
   credits:2, lang:{ja:"日本語", en:"Japanese"},
   code:"MR217201", ttcode:"JCR000802", classMode:"f2f",
+  location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:4,period:5,span:1,pick:w=>[w]}],
   total:15, perWeek:1, firstWeek:1, lastWeek:15,
   outline:{
@@ -391,6 +398,7 @@ const COURSES = [
   teachers:{ja:"桑村 テレサ、プレヴォ ニコラ、Alex KERR", en:"KUWAMURA Teresa, PREVOT Nicolas, Alex KERR"},
   credits:2, lang:{ja:"英語", en:"English"},
   code:"DF114205", ttcode:"—", classMode:"remote",
+  location:{ja:"ライブ配信（太秦・亀岡）", en:"Live streaming (Uzumasa, Kameoka)"},
   slots:[{day:2,period:1,span:1,pick:w=>[w]}],
   total:15, perWeek:1, firstWeek:1, lastWeek:15,
   outline:{
@@ -431,6 +439,7 @@ const COURSES = [
   teachers:{ja:"中村 浩一", en:"NAKAMURA Koichi"},
   credits:2, lang:{ja:"英語", en:"English"},
   code:"DC111221", ttcode:"—", classMode:"remote",
+  location:{ja:"ライブ配信（太秦・亀岡）", en:"Live streaming (Uzumasa, Kameoka)"},
   slots:[{day:3,period:6,span:1,pick:w=>[w]}],
   total:15, perWeek:1, firstWeek:1, lastWeek:15,
   outline:{
