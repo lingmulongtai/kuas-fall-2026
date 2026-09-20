@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>雨の窓ガラス</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+#custom-bg{
+  position:fixed;top:50%;left:50%;min-width:100%;min-height:100%;
+  width:auto;height:auto;transform:translate(-50%,-50%) scale(1.05);
+  z-index:0;object-fit:cover;filter:blur(4px) brightness(.45);will-change:filter;
+}
+#bg-canvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;
+  mix-blend-mode:screen;opacity:.95;pointer-events:none;
+}
+</style>
+</head>
+<body>
+<img id="custom-bg" src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&amp;q=80" alt="Misty forest background">
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+<script>
+/* The reference renderer runs unchanged inside this background document. */
+const canvas=document.getElementById('bg-canvas');
+const customBg=document.getElementById('custom-bg');
+
+/* Pause the document's frames without changing the renderer or its simulation. */
+const nativeFrame=window.requestAnimationFrame.bind(window);
+const cancelNativeFrame=window.cancelAnimationFrame.bind(window);
+const pendingFrames=new Map();
+let frameId=0,paused=false;
+function scheduleFrame(id,entry){
+  entry.native=nativeFrame(time=>{
+    entry.native=0;
+    if(paused) return;
+    pendingFrames.delete(id);
+    entry.callback(time);
+  });
+}
+window.requestAnimationFrame=callback=>{
+  const id=++frameId,entry={callback,native:0};
+  pendingFrames.set(id,entry);
+  if(!paused) scheduleFrame(id,entry);
+  return id;
+};
+window.cancelAnimationFrame=id=>{
+  const entry=pendingFrames.get(id);
+  if(entry?.native) cancelNativeFrame(entry.native);
+  pendingFrames.delete(id);
+};
+function pauseFrames(value){
+  if(paused===value) return;
+  paused=value;
+  pendingFrames.forEach((entry,id)=>{
+    if(paused){ cancelNativeFrame(entry.native); entry.native=0; }
+    else scheduleFrame(id,entry);
+  });
+}
+
+function initRaindrops(){
+  // The currently supplied script boots itself; retain the example API for versions that export it.
+  if(typeof Raindrops==='undefined') return;
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+  try{
+    new Raindrops(canvas,canvas.width,canvas.height,{
+      fg:customBg,bg:customBg,rainChance:.4,brightness:1.1,renderDropsOnTop:true
+    });
+  }catch(error){ console.error('Rain effect failed:',error); }
+}
+function loadRainScript(){
+  // Retain the last rendered image when the user pauses the external animation loops.
+  // Match the renderer's boot size before creating its WebGL viewport.
+  const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+  canvas.width=Math.floor(window.innerWidth*dpr);
+  canvas.height=Math.floor(window.innerHeight*dpr);
+  const options={alpha:false,preserveDrawingBuffer:true};
+  if(!canvas.getContext('webgl',options) && !canvas.getContext('experimental-webgl',options)){
+    parent.postMessage({type:'rain-error'},'*');
+    return;
+  }
+  const script=document.createElement('script');
+  script.src='https://fyildiz1974.github.io/web/files/raindrops.js';
+  script.onload=()=>{
+    if(customBg.complete) initRaindrops();
+    else customBg.addEventListener('load',initRaindrops,{once:true});
+  };
+  script.onerror=()=>parent.postMessage({type:'rain-error'},'*');
+  document.head.appendChild(script);
+}
+window.addEventListener('message',event=>{
+  if(event.source!==parent || !event.data) return;
+  const message=event.data;
+  if(message.type==='rain-state'){
+    pauseFrames(!message.running);
+    if(typeof message.image==='string' && message.image!==customBg.src){
+      const url=new URL(message.image);
+      if(url.protocol==='https:' && url.hostname==='images.unsplash.com') customBg.src=url.href;
+    }
+  }
+  if(message.type==='rain-pointer' && !paused){
+    document.dispatchEvent(new MouseEvent('mousemove',{clientX:message.x,clientY:message.y}));
+  }
+});
+canvas.addEventListener('webglcontextlost',()=>parent.postMessage({type:'rain-error'},'*'));
+document.addEventListener('DOMContentLoaded',()=>{
+  loadRainScript();
+  parent.postMessage({type:'rain-ready'},'*');
+});
+</script>
+</body>
+</html>
