@@ -12,6 +12,13 @@
 <body>
 
 <div id="wallpaper" class="wallpaper" aria-hidden="true" hidden></div>
+<canvas id="rain" class="rain-layer" aria-hidden="true" hidden></canvas>
+<svg class="glass-filters" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+  <defs><filter id="glass-refraction" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feImage id="glass-map" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="lens"/>
+    <feDisplacementMap in="SourceGraphic" in2="lens" scale="18" xChannelSelector="R" yChannelSelector="G"/>
+  </filter></defs>
+</svg>
 
 <header class="masthead">
   <div class="masthead-in">
@@ -35,6 +42,12 @@
     <button role="tab" id="tab-course" type="button" aria-selected="false"></button>
     <button role="tab" id="tab-mats"   type="button" aria-selected="false"></button>
   </nav>
+  <div class="ambience" role="group" aria-label="背景">
+    <button id="shuffle-btn" class="iconbtn" type="button"></button>
+    <button id="rain-btn" class="iconbtn" type="button" aria-pressed="true" aria-controls="rain"></button>
+    <button id="motion-btn" class="iconbtn" type="button" aria-pressed="true"></button>
+    <span id="background-status" role="status"></span>
+  </div>
 </header>
 
 <main>
@@ -47,5 +60,6 @@
 <footer class="foot"><p id="foot"></p><p id="photo-credit" class="photo-credit" hidden></p></footer>
 
 <script src="app.js"></script>
+<script src="effects.js"></script>
 </body>
 </html>

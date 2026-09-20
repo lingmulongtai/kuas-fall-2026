@@ -28,7 +28,11 @@ const DATES = {
 
 const BREAKS = [
   {d:"2026-10-23", ja:"休講（金曜授業なし）",        en:"No Friday classes"},
-  {d:"2026-12-28", ja:"年末年始（12/28〜1/1）",      en:"Winter break (Dec 28 - Jan 1)"},
+  {d:"2026-12-28", ja:"年末年始休校", en:"Winter break"},
+  {d:"2026-12-29", ja:"年末年始休校", en:"Winter break"},
+  {d:"2026-12-30", ja:"年末年始休校", en:"Winter break"},
+  {d:"2026-12-31", ja:"年末年始休校", en:"Winter break"},
+  {d:"2027-01-01", ja:"年末年始休校", en:"Winter break"},
   {d:"2027-01-11", ja:"休講（月曜授業なし）",        en:"No Monday classes"},
   {d:"2027-01-14", ja:"休講（木曜授業なし）",        en:"No Thursday classes"}
 ];
@@ -49,6 +53,7 @@ const COURSES = [
   teachers:{ja:"生津 資大、Amit BANERJEE", en:"NAMAZU Takahiro, Amit BANERJEE"},
   credits:4, lang:{ja:"英語", en:"English"},
   code:"MM214411", ttcode:"JM0001401", classMode:"f2f",
+  location:{ja:"嵯峨野ホールA", en:"Sagano Hall A"},
   slots:[{day:1,period:2,span:1,pick:w=>[2*w-1]},{day:4,period:1,span:1,pick:w=>[2*w]}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
   outline:{
@@ -108,6 +113,7 @@ const COURSES = [
   teachers:{ja:"今井 欽之、堀井 滋", en:"IMAI Tadayuki, HORII Shigeru"},
   credits:4, lang:{ja:"英語", en:"English"},
   code:"MM314415", ttcode:"JM0001601", classMode:"f2f",
+  location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:1,period:3,span:1,pick:w=>[2*w-1]},{day:4,period:3,span:1,pick:w=>[2*w]}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
   outline:{
@@ -166,6 +172,7 @@ const COURSES = [
   teachers:{ja:"Martin SERA、中村 浩一", en:"Martin SERA, NAKAMURA Koichi"},
   credits:3, lang:{ja:"英語", en:"English"},
   code:"MC221306", ttcode:"JM0000401", classMode:"f2f",
+  location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:0,period:2,span:1,pick:w=>[2*w-1]},{day:1,period:5,span:1,pick:w=>[2*w]}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
   outline:{
@@ -225,6 +232,7 @@ const COURSES = [
   teachers:{ja:"今井 欽之", en:"IMAI Tadayuki"},
   credits:2, lang:{ja:"英語", en:"English"},
   code:"MM311223", ttcode:"JMS525402", classMode:"f2f",
+  location:{ja:"嵯峨野ホールA", en:"Sagano Hall A"},
   slots:[{day:1,period:1,span:1,pick:w=>[w]}],
   total:15, perWeek:1, firstWeek:1, lastWeek:15,
   outline:{
@@ -268,6 +276,7 @@ const COURSES = [
   teachers:{ja:"Alberto Castellazzi", en:"Alberto Castellazzi"},
   credits:1, lang:{ja:"英語", en:"English"},
   code:"MM334124", ttcode:"JM0001701", classMode:"f2f",
+  location:{ja:"S303A教室", en:"Room S303A"},
   note:{ja:"「電気回路」とは別科目", en:"A separate subject from Electric Circuits"},
   slots:[{day:0,period:3,span:2,pick:w=>(w>=8?[w-7]:[])}],
   total:8, perWeek:1, unit:"week", firstWeek:8, lastWeek:15,
@@ -309,6 +318,7 @@ const COURSES = [
   teachers:{ja:"足立 伸太郎、川上 浩司、生津 資大、的場 洋嗣", en:"ADACHI Shintarou, KAWAKAMI Hiroshi, NAMAZU Takahiro, MATOBA Hirotsugu"},
   credits:3, lang:{ja:"英語", en:"English"},
   code:"MX241301", ttcode:"JMX430301", classMode:"f2f",
+  location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:3,period:3,span:3,pick:w=>[w]}],
   total:15, perWeek:1, unit:"week", firstWeek:1, lastWeek:15,
   outline:{
@@ -351,6 +361,7 @@ const COURSES = [
   teachers:{ja:"西 正之、今井 欽之、的場 洋嗣", en:"NISHI Masayuki, IMAI Tadayuki, MATOBA Hirotsugu"},
   credits:2, lang:{ja:"日本語", en:"Japanese"},
   code:"MR217201", ttcode:"JCR000802", classMode:"f2f",
+  location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:4,period:5,span:1,pick:w=>[w]}],
   total:15, perWeek:1, firstWeek:1, lastWeek:15,
   outline:{
@@ -391,6 +402,7 @@ const COURSES = [
   teachers:{ja:"桑村 テレサ、プレヴォ ニコラ、Alex KERR", en:"KUWAMURA Teresa, PREVOT Nicolas, Alex KERR"},
   credits:2, lang:{ja:"英語", en:"English"},
   code:"DF114205", ttcode:"—", classMode:"remote",
+  location:{ja:"ライブ配信（太秦・亀岡）", en:"Live streaming (Uzumasa, Kameoka)"},
   slots:[{day:2,period:1,span:1,pick:w=>[w]}],
   total:15, perWeek:1, firstWeek:1, lastWeek:15,
   outline:{
@@ -431,6 +443,7 @@ const COURSES = [
   teachers:{ja:"中村 浩一", en:"NAKAMURA Koichi"},
   credits:2, lang:{ja:"英語", en:"English"},
   code:"DC111221", ttcode:"—", classMode:"remote",
+  location:{ja:"ライブ配信（太秦・亀岡）", en:"Live streaming (Uzumasa, Kameoka)"},
   slots:[{day:3,period:6,span:1,pick:w=>[w]}],
   total:15, perWeek:1, firstWeek:1, lastWeek:15,
   outline:{
@@ -467,6 +480,34 @@ const COURSES = [
 }
 ];
 
+/* Calendar dates and teaching-week indices are deliberately separate. */
+function addDays(iso,amount){
+  const date = new Date(iso+'T12:00:00Z');
+  date.setUTCDate(date.getUTCDate()+amount);
+  return date.toISOString().slice(0,10);
+}
+function mondayOf(iso){
+  const weekday = new Date(iso+'T12:00:00Z').getUTCDay();
+  return addDays(iso,-((weekday+6)%7));
+}
+function todayISO(){
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+}
+const SEMESTER_DATES = Object.values(DATES).flat().sort();
+const CALENDAR_WEEKS = [];
+for(let start=mondayOf(SEMESTER_DATES[0]);start<=SEMESTER_DATES.at(-1);start=addDays(start,7)) CALENDAR_WEEKS.push(start);
+const OCCURRENCES = COURSES.flatMap(c=>c.slots.flatMap(s=>DATES[DAYS[s.day].key].flatMap((date,i)=>{
+  const teachingWeek = i+1;
+  if(teachingWeek<c.firstWeek || teachingWeek>c.lastWeek) return [];
+  return s.pick(teachingWeek).map(n=>({date,c,s,n,teachingWeek,session:c.schedule.find(session=>session.n===n)}));
+}))).sort((a,b)=>a.date.localeCompare(b.date)||a.s.period-b.s.period);
+function sessionsOn(iso){ return OCCURRENCES.filter(item=>item.date===iso); }
+function calendarWeekFor(iso){
+  const index = CALENDAR_WEEKS.indexOf(mondayOf(iso));
+  return index<0 ? (iso<CALENDAR_WEEKS[0]?1:CALENDAR_WEEKS.length) : index+1;
+}
+function courseDates(c){ return OCCURRENCES.filter(item=>item.c.id===c.id).map(item=>item.date); }
+
 /* ---------- UI 文言 ---------- */
 const T = {
   eyebrow:{ja:"COURSE PLANNER", en:"COURSE PLANNER"},
@@ -474,7 +515,7 @@ const T = {
   sub:{ja:"工学部 機械電気システム工学科 2年 4セメスタ ／ 太秦キャンパス ／ 9月24日〜1月18日",
        en:"Mechanical and Electrical Systems Engineering, Year 2, Semester 4 / Uzumasa Campus / Sep 24 - Jan 18"},
   tabHome:{ja:"ホーム", en:"Home"},
-  tabWeek:{ja:"週別", en:"By week"},
+  tabWeek:{ja:"カレンダー", en:"Calendar"},
   tabCourse:{ja:"科目詳細", en:"Courses"},
   tabMats:{ja:"教材", en:"Materials"},
   themeAuto:{ja:"テーマ：自動", en:"Theme: Auto"},
@@ -488,6 +529,15 @@ const T = {
   navigation:{ja:"表示を切り替え", en:"Dashboard views"},
   changeTheme:{ja:"テーマを切り替え", en:"Change theme"},
   photoCredit:{ja:"背景写真：{name} / Unsplash", en:"Photo: {name} / Unsplash"},
+  shuffleBackground:{ja:"背景を変える", en:"Shuffle scenery"},
+  backgroundLoading:{ja:"背景を読み込み中…", en:"Loading scenery…"},
+  backgroundFailed:{ja:"背景を読み込めませんでした。もう一度お試しください。", en:"Scenery could not load. Try again."},
+  backgroundSettings:{ja:"背景と動き", en:"Scenery and motion"},
+  rainOn:{ja:"雨：オン", en:"Rain: on"},
+  rainOff:{ja:"雨：オフ", en:"Rain: off"},
+  motionOn:{ja:"動きを止める", en:"Pause motion"},
+  motionOff:{ja:"動きを再開", en:"Resume motion"},
+  motionReduced:{ja:"動き：控えめ", en:"Reduced motion"},
   lunch:{ja:"昼休み 12:10–13:00", en:"Lunch break 12:10-13:00"},
   courses:{ja:"科目一覧", en:"Course list"},
   creditsAll:{ja:"合計単位", en:"Total credits"},
@@ -498,6 +548,7 @@ const T = {
   nRemote:{ja:"遠隔科目", en:"Remote"},
   colCourse:{ja:"科目", en:"Course"},
   colSlot:{ja:"曜日・時限", en:"Day / period"},
+  colLocation:{ja:"教室・配信", en:"Room / delivery"},
   colCredit:{ja:"単位", en:"Cr."},
   colMode:{ja:"形態", en:"Format"},
   colEval:{ja:"成績評価の内訳", en:"Grade breakdown"},
@@ -514,6 +565,14 @@ const T = {
   weekOf:{ja:"第{n}週", en:"Week {n}"},
   prevW:{ja:"前の週", en:"Previous"},
   nextW:{ja:"次の週", en:"Next"},
+  calendarTitle:{ja:"授業カレンダー", en:"Class calendar"},
+  calendarLead:{ja:"実際の日付で表示。授業ごとに進み方が異なるため、回数は各授業に記載しています。", en:"Real calendar dates. Session numbers belong to each course and may differ within a week."},
+  calendarDate:{ja:"日付へ移動", en:"Go to date"},
+  calendarWeek:{ja:"表示する週", en:"Week to display"},
+  today:{ja:"今日", en:"Today"},
+  beforeTerm:{ja:"開講前", en:"Before term"},
+  afterTerm:{ja:"学期終了", en:"After term"},
+  weekend:{ja:"週末・授業なし", en:"Weekend · no classes"},
   noClass:{ja:"授業なし", en:"No classes"},
   period:{ja:"{n}限", en:"Period {n}"},
   periodRange:{ja:"{a}–{b}限", en:"Periods {a}-{b}"},
@@ -578,7 +637,7 @@ const MAT_NOTES = [
 let LANG = "ja";
 let THEME = "auto";
 let VIEW = "home";
-let WEEK = 1;
+let WEEK = calendarWeekFor(todayISO());
 let COURSE = COURSES[0].id;
 let DAY = Math.min(4, Math.max(0, new Date().getDay()-1));
 
@@ -602,7 +661,14 @@ const WALLPAPERS = {
     {id:'1464822759023-fed622ff2c3b',author:'Kalen Emsley',page:'Bkci_8qcdvQ'},
     {id:'1454496522488-7a8e488e8606',author:'Rohit Tandon',page:'9wg5jCEPBsw'},
     {id:'1506905925346-21bda4d32df4',author:'Sam Ferrara',page:'1527pjeb6jg'},
-    {id:'1501785888041-af3ef285b470',author:'Pietro De Grandi',page:'T7K4aEPoGGk'}
+    {id:'1501785888041-af3ef285b470',author:'Pietro De Grandi',page:'T7K4aEPoGGk'},
+    {id:'1457195740896-7f345efef228',author:'yucar studios',page:'cfR-V1QuEKw'},
+    {id:'1433477077279-9354d2d72f6b',author:'Jasper Boer',page:'1fUu0dratoM'},
+    {id:'1446329813274-7c9036bd9a1f',author:'Sebastian Unrau',page:'v4e3JI7DDHI'},
+    {id:'1435783099294-283725c37230',author:'Luca Bravo',page:'3Z70SDuYs5g'},
+    {id:'1483605660614-22ed5be525ce',author:'Vincent Guth',page:'7rc1slcFfuM'},
+    {id:'1476514525535-07fb3b4ae5f1',author:'Luca Bravo',page:'O453M2Liufs'},
+    {id:'1482192505345-5655af888cc4',author:'Luca Bravo',page:'hFzIoD0F_i8'}
   ],
   dark: [
     {id:'1768222780460-3cb1027f51e2',author:'Nguyen Vanh',page:'1m8E6OTLzRk'},
@@ -610,13 +676,23 @@ const WALLPAPERS = {
     {id:'1444080748397-f442aa95c3e5',author:'Ryan Hutton',page:'Jztmx9yqjBw'},
     {id:'1472552944129-b035e9ea3744',author:'Gregoire Jeanneau',page:'9sxeKzuCVoE'},
     {id:'1477840539360-4a1d23071046',author:'Manuel Will',page:'gd3t5Dtbwkw'},
-    {id:'1519681393784-d120267933ba',author:'Benjamin Voros',page:'phIFdC6lA4E'}
+    {id:'1519681393784-d120267933ba',author:'Benjamin Voros',page:'phIFdC6lA4E'},
+    {id:'1419242902214-272b3f66ee7a',author:'Vincentiu Solomon',page:'ln5drpv_ImI'},
+    {id:'1485470733090-0aae1788d5af',author:'Daniel Leone',page:'v7daTKlZzaw'},
+    {id:'1502790671504-542ad42d5189',author:'Mohammad Alizade',page:'4wzRuAb-KWs'},
+    {id:'1456154875099-97a3a56074d3',author:'Federico Beccari',page:'L8126OwlroY'},
+    {id:'1454123253751-1fe2b9e0c10d',author:'Tim Marshall',page:'uanoYn1AmPs'},
+    {id:'1588426651288-7e828a77f413',author:'Luca Bravo',page:'mxx-lVuVdFM'},
+    {id:'1444703686981-a3abbc4d4fe3',author:'Greg Rakozy',page:'oMpAz-DN-9I'}
   ]
 };
 const wallpaperCache = {};
+const wallpaperSizes = new WeakMap();
 let wallpaperTheme = null;
 let wallpaperRequest = 0;
 let wallpaperPhoto = null;
+let wallpaperImage = null;
+let wallpaperResizeTimer = 0;
 
 function nextWallpaper(theme){
   const photos = WALLPAPERS[theme];
@@ -624,7 +700,8 @@ function nextWallpaper(theme){
   let saved;
   try{ saved = JSON.parse(store.get(key)); }catch(e){}
   const last = saved && saved.last;
-  let remaining = saved && Array.isArray(saved.remaining) ? saved.remaining : [];
+  const catalog = photos.map(photo=>photo.id).join(',');
+  let remaining = saved && saved.catalog===catalog && Array.isArray(saved.remaining) ? saved.remaining : [];
   remaining = [...new Set(remaining)].filter(id=>id!==last && photos.some(photo=>photo.id===id));
   if(!remaining.length){
     remaining = photos.filter(photo=>photo.id!==last).map(photo=>photo.id);
@@ -634,8 +711,13 @@ function nextWallpaper(theme){
     }
   }
   const id = remaining.shift();
-  store.set(key,JSON.stringify({last:id,remaining:remaining}));
+  store.set(key,JSON.stringify({catalog,last:id,remaining:remaining}));
   return photos.find(photo=>photo.id===id);
+}
+function wallpaperSize(){
+  const width = window.innerWidth, height = window.innerHeight;
+  const scale = Math.min(window.devicePixelRatio||1,2.5,3840/Math.max(width,height),Math.sqrt(8294400/(width*height)));
+  return {width:Math.round(width*scale),height:Math.round(height*scale)};
 }
 function loadWallpaperImage(photo){
   return new Promise((resolve,reject)=>{
@@ -653,15 +735,14 @@ function loadWallpaperImage(photo){
       if(success) resolve(image);
       else{ image.removeAttribute('src'); reject(new Error('Wallpaper unavailable')); }
     };
-    const timeout = setTimeout(()=>finish(false),8000);
+    const timeout = setTimeout(()=>finish(false),12000);
     image.onload = async()=>{
       try{ if(image.decode) await image.decode(); finish(true); }catch(e){ finish(false); }
     };
     image.onerror = ()=>finish(false);
-    const scale = Math.min(window.devicePixelRatio||1,2);
-    const width = Math.min(2400,Math.ceil(window.innerWidth*scale/100)*100);
-    const height = Math.min(1800,Math.ceil(window.innerHeight*scale/100)*100);
-    image.src = 'https://images.unsplash.com/photo-'+photo.id+'?auto=format&fit=crop&w='+width+'&h='+height+'&q=80';
+    const {width,height} = wallpaperSize();
+    wallpaperSizes.set(image,{width,height});
+    image.src = 'https://images.unsplash.com/photo-'+photo.id+'?auto=format&fit=crop&w='+width+'&h='+height+'&q=90';
   });
 }
 async function loadThemeWallpaper(theme){
@@ -678,34 +759,76 @@ function renderPhotoCredit(){
   credit.innerHTML = '<a href="https://unsplash.com/photos/'+wallpaperPhoto.page+'?utm_source=kuas_course_planner&amp;utm_medium=referral" target="_blank" rel="noopener noreferrer">'
     +esc(fill(t('photoCredit'),{name:wallpaperPhoto.author}))+'</a>';
 }
-async function updateWallpaper(){
+async function updateWallpaper(force=false){
   const theme = resolvedTheme();
-  if(wallpaperTheme===theme){ renderPhotoCredit(); return; }
+  if(wallpaperTheme===theme && !force){ renderPhotoCredit(); return; }
   wallpaperTheme = theme;
   const request = ++wallpaperRequest;
   const layer = $('wallpaper');
   layer.hidden = true;
   wallpaperPhoto = null;
+  wallpaperImage = null;
   renderPhotoCredit();
-  if(!wallpaperCache[theme]) wallpaperCache[theme] = loadThemeWallpaper(theme);
+  window.dispatchEvent(new CustomEvent('wallpaperchange',{detail:null}));
+  $('shuffle-btn').disabled = true;
+  $('background-status').textContent = t('backgroundLoading');
+  if(force || !wallpaperCache[theme]) wallpaperCache[theme] = loadThemeWallpaper(theme);
   const result = await wallpaperCache[theme];
-  if(request!==wallpaperRequest || !result) return;
+  if(request!==wallpaperRequest) return;
+  $('shuffle-btn').disabled = false;
+  $('background-status').textContent = result ? '' : t('backgroundFailed');
+  if(!result) return;
   layer.replaceChildren(result.image);
   layer.hidden = false;
   wallpaperPhoto = result.photo;
+  wallpaperImage = result.image;
   renderPhotoCredit();
+  window.dispatchEvent(new CustomEvent('wallpaperchange',{detail:result.image}));
+  refreshWallpaperResolution();
 }
+async function refreshWallpaperResolution(){
+  if(!wallpaperImage || !wallpaperPhoto) return;
+  const size=wallpaperSize(), loaded=wallpaperSizes.get(wallpaperImage);
+  const aspectChange=Math.abs(Math.log((size.width/size.height)/(loaded.width/loaded.height)));
+  if(size.width<=loaded.width*1.2 && size.height<=loaded.height*1.2 && aspectChange<.15) return;
+  const request=++wallpaperRequest, theme=resolvedTheme(), photo=wallpaperPhoto;
+  try{
+    const image=await loadWallpaperImage(photo);
+    if(request!==wallpaperRequest) return;
+    wallpaperCache[theme]=Promise.resolve({photo,image});
+    wallpaperImage=image;
+    $('wallpaper').replaceChildren(image);
+    window.dispatchEvent(new CustomEvent('wallpaperchange',{detail:image}));
+    refreshWallpaperResolution();
+  }catch(e){ /* Keep the current photograph when a resolution upgrade fails. */ }
+}
+window.addEventListener('resize',()=>{
+  clearTimeout(wallpaperResizeTimer);
+  wallpaperResizeTimer=setTimeout(refreshWallpaperResolution,350);
+});
 
 /* Motion never delays state changes, focus, or interaction. */
 const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+let MOTION = store.get('motion')!=='off';
+let RAIN = store.get('rain')!=='off';
 const runningMotion = new Map();
 let printing = false;
+function motionEnabled(){ return MOTION && !(motionPreference && motionPreference.matches); }
+function renderAmbience(){
+  document.documentElement.dataset.motion = motionEnabled()?'on':'off';
+  $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?'rainOn':'rainOff')+'</span>';
+  $('rain-btn').setAttribute('aria-pressed',RAIN);
+  $('motion-btn').innerHTML = uiIcon(motionEnabled()?'pause':'play')+'<span>'+t(motionPreference && motionPreference.matches?'motionReduced':MOTION?'motionOn':'motionOff')+'</span>';
+  $('motion-btn').setAttribute('aria-pressed',motionEnabled());
+  $('motion-btn').disabled = !!(motionPreference && motionPreference.matches);
+  window.dispatchEvent(new Event('ambiencechange'));
+}
 function stopMotion(){
   runningMotion.forEach(animation=>animation.cancel());
   runningMotion.clear();
 }
 function moveIn(element, direction=0, delay=0){
-  if(!element || !element.animate || printing || (motionPreference && motionPreference.matches)) return;
+  if(!element || !element.animate || printing || !motionEnabled()) return;
   if(runningMotion.has(element)) runningMotion.get(element).cancel();
   const animation = element.animate([
     {opacity:0, transform:direction ? 'translateX('+direction*12+'px)' : 'translateY(14px)'},
@@ -733,7 +856,7 @@ function syncSelections(){
 }
 window.addEventListener('resize', ()=>{ stopMotion(); syncSelections(); });
 if(motionPreference && motionPreference.addEventListener){
-  motionPreference.addEventListener('change', ()=>{ if(motionPreference.matches) stopMotion(); });
+  motionPreference.addEventListener('change', ()=>{ if(motionPreference.matches) stopMotion(); renderAmbience(); });
 }
 
 /* ---------- テーマ ---------- */
@@ -767,7 +890,11 @@ function uiIcon(name){
     mats:'<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 3v18m4-13h3m-3 4h3"/>',
     light:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
     dark:'<path d="M20.5 14.2A8.7 8.7 0 0 1 9.8 3.5a8.8 8.8 0 1 0 10.7 10.7Z"/>',
-    auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18Z" fill="currentColor" stroke="none"/>'
+    auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18Z" fill="currentColor" stroke="none"/>',
+    shuffle:'<path d="m17 3 4 4-4 4m0 2 4 4-4 4M3 7h3c5 0 7 10 12 10h3M3 17h3c2 0 4-3 6-6s4-4 6-4h3"/>',
+    rain:'<path d="M8 16H6a4 4 0 1 1 1-7 5 5 0 0 1 10-1 4 4 0 1 1 1 8M10 16l-1 4m5-4-1 4m5-1-1 3"/>',
+    pause:'<path d="M8 5v14M16 5v14"/>',
+    play:'<path d="m8 4 12 8-12 8Z"/>'
   };
   return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[name]+'</svg>';
 }
@@ -791,6 +918,10 @@ function slotTime(p,span){
 }
 function slotText(c){
   return c.slots.map(s=>DAYS[s.day].s[LANG]+" "+periodLabel(s.period,s.span||1)).join(LANG==="ja"?"／":", ");
+}
+function locationText(c,mode){
+  if(mode==="ondemand" || (mode==="live" && c.classMode!=="remote")) return L(MODES[mode]);
+  return L(c.location);
 }
 function fmtDate(iso){
   const [y,m,d] = iso.split("-").map(Number);
@@ -817,10 +948,8 @@ function mainMode(c){
   return Object.keys(tally).sort((a,b)=>tally[b]-tally[a])[0] || "f2f";
 }
 function termText(c){
-  const first = dateOf(c.slots[0].day, c.firstWeek);
-  const lastSlot = c.slots[c.slots.length-1];
-  const last = dateOf(lastSlot.day, c.lastWeek);
-  return fmtDate(first)+" – "+fmtDate(last);
+  const dates = courseDates(c);
+  return fmtDate(dates[0])+" – "+fmtDate(dates.at(-1));
 }
 function shade(hex,i){
   const a=[1,.66,.42,.25][i%4];
@@ -872,6 +1001,7 @@ function renderHome(){
         const c = cell.c;
         h += '<button class="blk'+(d===DAY?'':' day-hidden')+'" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-day="'+d+'" data-course="'+c.id+'">'
            + '<span class="nm">'+courseName(c)+'</span>'
+           + '<span class="location">'+esc(locationText(c))+'</span>'
            + '<span class="mt">'+esc(L(c.teachers))+'</span>'
            + '<span class="cr"><span>'+c.credits+(LANG==="ja"?"単位":" cr")+'</span>'+modeBadge(mainMode(c),true)
            + (c.firstWeek>1 ? ' <span class="badge tagopt">'+t("eceShort")+'</span>' : '')
@@ -886,7 +1016,7 @@ function renderHome(){
   /* 科目一覧 */
   h += '<div class="sec"><div class="sec-head"><h2>'+t("courses")+'</h2><span>'+(LANG==="ja"?"成績評価の割合・開講期間・欠席の目安":"grade weights, term and absence guide")+'</span></div>';
   h += '<div style="overflow-x:auto"><table class="grid"><thead><tr>'
-     + '<th>'+t("colCourse")+'</th><th>'+t("colSlot")+'</th><th>'+t("colCredit")+'</th>'
+     + '<th>'+t("colCourse")+'</th><th>'+t("colSlot")+'<br>'+t("colLocation")+'</th><th>'+t("colCredit")+'</th>'
      + '<th>'+t("colMode")+'</th><th>'+t("colTerm")+'</th><th>'+t("colEval")+'</th><th>'+t("colTotal")+'</th><th>'+t("colAbs")+'</th>'
      + '</tr></thead><tbody>';
   COURSES.forEach(c=>{
@@ -894,7 +1024,7 @@ function renderHome(){
       + '<td><span class="swatch" style="background:'+cc(c)+'"></span>'
       +   '<button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button>'
       +   '<div style="font-size:11.5px;color:var(--ink-3)">'+esc(L(c.teachers))+'</div></td>'
-      + '<td>'+slotText(c)+'</td>'
+      + '<td>'+slotText(c)+'<div class="location">'+esc(locationText(c))+'</div></td>'
       + '<td class="num">'+c.credits+'</td>'
       + '<td>'+courseModeLabel(c)+'</td>'
       + '<td style="white-space:nowrap;font-size:12.5px">'+termText(c)+'</td>'
@@ -943,50 +1073,47 @@ function evalBar(c){
 
 /* ---------- 週別 ---------- */
 function renderWeek(){
-  let h = '<div class="sec-head"><h2>'+fill(t("weekOf"),{n:WEEK})+'</h2><span>'
-        + (LANG==="ja" ? "その週に各授業で扱う内容" : "what each class covers that week")+'</span></div>';
-
+  const start = CALENDAR_WEEKS[WEEK-1], today = todayISO();
+  const range = iso=>fmtDate(iso)+' – '+fmtDate(addDays(iso,6));
+  let h = '<div class="sec-head calendar-heading"><div><p class="eyebrow">'+t('calendarTitle')+'</p>'
+    + '<h2 id="calendar-range" aria-live="polite">'+start.slice(0,4)+' / '+range(start)+'</h2></div>'
+    + '<span>'+t('calendarLead')+'</span></div>';
   h += '<div class="weekbar">'
-     + '<button class="nav-w" type="button" id="w-prev"'+(WEEK===1?" disabled":"")+'>‹ '+t("prevW")+'</button>'
-     + '<div class="weeknums">';
-  for(let i=1;i<=15;i++) h += '<button type="button" data-week="'+i+'" aria-label="'+fill(t("weekOf"),{n:i})+'" aria-pressed="'+(i===WEEK)+'">'+i+'</button>';
-  h += '</div><button class="nav-w" type="button" id="w-next"'+(WEEK===15?" disabled":"")+'>'+t("nextW")+' ›</button></div>';
-
-  h += '<div class="week-board">';
-  DAYS.forEach((d,di)=>{
-    const items = [];
-    COURSES.forEach(c=>c.slots.forEach(s=>{
-      if(s.day!==di) return;
-      s.pick(WEEK).forEach(n=>items.push({c:c,s:s,n:n}));
-    }));
-    items.sort((a,b)=>a.s.period-b.s.period);
-
-    h += '<section class="dayrow" aria-labelledby="week-day-'+di+'"><h3 class="daylab" id="week-day-'+di+'">'+d[LANG]
-       + '<small>'+fmtDate(dateOf(di,WEEK))+'</small></h3><div class="daycells">';
-
-    if(di===0 && WEEK<8) h += '<div class="sidenote">'+t("eceNote")+'</div>';
-
+    + '<div class="calendar-arrows"><button class="nav-w" type="button" id="w-prev"'+(WEEK===1?' disabled':'')+' aria-label="'+t('prevW')+'">‹</button>'
+    + '<button class="nav-w" type="button" id="w-today">'+t('today')+'</button>'
+    + '<button class="nav-w" type="button" id="w-next"'+(WEEK===CALENDAR_WEEKS.length?' disabled':'')+' aria-label="'+t('nextW')+'">›</button></div>'
+    + '<label class="calendar-control"><span>'+t('calendarWeek')+'</span><select id="w-select">';
+  CALENDAR_WEEKS.forEach((date,i)=>{ h += '<option value="'+(i+1)+'"'+(WEEK===i+1?' selected':'')+'>'+date.slice(0,4)+' / '+range(date)+'</option>'; });
+  h += '</select></label><label class="calendar-control"><span>'+t('calendarDate')+'</span><input id="calendar-date" type="date" min="'+CALENDAR_WEEKS[0]+'" max="'+addDays(CALENDAR_WEEKS.at(-1),6)+'" value="'+start+'"></label></div>';
+  h += '<div class="calendar-scroll"><div class="week-board">';
+  for(let di=0;di<7;di++){
+    const date = addDays(start,di), items = sessionsOn(date), closure = BREAKS.find(b=>b.d===date);
+    const weekday = di<5 ? DAYS[di][LANG] : (LANG==='ja' ? ['土曜日','日曜日'][di-5] : ['Saturday','Sunday'][di-5]);
+    const outside = date<SEMESTER_DATES[0] || date>SEMESTER_DATES.at(-1);
+    h += '<section class="dayrow'+(di>4?' weekend':'')+(closure?' is-closed':'')+(outside?' outside-term':'')+(date===today?' is-today':'')+'" data-date="'+date+'" aria-labelledby="week-day-'+di+'">'
+      + '<h3 class="daylab" id="week-day-'+di+'"><span>'+weekday+'</span><time datetime="'+date+'"'+(date===today?' aria-current="date"':'')+'><small>'+Number(date.slice(5,7))+'/</small>'+Number(date.slice(8))+'</time>'
+      + (date===today?'<small class="today-label">'+t('today')+'</small>':'')+'</h3><div class="daycells">';
     if(!items.length){
-      h += '<div class="dayoff">'+t("noClass")+'</div>';
+      h += '<div class="dayoff">'+(closure?L(closure):outside?t(date<SEMESTER_DATES[0]?'beforeTerm':'afterTerm'):t(di>4?'weekend':'noClass'))+'</div>';
     } else {
       items.forEach(it=>{
-        const c=it.c, sess=c.schedule[it.n-1];
-        h += '<div class="wk" style="--c:'+cc(c)+'">'
+        const c=it.c, sess=it.session;
+        h += '<article class="wk" style="--c:'+cc(c)+'" data-session="'+c.id+'-'+it.n+'">'
           + '<div class="top"><span class="p">'+periodLabel(it.s.period,it.s.span||1)+' '+slotTime(it.s.period,it.s.span||1)+'</span>'
           + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+courseName(c)+'</button>'
           + modeBadge(sess?sess.mode:"f2f",true)
-          + '</div>';
+          + '</div><p class="location">'+t("colLocation")+(LANG==="ja"?"：":": ")+esc(locationText(c,sess?sess.mode:undefined))+'</p>';
         if(sess){
           h += '<p class="topic"><span class="sn">'
-             + fill(t(c.unit==="week"?"weekLabel":"session"),{n:c.unit==="week"?WEEK:it.n})+'</span>'+esc(L(sess))+'</p>';
+             + fill(t("session"),{n:it.n})+'</span>'+esc(L(sess))+'</p>';
         }
         h += '<details class="study-details"><summary>'+t("studyDetails")+'</summary>'
-           + '<p class="p">'+esc(L(c.teachers))+'</p><p class="hw">'+esc(L(c.homework))+'</p></details></div>';
+           + '<p class="p">'+esc(L(c.teachers))+'</p><p class="hw">'+esc(L(c.homework))+'</p></details></article>';
       });
     }
     h += '</div></section>';
-  });
-  h += '</div>';
+  }
+  h += '</div></div>';
   $("view-week").innerHTML = h;
 }
 
@@ -1006,11 +1133,12 @@ function renderCourse(){
     + fact(t("teacher"), esc(L(c.teachers)))
     + fact(t("credh"), c.credits+(LANG==="ja"?" 単位":" credits"))
     + fact(t("langh"), L(c.lang))
-    + fact(t("colSlot"), slotText(c)+"　"+t("campus"))
+    + fact(t("colSlot"), slotText(c))
+    + fact(t("colLocation"), esc(locationText(c))+(c.classMode==="f2f"?"　"+t("campus"):""))
     + fact(t("colMode"), courseModeLabel(c))
     + fact(t("sessh"), totalPeriods(c)+(LANG==="ja"?" コマ":" periods"))
-    + fact(t("firstDay"), fmtDate(dateOf(c.slots[0].day, c.firstWeek)))
-    + fact(t("lastDay"), fmtDate(dateOf(c.slots[c.slots.length-1].day, c.lastWeek)))
+    + fact(t("firstDay"), fmtDate(courseDates(c)[0]))
+    + fact(t("lastDay"), fmtDate(courseDates(c).at(-1)))
     + fact(t("codeh"), c.code)
     + fact(t("ttcodeh"), c.ttcode)
     + '</dl></div>';
@@ -1025,7 +1153,7 @@ function renderCourse(){
     const wk = c.unit==="week" ? s.n + (c.firstWeek-1) : Math.ceil(s.n/(c.perWeek||1));
     const day = c.unit==="week" || c.perWeek===1 ? c.slots[0].day
               : (s.n%2===1 ? c.slots[0].day : c.slots[1].day);
-    h += '<tr'+(wk===WEEK?' class="now"':'')+'>'
+    h += '<tr'+(calendarWeekFor(dateOf(day,wk))===WEEK?' class="now"':'')+'>'
       + '<td class="n">'+s.n+'</td>'
       + '<td>'+esc(L(s))+'<div style="font-size:11.5px;color:var(--ink-3)">'
       +   fill(t("weekLabel"),{n:wk})+' ・ '+fmtDate(dateOf(day,wk))+'</div></td>'
@@ -1162,22 +1290,20 @@ function setView(v){
   if(changed) revealView();
 }
 function setWeek(n){
-  const next = Math.min(15,Math.max(1,n));
+  if(!Number.isFinite(n)) return;
+  const next = Math.min(CALENDAR_WEEKS.length,Math.max(1,Math.trunc(n)));
   if(next===WEEK) return;
   const direction = Math.sign(next-WEEK);
   stopMotion();
   const active = document.activeElement;
   const inWeek = active && active.closest('#view-week');
-  const focusWeek = active && active.dataset.week;
   const focusId = active && active.id;
   WEEK = next;
   renderWeek();
-  if(VIEW==="course") renderCourse();
+  renderCourse();
   if(VIEW==="week"){
-    const target = focusWeek ? document.querySelector('[data-week="'+WEEK+'"]')
-      : focusId==="w-prev" || focusId==="w-next" ? $(focusId)
-      : inWeek ? document.querySelector('[data-week="'+WEEK+'"]') : null;
-    if(target) (target.disabled ? document.querySelector('[data-week="'+WEEK+'"]') : target).focus({preventScroll:true});
+    const target = inWeek ? ($(focusId) || $('w-select')) : null;
+    if(target) (target.disabled ? $('w-select') : target).focus({preventScroll:true});
     document.querySelectorAll('.dayrow').forEach((day,i)=>moveIn(day,direction,i*25));
   }
 }
@@ -1204,6 +1330,10 @@ function renderAll(){
     $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats"][i])+'</span>';
   });
   $("foot").textContent = t("foot");
+  $('shuffle-btn').innerHTML = uiIcon('shuffle')+'<span>'+t('shuffleBackground')+'</span>';
+  if($('background-status').textContent) $('background-status').textContent = t($('shuffle-btn').disabled?'backgroundLoading':'backgroundFailed');
+  document.querySelector('.ambience').setAttribute('aria-label',t('backgroundSettings'));
+  renderAmbience();
   document.querySelector('.tabs').setAttribute('aria-label', t("navigation"));
   ["home","week","course","mats"].forEach(k=>{
     $("tab-"+k).setAttribute('aria-controls', 'view-'+k);
@@ -1233,10 +1363,13 @@ document.addEventListener("click", e=>{
   }
   const cb = e.target.closest("[data-course]");
   if(cb){ openCourse(cb.dataset.course); return; }
-  const wb = e.target.closest("[data-week]");
-  if(wb){ setWeek(Number(wb.dataset.week)); return; }
+  if(e.target.closest("#w-today")) return setWeek(calendarWeekFor(todayISO()));
   if(e.target.closest("#w-prev")) return setWeek(WEEK-1);
   if(e.target.closest("#w-next")) return setWeek(WEEK+1);
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='w-select') setWeek(Number(e.target.value));
+  if(e.target.id==='calendar-date' && e.target.validity.valid && e.target.value) setWeek(calendarWeekFor(e.target.value));
 });
 $("tab-home").addEventListener("click", ()=>setView("home"));
 $("tab-week").addEventListener("click", ()=>setView("week"));
@@ -1245,6 +1378,9 @@ $("tab-mats").addEventListener("click", ()=>setView("mats"));
 $("btn-ja").addEventListener("click", ()=>setLang("ja"));
 $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
+$('shuffle-btn').addEventListener('click',()=>updateWallpaper(true));
+$('rain-btn').addEventListener('click',()=>{ RAIN=!RAIN; store.set('rain',RAIN?'on':'off'); renderAmbience(); });
+$('motion-btn').addEventListener('click',()=>{ MOTION=!MOTION; store.set('motion',MOTION?'on':'off'); stopMotion(); renderAmbience(); });
 document.addEventListener("keydown", e=>{
   const tab = e.target.closest('[role="tab"]');
   if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
@@ -1254,6 +1390,7 @@ document.addEventListener("keydown", e=>{
     e.preventDefault(); setView(views[next]); $("tab-"+views[next]).focus(); return;
   }
   if(VIEW!=="week") return;
+  if(e.target.closest('input,select,textarea') || e.altKey || e.ctrlKey || e.metaKey) return;
   if(e.key==="ArrowLeft"){ e.preventDefault(); setWeek(WEEK-1); }
   if(e.key==="ArrowRight"){ e.preventDefault(); setWeek(WEEK+1); }
 });

@@ -1,4 +1,4 @@
-/* Course planner — etched glass, quiet typography, zero dependencies. */
+/* Course planner — liquid lenses, a rain-softened view, zero dependencies. */
 :root{
   color-scheme:light;
   --paper:#F5F5F7;
@@ -24,16 +24,18 @@
   --ondemand-bg:#F6EEDB;
   --mincho:var(--gothic);
   --gothic:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
-  --glass:rgba(249,251,255,.74);
-  --frost:rgba(249,251,255,.76);
+  --glass:rgba(243,249,255,.58);
+  --frost:rgba(247,251,255,.76);
   --inlay:rgba(255,255,255,.24);
-  --cell:rgba(255,255,255,.52);
+  --cell:rgba(255,255,255,.64);
   --shine:rgba(255,255,255,.86);
   --reflection:rgba(255,255,255,.42);
   --shadow:0 12px 32px rgba(15,35,50,.08),0 2px 5px rgba(15,35,50,.04);
   --float-shadow:0 16px 48px rgba(15,35,50,.16),inset 0 1px 0 var(--shine),inset 0 -1px 0 rgba(255,255,255,.25);
   --sheet-shadow:0 24px 70px -18px rgba(14,35,52,.28),0 2px 8px rgba(14,35,52,.05),inset 0 1px 0 var(--shine),inset 0 -1px 0 rgba(255,255,255,.25);
-  --wallpaper-wash:rgba(232,241,247,.12);
+  --wallpaper-wash:rgba(230,239,245,.30);
+  --glass-side:rgba(26,50,68,.26);
+  --glass-glow:rgba(255,255,255,.68);
 }
 [data-theme="dark"]{
   color-scheme:dark;
@@ -58,8 +60,8 @@
   --live-bg:#383040;
   --ondemand:#E9CE99;
   --ondemand-bg:#3D3423;
-  --glass:rgba(18,29,38,.74);
-  --frost:rgba(18,29,38,.74);
+  --glass:rgba(18,32,43,.53);
+  --frost:rgba(16,29,40,.70);
   --inlay:rgba(4,14,23,.14);
   --cell:rgba(18,29,38,.44);
   --shine:rgba(235,247,255,.22);
@@ -67,7 +69,9 @@
   --shadow:0 12px 32px rgba(0,7,14,.2),0 2px 5px rgba(0,7,14,.1);
   --float-shadow:0 16px 48px rgba(0,7,14,.35),inset 0 1px 0 var(--shine),inset 0 -1px 0 rgba(0,0,0,.16);
   --sheet-shadow:0 24px 70px -18px rgba(0,7,14,.6),0 2px 8px rgba(0,7,14,.16),inset 0 1px 0 var(--shine),inset 0 -1px 0 rgba(0,0,0,.16);
-  --wallpaper-wash:rgba(5,14,23,.20);
+  --wallpaper-wash:rgba(5,14,23,.32);
+  --glass-side:rgba(0,7,14,.62);
+  --glass-glow:rgba(214,238,255,.27);
 }
 *{box-sizing:border-box}
 html{scroll-padding-top:150px}
@@ -87,17 +91,26 @@ button:disabled{cursor:default}
 :focus-visible{outline:3px solid var(--indigo);outline-offset:3px}
 [hidden]{display:none!important}
 
-/* Photographs remain sharp outside the frosted reading planes. */
-.wallpaper{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
-.wallpaper img{display:block;width:100%;height:100%;object-fit:cover}
+/* A soft window view leaves the timetable in the foreground. */
+.wallpaper{position:fixed;inset:0;z-index:-3;overflow:hidden;pointer-events:none}
+.wallpaper img{display:block;width:100%;height:100%;object-fit:cover;transform:scale(1.025);filter:blur(2.5px) saturate(.86)}
 .wallpaper::after{content:"";position:absolute;inset:0;background:var(--wallpaper-wash)}
+.rain-layer{position:fixed;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none;opacity:.72}
+.glass-filters{position:absolute;width:0;height:0;pointer-events:none;overflow:hidden}
 
 /* Blur only the outer material; nested content is an etched, transparent inlay. */
 .masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head{
+  position:relative;isolation:isolate;
   background-color:var(--frost);
   background-image:linear-gradient(135deg,var(--reflection),transparent 46%);
-  border:1px solid var(--shine);box-shadow:var(--sheet-shadow);
-  backdrop-filter:blur(40px) saturate(1.15);-webkit-backdrop-filter:blur(40px) saturate(1.15);
+  border:1px solid var(--shine);border-inline-color:var(--glass-side);
+  box-shadow:var(--sheet-shadow),inset 2px 0 3px rgba(255,255,255,.14),inset -2px 0 3px rgba(255,255,255,.12),inset 0 3px 3px -2px var(--glass-glow),inset 0 -3px 3px -2px var(--glass-glow);
+  backdrop-filter:blur(22px) saturate(1.35);-webkit-backdrop-filter:blur(22px) saturate(1.35);
+}
+.masthead-in::before,.sec::before,.weekbar::before,.dayrow::before,.chead::before,.box::before{
+  content:"";position:absolute;inset:1px;border-radius:inherit;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse at var(--light-x,18%) var(--light-y,0%),var(--glass-glow),transparent 62%);opacity:.32;
+  box-shadow:inset 0 1px 0 var(--shine),inset 0 -1px 0 var(--shine);
 }
 
 /* Shared moving selection lenses; the actual buttons keep their native focus. */
@@ -106,8 +119,10 @@ button:disabled{cursor:default}
   content:"";position:absolute;z-index:-1;left:0;top:0;
   width:var(--pill-w);height:var(--pill-h);
   transform:translate(var(--pill-x),var(--pill-y));
-  border:1px solid var(--shine);border-radius:24px;background:var(--cell);
-  box-shadow:var(--shadow),inset 0 1px 0 var(--shine);
+  border:1px solid var(--shine);border-inline-color:var(--glass-side);border-radius:24px;
+  background:linear-gradient(170deg,var(--glass-glow),transparent 48%,var(--reflection)),var(--inlay);
+  box-shadow:0 4px 12px rgba(8,24,40,.13),inset 0 2px 3px var(--shine),inset 0 -2px 2px var(--shine);
+  backdrop-filter:blur(5px) saturate(1.8);-webkit-backdrop-filter:blur(5px) saturate(1.8);
 }
 .day-switch.segmented::before{border-radius:12px}
 .day-switch button:focus-visible{outline-offset:-3px}
@@ -126,16 +141,25 @@ button:disabled{cursor:default}
 .spacer{flex:1}
 .switches{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .ui-icon{width:20px;height:20px;flex-shrink:0;display:block}
-.iconbtn{display:flex;align-items:center;gap:7px;border:1px solid var(--shine);background:var(--cell);box-shadow:var(--shadow),inset 0 1px 0 var(--shine);padding:10px 14px;min-height:42px;font-size:11px;white-space:nowrap;border-radius:24px}
+.iconbtn{position:relative;isolation:isolate;display:flex;align-items:center;gap:7px;border:1px solid var(--shine);border-inline-color:var(--glass-side);background:var(--cell);box-shadow:var(--shadow),inset 0 2px 2px var(--shine),inset 0 -2px 2px var(--reflection);padding:10px 14px;min-height:42px;font-size:11px;white-space:nowrap;border-radius:24px}
 .iconbtn .ui-icon{width:16px;height:16px}
 .iconbtn:hover{background:var(--band)}
 .langswitch{display:flex;gap:2px;padding:4px;background:var(--inlay);border:1px solid var(--rule-2);border-radius:24px;box-shadow:inset 0 1px 3px rgba(0,10,20,.05)}
 .langswitch button{background:transparent;border:0;min-height:34px;padding:7px 12px;font-size:11px;color:var(--ink-2);border-radius:20px}
 .langswitch button[aria-pressed="true"]{color:var(--ink);background:var(--cell);box-shadow:var(--shadow),inset 0 1px 0 var(--shine);font-weight:650}
 .tabs{position:relative;isolation:isolate;z-index:30;width:fit-content;max-width:calc(100% - 32px);margin:20px auto 0;padding:6px;display:flex;gap:4px;background:var(--glass);border:1px solid var(--shine);border-radius:30px;box-shadow:var(--float-shadow);backdrop-filter:blur(32px) saturate(1.3);-webkit-backdrop-filter:blur(32px) saturate(1.3)}
+.tabs{border-inline-color:var(--glass-side);background:linear-gradient(175deg,var(--reflection),transparent 45%),var(--glass);box-shadow:var(--float-shadow),inset 0 2px 3px var(--glass-glow),inset 0 -2px 3px var(--glass-glow);backdrop-filter:none;-webkit-backdrop-filter:none}
+.tabs::after{content:"";position:absolute;inset:0;border-radius:inherit;z-index:-2;pointer-events:none;backdrop-filter:blur(12px) saturate(1.6);-webkit-backdrop-filter:blur(12px) saturate(1.6)}
+@supports(backdrop-filter:url("#glass-refraction")){
+  [data-glass="ready"] .tabs::after,[data-glass="ready"] .segmented::before{backdrop-filter:blur(7px) saturate(1.6) url("#glass-refraction")}
+}
 .tabs button{position:relative;display:flex;align-items:center;justify-content:center;gap:9px;min-height:44px;padding:10px 24px;border:0;background:none;border-radius:24px;font-size:13px;font-weight:600;color:var(--ink-2)}
 .tabs button:hover{color:var(--ink)}
 .tabs button[aria-selected="true"]{background:var(--surface);box-shadow:var(--shadow);color:var(--indigo)}
+.ambience{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin:16px auto 0;min-height:36px}
+.ambience .iconbtn{background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);padding:7px 12px;min-height:36px}
+#background-status{font-size:11px;background:var(--glass);border-radius:10px}
+#background-status:not(:empty){padding:5px 10px}
 main{max-width:1320px;margin:auto;padding:26px 28px 48px}
 .view{min-width:0}
 .sec{margin:0 0 24px;padding:22px;border-radius:24px}
@@ -178,9 +202,11 @@ main{max-width:1320px;margin:auto;padding:26px 28px 48px}
   .blk{background:color-mix(in srgb,var(--c) 7%,var(--cell))}
 }
 .blk:hover{background:var(--hl);box-shadow:0 8px 22px rgba(15,35,50,.14),inset 0 1px 0 var(--shine);z-index:1}
+.blk::after{content:"";position:absolute;inset:1px;border-radius:inherit;pointer-events:none;box-shadow:inset 0 2px 2px var(--shine),inset 0 -1px 2px var(--reflection);opacity:.65}
 .blk:focus-visible{position:relative;z-index:1;outline-offset:-3px}
 .blk .nm{font-family:var(--gothic);font-size:15px;font-weight:700;line-height:1.65;line-break:strict;overflow-wrap:anywhere;text-wrap:balance}
 .name-part{display:inline-block}
+.location{font-size:12px;font-weight:600;line-height:1.6;color:var(--ink-2);overflow-wrap:anywhere}
 .blk .mt{font-size:11px;color:var(--ink-2);line-height:1.6;overflow-wrap:anywhere}
 .blk .cr{display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;font-size:10px;color:var(--ink-2);margin-top:auto;padding-top:4px;line-height:1.6}
 .blk .badge{border-color:transparent;padding:0 3px}
@@ -200,6 +226,7 @@ table.grid th{background:var(--inlay);font-weight:600;font-size:11px;color:var(-
 table.grid tr:hover td{background:var(--cell)}
 table.grid td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 table.grid td:first-child{min-width:180px}
+table.grid .location{margin-top:4px;font-size:11.5px}
 .swatch{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
 .linkbtn{background:none;border:0;padding:0;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:4px;font-family:var(--gothic);font-weight:600;font-size:12px;text-align:left;line-height:1.8}
 .linkbtn:hover{color:var(--indigo);text-decoration-color:currentColor}
@@ -211,13 +238,18 @@ table.grid td:first-child{min-width:180px}
 
 /* Weekly lesson index. */
 .weekbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 22px;padding:12px;border-radius:20px}
-.weeknums{display:flex;flex-wrap:wrap;gap:4px;background:var(--inlay);padding:4px;border:1px solid var(--rule-2);border-radius:15px}
-.weeknums button{width:38px;min-height:40px;padding:4px;border:0;background:transparent;border-radius:11px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink-2)}
-.weeknums button:hover,.nav-w:hover:not(:disabled){background:var(--band)}
-.weeknums button[aria-pressed="true"]{background:var(--surface);color:var(--indigo);box-shadow:var(--shadow);font-weight:700}
+.nav-w:hover:not(:disabled){background:var(--band)}
 .nav-w{border:1px solid var(--shine);background:var(--cell);border-radius:22px;padding:7px 12px;min-height:42px;font-size:12px;box-shadow:var(--shadow)}
 .nav-w:disabled{color:var(--ink-3);border-style:dashed}
-.week-board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;align-items:start}
+.calendar-heading{justify-content:space-between;gap:12px 28px}
+.calendar-heading .eyebrow{margin:0 0 4px;font-size:11px;letter-spacing:.12em;color:var(--ink-2)}
+.calendar-heading>span{max-width:380px}
+.calendar-arrows{display:flex;gap:6px}
+.calendar-control{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--ink-2)}
+.calendar-control:last-child{margin-left:auto}
+.calendar-control select,.calendar-control input{max-width:100%;min-height:42px;border:1px solid var(--rule);border-radius:12px;padding:8px 10px;background:var(--cell);color:var(--ink);font:inherit;font-size:12px}
+.calendar-scroll{overflow-x:auto;padding:4px 3px 20px;margin:-4px -3px -20px}
+.week-board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) repeat(2,78px);gap:8px;align-items:stretch;min-width:940px}
 .dayrow{min-width:0;border-radius:20px;overflow:hidden}
 .daylab{margin:0;padding:14px;background:var(--inlay);border-bottom:1px solid var(--rule-2);font-family:var(--gothic);font-size:17px;letter-spacing:-.02em}
 .daylab small{display:block;font-family:var(--gothic);font-size:11px;color:var(--ink-2);font-variant-numeric:tabular-nums}
@@ -231,8 +263,21 @@ table.grid td:first-child{min-width:180px}
 .week-course{background:none;border:0;padding:0;text-align:left;line-height:1.65;width:100%}
 .week-course:hover{text-decoration:underline;text-underline-offset:4px}
 .wk .topic{margin:8px 0 0;font-size:13px;line-height:1.8}
+.wk .location{margin:7px 0 0}
 .wk .sn{display:block;color:var(--ink-3);font-size:10px;margin-bottom:2px}
 .wk .hw{margin:6px 0 0;font-size:12px;color:var(--ink-2)}
+.week-board .daylab{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:15px 12px;font-size:11px;line-height:1.5}
+.daylab time{display:block;font-size:28px;letter-spacing:-.04em;font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink)}
+.daylab time small{display:inline;font-size:13px;letter-spacing:0;margin-right:2px}
+.is-today .daylab{background:var(--hl);color:var(--indigo)}
+.today-label{font-size:10px}
+.is-closed .daylab{color:var(--vermilion)}
+.is-closed .dayoff{color:var(--vermilion);font-weight:600}
+.outside-term,.weekend{background-color:var(--glass)}
+.week-board .wk{padding:12px 10px;background:var(--inlay);margin:0 5px 8px;border:1px solid var(--rule-2);border-left:3px solid var(--c);border-radius:12px}
+.week-board .wk .nm{font-size:13px}
+.week-board .wk .topic{font-size:12px}
+.week-board .dayoff{padding:16px 10px;font-size:11px}
 .study-details{margin-top:12px;border-top:1px solid var(--rule-2);font-size:11px;color:var(--ink-2)}
 .study-details summary{cursor:pointer;padding:9px 0;line-height:1.7}
 .study-details .p{margin:0 0 4px}
@@ -292,7 +337,6 @@ ul.goals li{margin-bottom:8px}
   .blk{padding:10px 9px}
   .blk .nm{font-size:14px}
   .facts{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .week-board{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:900px){
   .cbody{grid-template-columns:1fr}
@@ -346,9 +390,20 @@ ul.goals li{margin-bottom:8px}
   .stat b{font-size:27px}
   .stat>span{font-size:10px}
   .weekbar{gap:8px;justify-content:space-between;margin-bottom:18px}
-  .weeknums{order:3;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));width:100%;gap:2px}
-  .weeknums button{width:100%;min-height:40px}
-  .week-board{grid-template-columns:1fr;gap:20px}
+  .calendar-heading h2{font-size:19px}
+  .calendar-heading>span{font-size:11px}
+  .calendar-control{flex:1;min-width:0;flex-direction:column;align-items:flex-start;gap:4px}
+  .calendar-control:last-child{margin-left:0}
+  .calendar-arrows{width:100%}
+  .calendar-control input,.calendar-control select{width:100%;font-size:11px}
+  .week-board{grid-template-columns:1fr;min-width:0;gap:12px}
+  .week-board .daylab{flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;padding:10px 14px}
+  .week-board .daylab time{font-size:23px;order:-1}
+  .week-board .wk{margin:0 8px 10px;padding:14px}
+  .week-board .wk .nm{font-size:15px}
+  .week-board .wk .topic{font-size:13px}
+  .weekend .daycells,.outside-term .daycells{padding:0}
+  .weekend .dayoff,.outside-term .dayoff{padding:6px 14px 12px}
   .daylab{display:flex;align-items:baseline;justify-content:space-between;font-size:17px;padding:12px 14px}
   .daylab small{font-size:10px;letter-spacing:0}
   .wk{padding:12px}
@@ -373,6 +428,7 @@ ul.goals li{margin-bottom:8px}
 }
 
 @media screen and (prefers-reduced-motion:no-preference){
+  [data-motion="on"] :is(.blk,.iconbtn,.tabs button,.picker button,.nav-w,.day-switch button){translate:var(--pull-x,0) var(--pull-y,0);scale:var(--stretch-x,1) var(--stretch-y,1)}
   .wallpaper img{animation:wallpaper-in .8s ease-out both}
   @keyframes wallpaper-in{from{opacity:0}to{opacity:1}}
   .segmented::before{transition:transform .44s cubic-bezier(.22,1,.36,1),width .44s cubic-bezier(.22,1,.36,1),height .3s ease}
@@ -394,9 +450,12 @@ ul.goals li{margin-bottom:8px}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
+[data-motion="off"] *,[data-motion="off"] *::before,[data-motion="off"] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 @media(prefers-reduced-transparency:reduce),(prefers-contrast:more){
   :root,[data-theme="dark"]{--frost:var(--surface);--glass:var(--surface);--cell:var(--surface);--inlay:var(--surface-2);--shine:var(--rule);--reflection:transparent}
   .masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head,.tabs,.picker button{backdrop-filter:none;-webkit-backdrop-filter:none}
+  .rain-layer,.wallpaper,.tabs::after,.segmented::before{display:none!important}
+  .tabs.segmented button[aria-selected="true"],.day-switch.segmented button[aria-pressed="true"]{background:var(--hl)}
 }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   :root,[data-theme="dark"]{--frost:var(--surface);--glass:var(--surface);--cell:var(--surface);--inlay:var(--surface-2)}
@@ -404,7 +463,7 @@ ul.goals li{margin-bottom:8px}
 
 /* Always print the full five-day ledger, including from a dark mobile view. */
 @media print{
-  *,*::before,*::after{animation:none!important;transition:none!important;transform:none!important;opacity:1!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:none!important}
+  *,*::before,*::after{animation:none!important;transition:none!important;transform:none!important;translate:none!important;scale:none!important;opacity:1!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:none!important}
   :root,[data-theme="dark"]{
     color-scheme:light;--paper:#FFF;--surface:#FFF;--surface-2:#F5F5F5;--band:#EBEBE7;
     --ink:#171D19;--ink-2:#343F37;--ink-3:#495448;--rule:#9A9F95;--rule-2:#D1D5CE;
@@ -414,7 +473,7 @@ ul.goals li{margin-bottom:8px}
   }
   @page{size:A4 landscape;margin:12mm}
   body{background:#FFF;font-size:10px}
-  .wallpaper,.photo-credit,.masthead,.tabs,.switches,.weekbar,.picker,.day-switch{display:none!important}
+  .wallpaper,.rain-layer,.photo-credit,.masthead,.tabs,.switches,.ambience,.weekbar,.picker,.day-switch{display:none!important}
   main{padding:0;max-width:none}
   .view[hidden]{display:block!important}
   .view+.view{break-before:page}
@@ -424,6 +483,7 @@ ul.goals li{margin-bottom:8px}
   .blk{padding:6px 8px 6px 14px;background:#FFF;break-inside:avoid}
   .blk .nm{font-size:12px}
   .blk .mt,.blk .cr{font-size:9px}
+  .blk .location,.wk .location,table.grid .location{font-size:9px}
   .sec{margin-bottom:18px;padding:0;border:0;border-radius:0}
   .ttwrap,.chead,.notice,.cards>.panel{break-inside:avoid}
   table.grid{font-size:9px}
@@ -434,7 +494,8 @@ ul.goals li{margin-bottom:8px}
   .bookttl{min-width:0;font-size:11px}
   .cbody{grid-template-columns:minmax(0,1fr) 270px;gap:16px}
   .box{padding:12px}
-  .week-board{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .calendar-scroll{overflow:visible}
+  .week-board{grid-template-columns:repeat(5,minmax(0,1fr)) repeat(2,55px);gap:5px;min-width:0}
   .daylab{padding:8px;font-size:15px}
   .wk{padding:8px;break-inside:avoid}
   .wk .nm,.wk .topic{font-size:11px}
