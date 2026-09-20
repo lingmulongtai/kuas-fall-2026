@@ -111,7 +111,7 @@
 
   function newDrop(anywhere=false){
     const running=Math.random()<.24;
-    return {x:Math.random()*width,y:anywhere?Math.random()*height:-25,r:running?6+Math.random()*7:1.5+Math.random()*3,
+    return {x:Math.random()*width,y:anywhere || !running?Math.random()*height:-25,r:running?6+Math.random()*7:1.5+Math.random()*3,
       speed:running?18+Math.random()*36:0,phase:Math.random()*Math.PI*2,tail:0};
   }
   function resizeRain(){

@@ -7,12 +7,14 @@ const source=fs.readFileSync(path.join(__dirname,'../effects.js'),'utf8');
 
 function setup({motion=true,available=true}={}){
   const handlers=new Map(),frames=new Map(),preferences=new Map();
-  let id=0,draws=0;
+  let id=0,draws=0,positions=[];
   const listen=(name,fn)=>{if(!handlers.has(name)) handlers.set(name,[]);handlers.get(name).push(fn);};
   const drawing=new Proxy({
     createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),
     createLinearGradient:()=>({addColorStop(){}}),
-    drawImage(){draws++;}
+    drawImage(){draws++;},
+    clearRect(){positions=[];},
+    ellipse(x,y){positions.push(y);}
   },{get:(object,key)=>key in object?object[key]:()=>{}});
   const makeCanvas=()=>({hidden:true,width:0,height:0,getContext:()=>available?drawing:null,toDataURL:()=> 'data:image/png;base64,test'});
   const canvas=makeCanvas(),photo={naturalWidth:3840,naturalHeight:2160};
@@ -27,7 +29,7 @@ function setup({motion=true,available=true}={}){
   vm.runInContext(source,context);
   const emit=(name,detail)=>handlers.get(name)?.forEach(fn=>fn({detail}));
   const tick=time=>{const current=[...frames.entries()];for(const [id,fn] of current){frames.delete(id);fn(time);}};
-  return {canvas,context,document,frames,preferences,emit,tick,draws:()=>draws};
+  return {canvas,context,document,frames,preferences,emit,tick,draws:()=>draws,positions:()=>positions};
 }
 
 test('rain keeps one animation loop and stops for pause, hidden tabs and printing',()=>{
@@ -66,4 +68,13 @@ test('reduced motion, contrast preferences and unavailable canvas degrade withou
   const query='(prefers-contrast: more)';
   state.preferences.get(query).matches=true;state.emit(query);
   assert.equal(state.frames.size,0);assert.equal(state.canvas.hidden,true);
+});
+
+test('rain retains visible beads throughout a minute of animation',()=>{
+  const state=setup();
+  for(let time=1;time<65000;time+=50) state.tick(time);
+  const positions=state.positions();
+  const visible=positions.filter(y=>y>=0 && y<=810);
+  assert.ok(visible.length>positions.length*.6,'Stationary drops must form on the visible glass');
+  assert.equal(state.frames.size,1);
 });
