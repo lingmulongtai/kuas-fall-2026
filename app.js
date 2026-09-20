@@ -28,7 +28,11 @@ const DATES = {
 
 const BREAKS = [
   {d:"2026-10-23", ja:"休講（金曜授業なし）",        en:"No Friday classes"},
-  {d:"2026-12-28", ja:"年末年始（12/28〜1/1）",      en:"Winter break (Dec 28 - Jan 1)"},
+  {d:"2026-12-28", ja:"年末年始休校", en:"Winter break"},
+  {d:"2026-12-29", ja:"年末年始休校", en:"Winter break"},
+  {d:"2026-12-30", ja:"年末年始休校", en:"Winter break"},
+  {d:"2026-12-31", ja:"年末年始休校", en:"Winter break"},
+  {d:"2027-01-01", ja:"年末年始休校", en:"Winter break"},
   {d:"2027-01-11", ja:"休講（月曜授業なし）",        en:"No Monday classes"},
   {d:"2027-01-14", ja:"休講（木曜授業なし）",        en:"No Thursday classes"}
 ];
