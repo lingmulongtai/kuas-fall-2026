@@ -17,7 +17,7 @@ function setup(storage=new Map()){
   let timerId = 0;
   const context = vm.createContext({
     store:{get:key=>storage.get(key)||null,set:(key,value)=>storage.set(key,value)},
-    window:{innerWidth:375,innerHeight:812,devicePixelRatio:3,dispatchEvent(){}},
+    window:{innerWidth:375,innerHeight:812,devicePixelRatio:3,dispatchEvent(){},addEventListener(){}},
     CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},
     Image:class{set src(value){this.url=value;pending.push(this);}removeAttribute(){this.url=null;}},
     setTimeout:callback=>{timers.set(++timerId,callback);return timerId;},
@@ -29,7 +29,7 @@ function setup(storage=new Map()){
     fill:(text,values)=>text.replace('{name}',values.name),
     esc:text=>text.replace(/&/g,'&amp;')
   });
-  vm.runInContext(source+'\nglobalThis.background = {WALLPAPERS,nextWallpaper,updateWallpaper,wallpaperSize};',context);
+  vm.runInContext(source+'\nglobalThis.background = {WALLPAPERS,nextWallpaper,updateWallpaper,wallpaperSize,refreshWallpaperResolution};',context);
   return {context,api:context.background,pending,timers,elements,storage};
 }
 const flush = ()=>new Promise(resolve=>setImmediate(resolve));
@@ -107,6 +107,32 @@ test('manual shuffle can recover after provider failures without reloading',asyn
   pending[3].onload();await retry;
   assert.equal(elements.wallpaper.hidden,false);
   assert.equal(elements['background-status'].textContent,'');
+});
+
+test('rotating or expanding the viewport upgrades the same photograph',async()=>{
+  const {api,context,pending,elements}=setup();
+  const initial=api.updateWallpaper();pending[0].onload();await initial;
+  Object.assign(context.window,{innerWidth:1920,innerHeight:1080,devicePixelRatio:2});
+  const upgrade=api.refreshWallpaperResolution();
+  assert.equal(pending[1].url.split('?')[0],pending[0].url.split('?')[0]);
+  assert.match(pending[1].url,/w=3840&h=2160/);
+  pending[1].onload();await upgrade;
+  assert.equal(elements.wallpaper.image,pending[1]);
+  await api.refreshWallpaperResolution();
+  assert.equal(pending.length,2,'An already adequate image is reused');
+});
+
+test('failed resolution upgrades preserve the displayed image and lose races to shuffle',async()=>{
+  const {api,context,pending,elements}=setup();
+  const initial=api.updateWallpaper();pending[0].onload();await initial;
+  Object.assign(context.window,{innerWidth:1920,innerHeight:1080});
+  const failed=api.refreshWallpaperResolution();pending[1].onerror();await failed;
+  assert.equal(elements.wallpaper.image,pending[0]);
+  assert.equal(elements.wallpaper.hidden,false);
+  const stale=api.refreshWallpaperResolution(),shuffle=api.updateWallpaper(true);
+  pending[3].onload();await shuffle;
+  pending[2].onload();await stale;
+  assert.equal(elements.wallpaper.image,pending[3]);
 });
 
 test('three failed or timed-out images leave a usable solid background',async()=>{

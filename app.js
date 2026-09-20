@@ -687,9 +687,12 @@ const WALLPAPERS = {
   ]
 };
 const wallpaperCache = {};
+const wallpaperSizes = new WeakMap();
 let wallpaperTheme = null;
 let wallpaperRequest = 0;
 let wallpaperPhoto = null;
+let wallpaperImage = null;
+let wallpaperResizeTimer = 0;
 
 function nextWallpaper(theme){
   const photos = WALLPAPERS[theme];
@@ -738,6 +741,7 @@ function loadWallpaperImage(photo){
     };
     image.onerror = ()=>finish(false);
     const {width,height} = wallpaperSize();
+    wallpaperSizes.set(image,{width,height});
     image.src = 'https://images.unsplash.com/photo-'+photo.id+'?auto=format&fit=crop&w='+width+'&h='+height+'&q=90';
   });
 }
@@ -763,6 +767,7 @@ async function updateWallpaper(force=false){
   const layer = $('wallpaper');
   layer.hidden = true;
   wallpaperPhoto = null;
+  wallpaperImage = null;
   renderPhotoCredit();
   window.dispatchEvent(new CustomEvent('wallpaperchange',{detail:null}));
   $('shuffle-btn').disabled = true;
@@ -776,9 +781,31 @@ async function updateWallpaper(force=false){
   layer.replaceChildren(result.image);
   layer.hidden = false;
   wallpaperPhoto = result.photo;
+  wallpaperImage = result.image;
   renderPhotoCredit();
   window.dispatchEvent(new CustomEvent('wallpaperchange',{detail:result.image}));
+  refreshWallpaperResolution();
 }
+async function refreshWallpaperResolution(){
+  if(!wallpaperImage || !wallpaperPhoto) return;
+  const size=wallpaperSize(), loaded=wallpaperSizes.get(wallpaperImage);
+  const aspectChange=Math.abs(Math.log((size.width/size.height)/(loaded.width/loaded.height)));
+  if(size.width<=loaded.width*1.2 && size.height<=loaded.height*1.2 && aspectChange<.15) return;
+  const request=++wallpaperRequest, theme=resolvedTheme(), photo=wallpaperPhoto;
+  try{
+    const image=await loadWallpaperImage(photo);
+    if(request!==wallpaperRequest) return;
+    wallpaperCache[theme]=Promise.resolve({photo,image});
+    wallpaperImage=image;
+    $('wallpaper').replaceChildren(image);
+    window.dispatchEvent(new CustomEvent('wallpaperchange',{detail:image}));
+    refreshWallpaperResolution();
+  }catch(e){ /* Keep the current photograph when a resolution upgrade fails. */ }
+}
+window.addEventListener('resize',()=>{
+  clearTimeout(wallpaperResizeTimer);
+  wallpaperResizeTimer=setTimeout(refreshWallpaperResolution,350);
+});
 
 /* Motion never delays state changes, focus, or interaction. */
 const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
