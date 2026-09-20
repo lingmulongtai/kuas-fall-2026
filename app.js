@@ -480,6 +480,34 @@ const COURSES = [
 }
 ];
 
+/* Calendar dates and teaching-week indices are deliberately separate. */
+function addDays(iso,amount){
+  const date = new Date(iso+'T12:00:00Z');
+  date.setUTCDate(date.getUTCDate()+amount);
+  return date.toISOString().slice(0,10);
+}
+function mondayOf(iso){
+  const weekday = new Date(iso+'T12:00:00Z').getUTCDay();
+  return addDays(iso,-((weekday+6)%7));
+}
+function todayISO(){
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+}
+const SEMESTER_DATES = Object.values(DATES).flat().sort();
+const CALENDAR_WEEKS = [];
+for(let start=mondayOf(SEMESTER_DATES[0]);start<=SEMESTER_DATES.at(-1);start=addDays(start,7)) CALENDAR_WEEKS.push(start);
+const OCCURRENCES = COURSES.flatMap(c=>c.slots.flatMap(s=>DATES[DAYS[s.day].key].flatMap((date,i)=>{
+  const teachingWeek = i+1;
+  if(teachingWeek<c.firstWeek || teachingWeek>c.lastWeek) return [];
+  return s.pick(teachingWeek).map(n=>({date,c,s,n,teachingWeek,session:c.schedule.find(session=>session.n===n)}));
+}))).sort((a,b)=>a.date.localeCompare(b.date)||a.s.period-b.s.period);
+function sessionsOn(iso){ return OCCURRENCES.filter(item=>item.date===iso); }
+function calendarWeekFor(iso){
+  const index = CALENDAR_WEEKS.indexOf(mondayOf(iso));
+  return index<0 ? (iso<CALENDAR_WEEKS[0]?1:CALENDAR_WEEKS.length) : index+1;
+}
+function courseDates(c){ return OCCURRENCES.filter(item=>item.c.id===c.id).map(item=>item.date); }
+
 /* ---------- UI 文言 ---------- */
 const T = {
   eyebrow:{ja:"COURSE PLANNER", en:"COURSE PLANNER"},
@@ -487,7 +515,7 @@ const T = {
   sub:{ja:"工学部 機械電気システム工学科 2年 4セメスタ ／ 太秦キャンパス ／ 9月24日〜1月18日",
        en:"Mechanical and Electrical Systems Engineering, Year 2, Semester 4 / Uzumasa Campus / Sep 24 - Jan 18"},
   tabHome:{ja:"ホーム", en:"Home"},
-  tabWeek:{ja:"週別", en:"By week"},
+  tabWeek:{ja:"カレンダー", en:"Calendar"},
   tabCourse:{ja:"科目詳細", en:"Courses"},
   tabMats:{ja:"教材", en:"Materials"},
   themeAuto:{ja:"テーマ：自動", en:"Theme: Auto"},
@@ -528,6 +556,14 @@ const T = {
   weekOf:{ja:"第{n}週", en:"Week {n}"},
   prevW:{ja:"前の週", en:"Previous"},
   nextW:{ja:"次の週", en:"Next"},
+  calendarTitle:{ja:"授業カレンダー", en:"Class calendar"},
+  calendarLead:{ja:"実際の日付で表示。授業ごとに進み方が異なるため、回数は各授業に記載しています。", en:"Real calendar dates. Session numbers belong to each course and may differ within a week."},
+  calendarDate:{ja:"日付へ移動", en:"Go to date"},
+  calendarWeek:{ja:"表示する週", en:"Week to display"},
+  today:{ja:"今日", en:"Today"},
+  beforeTerm:{ja:"開講前", en:"Before term"},
+  afterTerm:{ja:"学期終了", en:"After term"},
+  weekend:{ja:"週末・授業なし", en:"Weekend · no classes"},
   noClass:{ja:"授業なし", en:"No classes"},
   period:{ja:"{n}限", en:"Period {n}"},
   periodRange:{ja:"{a}–{b}限", en:"Periods {a}-{b}"},
@@ -592,7 +628,7 @@ const MAT_NOTES = [
 let LANG = "ja";
 let THEME = "auto";
 let VIEW = "home";
-let WEEK = 1;
+let WEEK = calendarWeekFor(todayISO());
 let COURSE = COURSES[0].id;
 let DAY = Math.min(4, Math.max(0, new Date().getDay()-1));
 
@@ -962,50 +998,47 @@ function evalBar(c){
 
 /* ---------- 週別 ---------- */
 function renderWeek(){
-  let h = '<div class="sec-head"><h2>'+fill(t("weekOf"),{n:WEEK})+'</h2><span>'
-        + (LANG==="ja" ? "その週に各授業で扱う内容" : "what each class covers that week")+'</span></div>';
-
+  const start = CALENDAR_WEEKS[WEEK-1], today = todayISO();
+  const range = iso=>fmtDate(iso)+' – '+fmtDate(addDays(iso,6));
+  let h = '<div class="sec-head calendar-heading"><div><p class="eyebrow">'+t('calendarTitle')+'</p>'
+    + '<h2 id="calendar-range" aria-live="polite">'+start.slice(0,4)+' / '+range(start)+'</h2></div>'
+    + '<span>'+t('calendarLead')+'</span></div>';
   h += '<div class="weekbar">'
-     + '<button class="nav-w" type="button" id="w-prev"'+(WEEK===1?" disabled":"")+'>‹ '+t("prevW")+'</button>'
-     + '<div class="weeknums">';
-  for(let i=1;i<=15;i++) h += '<button type="button" data-week="'+i+'" aria-label="'+fill(t("weekOf"),{n:i})+'" aria-pressed="'+(i===WEEK)+'">'+i+'</button>';
-  h += '</div><button class="nav-w" type="button" id="w-next"'+(WEEK===15?" disabled":"")+'>'+t("nextW")+' ›</button></div>';
-
-  h += '<div class="week-board">';
-  DAYS.forEach((d,di)=>{
-    const items = [];
-    COURSES.forEach(c=>c.slots.forEach(s=>{
-      if(s.day!==di) return;
-      s.pick(WEEK).forEach(n=>items.push({c:c,s:s,n:n}));
-    }));
-    items.sort((a,b)=>a.s.period-b.s.period);
-
-    h += '<section class="dayrow" aria-labelledby="week-day-'+di+'"><h3 class="daylab" id="week-day-'+di+'">'+d[LANG]
-       + '<small>'+fmtDate(dateOf(di,WEEK))+'</small></h3><div class="daycells">';
-
-    if(di===0 && WEEK<8) h += '<div class="sidenote">'+t("eceNote")+'</div>';
-
+    + '<div class="calendar-arrows"><button class="nav-w" type="button" id="w-prev"'+(WEEK===1?' disabled':'')+' aria-label="'+t('prevW')+'">‹</button>'
+    + '<button class="nav-w" type="button" id="w-today">'+t('today')+'</button>'
+    + '<button class="nav-w" type="button" id="w-next"'+(WEEK===CALENDAR_WEEKS.length?' disabled':'')+' aria-label="'+t('nextW')+'">›</button></div>'
+    + '<label class="calendar-control"><span>'+t('calendarWeek')+'</span><select id="w-select">';
+  CALENDAR_WEEKS.forEach((date,i)=>{ h += '<option value="'+(i+1)+'"'+(WEEK===i+1?' selected':'')+'>'+date.slice(0,4)+' / '+range(date)+'</option>'; });
+  h += '</select></label><label class="calendar-control"><span>'+t('calendarDate')+'</span><input id="calendar-date" type="date" min="'+CALENDAR_WEEKS[0]+'" max="'+addDays(CALENDAR_WEEKS.at(-1),6)+'" value="'+start+'"></label></div>';
+  h += '<div class="calendar-scroll"><div class="week-board">';
+  for(let di=0;di<7;di++){
+    const date = addDays(start,di), items = sessionsOn(date), closure = BREAKS.find(b=>b.d===date);
+    const weekday = di<5 ? DAYS[di][LANG] : (LANG==='ja' ? ['土曜日','日曜日'][di-5] : ['Saturday','Sunday'][di-5]);
+    const outside = date<SEMESTER_DATES[0] || date>SEMESTER_DATES.at(-1);
+    h += '<section class="dayrow'+(di>4?' weekend':'')+(closure?' is-closed':'')+(outside?' outside-term':'')+(date===today?' is-today':'')+'" data-date="'+date+'" aria-labelledby="week-day-'+di+'">'
+      + '<h3 class="daylab" id="week-day-'+di+'"><span>'+weekday+'</span><time datetime="'+date+'"'+(date===today?' aria-current="date"':'')+'><small>'+Number(date.slice(5,7))+'/</small>'+Number(date.slice(8))+'</time>'
+      + (date===today?'<small class="today-label">'+t('today')+'</small>':'')+'</h3><div class="daycells">';
     if(!items.length){
-      h += '<div class="dayoff">'+t("noClass")+'</div>';
+      h += '<div class="dayoff">'+(closure?L(closure):outside?t(date<SEMESTER_DATES[0]?'beforeTerm':'afterTerm'):t(di>4?'weekend':'noClass'))+'</div>';
     } else {
       items.forEach(it=>{
-        const c=it.c, sess=c.schedule[it.n-1];
-        h += '<div class="wk" style="--c:'+cc(c)+'">'
+        const c=it.c, sess=it.session;
+        h += '<article class="wk" style="--c:'+cc(c)+'" data-session="'+c.id+'-'+it.n+'">'
           + '<div class="top"><span class="p">'+periodLabel(it.s.period,it.s.span||1)+' '+slotTime(it.s.period,it.s.span||1)+'</span>'
           + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+courseName(c)+'</button>'
           + modeBadge(sess?sess.mode:"f2f",true)
           + '</div><p class="location">'+t("colLocation")+(LANG==="ja"?"：":": ")+esc(locationText(c,sess?sess.mode:undefined))+'</p>';
         if(sess){
           h += '<p class="topic"><span class="sn">'
-             + fill(t(c.unit==="week"?"weekLabel":"session"),{n:c.unit==="week"?WEEK:it.n})+'</span>'+esc(L(sess))+'</p>';
+             + fill(t("session"),{n:it.n})+'</span>'+esc(L(sess))+'</p>';
         }
         h += '<details class="study-details"><summary>'+t("studyDetails")+'</summary>'
-           + '<p class="p">'+esc(L(c.teachers))+'</p><p class="hw">'+esc(L(c.homework))+'</p></details></div>';
+           + '<p class="p">'+esc(L(c.teachers))+'</p><p class="hw">'+esc(L(c.homework))+'</p></details></article>';
       });
     }
     h += '</div></section>';
-  });
-  h += '</div>';
+  }
+  h += '</div></div>';
   $("view-week").innerHTML = h;
 }
 
@@ -1045,7 +1078,7 @@ function renderCourse(){
     const wk = c.unit==="week" ? s.n + (c.firstWeek-1) : Math.ceil(s.n/(c.perWeek||1));
     const day = c.unit==="week" || c.perWeek===1 ? c.slots[0].day
               : (s.n%2===1 ? c.slots[0].day : c.slots[1].day);
-    h += '<tr'+(wk===WEEK?' class="now"':'')+'>'
+    h += '<tr'+(calendarWeekFor(dateOf(day,wk))===WEEK?' class="now"':'')+'>'
       + '<td class="n">'+s.n+'</td>'
       + '<td>'+esc(L(s))+'<div style="font-size:11.5px;color:var(--ink-3)">'
       +   fill(t("weekLabel"),{n:wk})+' ・ '+fmtDate(dateOf(day,wk))+'</div></td>'
@@ -1182,22 +1215,20 @@ function setView(v){
   if(changed) revealView();
 }
 function setWeek(n){
-  const next = Math.min(15,Math.max(1,n));
+  if(!Number.isFinite(n)) return;
+  const next = Math.min(CALENDAR_WEEKS.length,Math.max(1,Math.trunc(n)));
   if(next===WEEK) return;
   const direction = Math.sign(next-WEEK);
   stopMotion();
   const active = document.activeElement;
   const inWeek = active && active.closest('#view-week');
-  const focusWeek = active && active.dataset.week;
   const focusId = active && active.id;
   WEEK = next;
   renderWeek();
   if(VIEW==="course") renderCourse();
   if(VIEW==="week"){
-    const target = focusWeek ? document.querySelector('[data-week="'+WEEK+'"]')
-      : focusId==="w-prev" || focusId==="w-next" ? $(focusId)
-      : inWeek ? document.querySelector('[data-week="'+WEEK+'"]') : null;
-    if(target) (target.disabled ? document.querySelector('[data-week="'+WEEK+'"]') : target).focus({preventScroll:true});
+    const target = inWeek ? ($(focusId) || $('w-select')) : null;
+    if(target) (target.disabled ? $('w-select') : target).focus({preventScroll:true});
     document.querySelectorAll('.dayrow').forEach((day,i)=>moveIn(day,direction,i*25));
   }
 }
@@ -1253,10 +1284,13 @@ document.addEventListener("click", e=>{
   }
   const cb = e.target.closest("[data-course]");
   if(cb){ openCourse(cb.dataset.course); return; }
-  const wb = e.target.closest("[data-week]");
-  if(wb){ setWeek(Number(wb.dataset.week)); return; }
+  if(e.target.closest("#w-today")) return setWeek(calendarWeekFor(todayISO()));
   if(e.target.closest("#w-prev")) return setWeek(WEEK-1);
   if(e.target.closest("#w-next")) return setWeek(WEEK+1);
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='w-select') setWeek(Number(e.target.value));
+  if(e.target.id==='calendar-date' && e.target.validity.valid && e.target.value) setWeek(calendarWeekFor(e.target.value));
 });
 $("tab-home").addEventListener("click", ()=>setView("home"));
 $("tab-week").addEventListener("click", ()=>setView("week"));
@@ -1274,6 +1308,7 @@ document.addEventListener("keydown", e=>{
     e.preventDefault(); setView(views[next]); $("tab-"+views[next]).focus(); return;
   }
   if(VIEW!=="week") return;
+  if(e.target.closest('input,select,textarea') || e.altKey || e.ctrlKey || e.metaKey) return;
   if(e.key==="ArrowLeft"){ e.preventDefault(); setWeek(WEEK-1); }
   if(e.key==="ArrowRight"){ e.preventDefault(); setWeek(WEEK+1); }
 });

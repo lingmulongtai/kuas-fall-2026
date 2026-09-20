@@ -213,13 +213,18 @@ table.grid .location{margin-top:4px;font-size:11.5px}
 
 /* Weekly lesson index. */
 .weekbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 22px;padding:12px;border-radius:20px}
-.weeknums{display:flex;flex-wrap:wrap;gap:4px;background:var(--inlay);padding:4px;border:1px solid var(--rule-2);border-radius:15px}
-.weeknums button{width:38px;min-height:40px;padding:4px;border:0;background:transparent;border-radius:11px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink-2)}
-.weeknums button:hover,.nav-w:hover:not(:disabled){background:var(--band)}
-.weeknums button[aria-pressed="true"]{background:var(--surface);color:var(--indigo);box-shadow:var(--shadow);font-weight:700}
+.nav-w:hover:not(:disabled){background:var(--band)}
 .nav-w{border:1px solid var(--shine);background:var(--cell);border-radius:22px;padding:7px 12px;min-height:42px;font-size:12px;box-shadow:var(--shadow)}
 .nav-w:disabled{color:var(--ink-3);border-style:dashed}
-.week-board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;align-items:start}
+.calendar-heading{justify-content:space-between;gap:12px 28px}
+.calendar-heading .eyebrow{margin:0 0 4px;font-size:11px;letter-spacing:.12em;color:var(--ink-2)}
+.calendar-heading>span{max-width:380px}
+.calendar-arrows{display:flex;gap:6px}
+.calendar-control{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--ink-2)}
+.calendar-control:last-child{margin-left:auto}
+.calendar-control select,.calendar-control input{max-width:100%;min-height:42px;border:1px solid var(--rule);border-radius:12px;padding:8px 10px;background:var(--cell);color:var(--ink);font:inherit;font-size:12px}
+.calendar-scroll{overflow-x:auto;padding:4px 3px 20px;margin:-4px -3px -20px}
+.week-board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) repeat(2,78px);gap:8px;align-items:stretch;min-width:940px}
 .dayrow{min-width:0;border-radius:20px;overflow:hidden}
 .daylab{margin:0;padding:14px;background:var(--inlay);border-bottom:1px solid var(--rule-2);font-family:var(--gothic);font-size:17px;letter-spacing:-.02em}
 .daylab small{display:block;font-family:var(--gothic);font-size:11px;color:var(--ink-2);font-variant-numeric:tabular-nums}
@@ -236,6 +241,18 @@ table.grid .location{margin-top:4px;font-size:11.5px}
 .wk .location{margin:7px 0 0}
 .wk .sn{display:block;color:var(--ink-3);font-size:10px;margin-bottom:2px}
 .wk .hw{margin:6px 0 0;font-size:12px;color:var(--ink-2)}
+.week-board .daylab{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:15px 12px;font-size:11px;line-height:1.5}
+.daylab time{display:block;font-size:28px;letter-spacing:-.04em;font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink)}
+.daylab time small{font-size:13px;letter-spacing:0;margin-right:2px}
+.is-today .daylab{background:var(--hl);color:var(--indigo)}
+.today-label{font-size:10px}
+.is-closed .daylab{color:var(--vermilion)}
+.is-closed .dayoff{color:var(--vermilion);font-weight:600}
+.outside-term,.weekend{background-color:var(--glass)}
+.week-board .wk{padding:12px 10px;background:var(--inlay);margin:0 5px 8px;border:1px solid var(--rule-2);border-left:3px solid var(--c);border-radius:12px}
+.week-board .wk .nm{font-size:13px}
+.week-board .wk .topic{font-size:12px}
+.week-board .dayoff{padding:16px 10px;font-size:11px}
 .study-details{margin-top:12px;border-top:1px solid var(--rule-2);font-size:11px;color:var(--ink-2)}
 .study-details summary{cursor:pointer;padding:9px 0;line-height:1.7}
 .study-details .p{margin:0 0 4px}
@@ -295,7 +312,6 @@ ul.goals li{margin-bottom:8px}
   .blk{padding:10px 9px}
   .blk .nm{font-size:14px}
   .facts{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .week-board{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:900px){
   .cbody{grid-template-columns:1fr}
@@ -349,9 +365,20 @@ ul.goals li{margin-bottom:8px}
   .stat b{font-size:27px}
   .stat>span{font-size:10px}
   .weekbar{gap:8px;justify-content:space-between;margin-bottom:18px}
-  .weeknums{order:3;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));width:100%;gap:2px}
-  .weeknums button{width:100%;min-height:40px}
-  .week-board{grid-template-columns:1fr;gap:20px}
+  .calendar-heading h2{font-size:19px}
+  .calendar-heading>span{font-size:11px}
+  .calendar-control{flex:1;min-width:0;flex-direction:column;align-items:flex-start;gap:4px}
+  .calendar-control:last-child{margin-left:0}
+  .calendar-arrows{width:100%}
+  .calendar-control input,.calendar-control select{width:100%;font-size:11px}
+  .week-board{grid-template-columns:1fr;min-width:0;gap:12px}
+  .week-board .daylab{flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;padding:10px 14px}
+  .week-board .daylab time{font-size:23px;order:-1}
+  .week-board .wk{margin:0 8px 10px;padding:14px}
+  .week-board .wk .nm{font-size:15px}
+  .week-board .wk .topic{font-size:13px}
+  .weekend .daycells,.outside-term .daycells{padding:0}
+  .weekend .dayoff,.outside-term .dayoff{padding:6px 14px 12px}
   .daylab{display:flex;align-items:baseline;justify-content:space-between;font-size:17px;padding:12px 14px}
   .daylab small{font-size:10px;letter-spacing:0}
   .wk{padding:12px}
@@ -438,7 +465,8 @@ ul.goals li{margin-bottom:8px}
   .bookttl{min-width:0;font-size:11px}
   .cbody{grid-template-columns:minmax(0,1fr) 270px;gap:16px}
   .box{padding:12px}
-  .week-board{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .calendar-scroll{overflow:visible}
+  .week-board{grid-template-columns:repeat(5,minmax(0,1fr)) repeat(2,55px);gap:5px;min-width:0}
   .daylab{padding:8px;font-size:15px}
   .wk{padding:8px;break-inside:avoid}
   .wk .nm,.wk .topic{font-size:11px}
