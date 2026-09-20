@@ -661,7 +661,14 @@ const WALLPAPERS = {
     {id:'1464822759023-fed622ff2c3b',author:'Kalen Emsley',page:'Bkci_8qcdvQ'},
     {id:'1454496522488-7a8e488e8606',author:'Rohit Tandon',page:'9wg5jCEPBsw'},
     {id:'1506905925346-21bda4d32df4',author:'Sam Ferrara',page:'1527pjeb6jg'},
-    {id:'1501785888041-af3ef285b470',author:'Pietro De Grandi',page:'T7K4aEPoGGk'}
+    {id:'1501785888041-af3ef285b470',author:'Pietro De Grandi',page:'T7K4aEPoGGk'},
+    {id:'1457195740896-7f345efef228',author:'yucar studios',page:'cfR-V1QuEKw'},
+    {id:'1433477077279-9354d2d72f6b',author:'Jasper Boer',page:'1fUu0dratoM'},
+    {id:'1446329813274-7c9036bd9a1f',author:'Sebastian Unrau',page:'v4e3JI7DDHI'},
+    {id:'1435783099294-283725c37230',author:'Luca Bravo',page:'3Z70SDuYs5g'},
+    {id:'1483605660614-22ed5be525ce',author:'Vincent Guth',page:'7rc1slcFfuM'},
+    {id:'1476514525535-07fb3b4ae5f1',author:'Luca Bravo',page:'O453M2Liufs'},
+    {id:'1482192505345-5655af888cc4',author:'Luca Bravo',page:'hFzIoD0F_i8'}
   ],
   dark: [
     {id:'1768222780460-3cb1027f51e2',author:'Nguyen Vanh',page:'1m8E6OTLzRk'},
@@ -669,7 +676,14 @@ const WALLPAPERS = {
     {id:'1444080748397-f442aa95c3e5',author:'Ryan Hutton',page:'Jztmx9yqjBw'},
     {id:'1472552944129-b035e9ea3744',author:'Gregoire Jeanneau',page:'9sxeKzuCVoE'},
     {id:'1477840539360-4a1d23071046',author:'Manuel Will',page:'gd3t5Dtbwkw'},
-    {id:'1519681393784-d120267933ba',author:'Benjamin Voros',page:'phIFdC6lA4E'}
+    {id:'1519681393784-d120267933ba',author:'Benjamin Voros',page:'phIFdC6lA4E'},
+    {id:'1419242902214-272b3f66ee7a',author:'Vincentiu Solomon',page:'ln5drpv_ImI'},
+    {id:'1485470733090-0aae1788d5af',author:'Daniel Leone',page:'v7daTKlZzaw'},
+    {id:'1502790671504-542ad42d5189',author:'Mohammad Alizade',page:'4wzRuAb-KWs'},
+    {id:'1456154875099-97a3a56074d3',author:'Federico Beccari',page:'L8126OwlroY'},
+    {id:'1454123253751-1fe2b9e0c10d',author:'Tim Marshall',page:'uanoYn1AmPs'},
+    {id:'1588426651288-7e828a77f413',author:'Luca Bravo',page:'mxx-lVuVdFM'},
+    {id:'1444703686981-a3abbc4d4fe3',author:'Greg Rakozy',page:'oMpAz-DN-9I'}
   ]
 };
 const wallpaperCache = {};
@@ -683,7 +697,8 @@ function nextWallpaper(theme){
   let saved;
   try{ saved = JSON.parse(store.get(key)); }catch(e){}
   const last = saved && saved.last;
-  let remaining = saved && Array.isArray(saved.remaining) ? saved.remaining : [];
+  const catalog = photos.map(photo=>photo.id).join(',');
+  let remaining = saved && saved.catalog===catalog && Array.isArray(saved.remaining) ? saved.remaining : [];
   remaining = [...new Set(remaining)].filter(id=>id!==last && photos.some(photo=>photo.id===id));
   if(!remaining.length){
     remaining = photos.filter(photo=>photo.id!==last).map(photo=>photo.id);
@@ -693,7 +708,7 @@ function nextWallpaper(theme){
     }
   }
   const id = remaining.shift();
-  store.set(key,JSON.stringify({last:id,remaining:remaining}));
+  store.set(key,JSON.stringify({catalog,last:id,remaining:remaining}));
   return photos.find(photo=>photo.id===id);
 }
 function wallpaperSize(){
