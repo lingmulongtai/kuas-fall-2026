@@ -136,6 +136,10 @@ button:disabled{cursor:default}
 .tabs button{position:relative;display:flex;align-items:center;justify-content:center;gap:9px;min-height:44px;padding:10px 24px;border:0;background:none;border-radius:24px;font-size:13px;font-weight:600;color:var(--ink-2)}
 .tabs button:hover{color:var(--ink)}
 .tabs button[aria-selected="true"]{background:var(--surface);box-shadow:var(--shadow);color:var(--indigo)}
+.ambience{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin:16px auto 0;min-height:36px}
+.ambience .iconbtn{background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);padding:7px 12px;min-height:36px}
+#background-status{font-size:11px;background:var(--glass);border-radius:10px}
+#background-status:not(:empty){padding:5px 10px}
 main{max-width:1320px;margin:auto;padding:26px 28px 48px}
 .view{min-width:0}
 .sec{margin:0 0 24px;padding:22px;border-radius:24px}
@@ -444,7 +448,7 @@ ul.goals li{margin-bottom:8px}
   }
   @page{size:A4 landscape;margin:12mm}
   body{background:#FFF;font-size:10px}
-  .wallpaper,.photo-credit,.masthead,.tabs,.switches,.weekbar,.picker,.day-switch{display:none!important}
+  .wallpaper,.photo-credit,.masthead,.tabs,.switches,.ambience,.weekbar,.picker,.day-switch{display:none!important}
   main{padding:0;max-width:none}
   .view[hidden]{display:block!important}
   .view+.view{break-before:page}

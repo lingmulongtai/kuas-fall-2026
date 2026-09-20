@@ -13,11 +13,12 @@ const source = app.slice(start,end);
 function setup(storage=new Map()){
   const pending = [];
   const timers = new Map();
-  const elements = {wallpaper:{hidden:true,replaceChildren(image){this.image=image;}},'photo-credit':{hidden:true,innerHTML:''}};
+  const elements = {wallpaper:{hidden:true,replaceChildren(image){this.image=image;}},'photo-credit':{hidden:true,innerHTML:''},'shuffle-btn':{disabled:false},'background-status':{textContent:''}};
   let timerId = 0;
   const context = vm.createContext({
     store:{get:key=>storage.get(key)||null,set:(key,value)=>storage.set(key,value)},
-    window:{innerWidth:375,innerHeight:812,devicePixelRatio:3},
+    window:{innerWidth:375,innerHeight:812,devicePixelRatio:3,dispatchEvent(){}},
+    CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},
     Image:class{set src(value){this.url=value;pending.push(this);}removeAttribute(){this.url=null;}},
     setTimeout:callback=>{timers.set(++timerId,callback);return timerId;},
     clearTimeout:id=>timers.delete(id),
@@ -28,17 +29,18 @@ function setup(storage=new Map()){
     fill:(text,values)=>text.replace('{name}',values.name),
     esc:text=>text.replace(/&/g,'&amp;')
   });
-  vm.runInContext(source+'\nglobalThis.background = {WALLPAPERS,nextWallpaper,updateWallpaper};',context);
+  vm.runInContext(source+'\nglobalThis.background = {WALLPAPERS,nextWallpaper,updateWallpaper,wallpaperSize};',context);
   return {context,api:context.background,pending,timers,elements,storage};
 }
 const flush = ()=>new Promise(resolve=>setImmediate(resolve));
 
-test('each theme cycles through six photographs and never immediately repeats across reloads',()=>{
+test('each theme cycles through its photographs and never immediately repeats across reloads',()=>{
   const storage = new Map();
   for(const theme of ['light','dark']){
     const ids=[];
-    for(let i=0;i<30;i++) ids.push(setup(storage).api.nextWallpaper(theme).id);
-    assert.equal(new Set(ids.slice(0,6)).size,6);
+    const size=setup().api.WALLPAPERS[theme].length;
+    for(let i=0;i<size*4;i++) ids.push(setup(storage).api.nextWallpaper(theme).id);
+    assert.equal(new Set(ids.slice(0,size)).size,size);
     for(let i=1;i<ids.length;i++) assert.notEqual(ids[i],ids[i-1]);
   }
 });
@@ -66,8 +68,45 @@ test('a slow old theme cannot replace the latest theme, and loaded images are re
   context.lang='en';await api.updateWallpaper();
   assert.match(elements['photo-credit'].innerHTML,/Photo:/);
   assert.equal(pending.length,2);
-  assert.match(pending[0].url,/w=800&h=1700/);
+  assert.match(pending[0].url,/w=938&h=2030&q=90/);
   assert.equal(pending[0].referrerPolicy,'no-referrer');
+});
+
+test('high-density and ultrawide displays retain their aspect ratio within the 4K budget',()=>{
+  const {api,context}=setup();
+  for(const [width,height,dpr] of [[1920,1080,2],[3440,1440,2],[375,812,3],[1080,1920,2]]){
+    Object.assign(context.window,{innerWidth:width,innerHeight:height,devicePixelRatio:dpr});
+    const size=api.wallpaperSize();
+    assert.ok(Math.max(size.width,size.height)<=3840);
+    assert.ok(size.width*size.height<=8294400+3840);
+    assert.ok(Math.abs(size.width/size.height-width/height)<0.002);
+  }
+  Object.assign(context.window,{innerWidth:1920,innerHeight:1080,devicePixelRatio:2});
+  assert.equal(api.wallpaperSize().width,3840);
+  assert.equal(api.wallpaperSize().height,2160);
+});
+
+test('manual shuffle gets a new photograph and stale requests cannot overwrite it',async()=>{
+  const {api,pending,elements}=setup();
+  const first=api.updateWallpaper();
+  const shuffle=api.updateWallpaper(true);
+  assert.notEqual(pending[0].url,pending[1].url);
+  assert.equal(elements['shuffle-btn'].disabled,true);
+  pending[1].onload();await shuffle;
+  pending[0].onload();await first;
+  assert.equal(elements.wallpaper.image,pending[1]);
+  assert.equal(elements['shuffle-btn'].disabled,false);
+});
+
+test('manual shuffle can recover after provider failures without reloading',async()=>{
+  const {api,pending,elements}=setup();
+  const update=api.updateWallpaper();
+  for(let i=0;i<3;i++){pending[i].onerror();await flush();}
+  await update;
+  const retry=api.updateWallpaper(true);
+  pending[3].onload();await retry;
+  assert.equal(elements.wallpaper.hidden,false);
+  assert.equal(elements['background-status'].textContent,'');
 });
 
 test('three failed or timed-out images leave a usable solid background',async()=>{

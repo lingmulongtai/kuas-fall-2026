@@ -529,6 +529,10 @@ const T = {
   navigation:{ja:"表示を切り替え", en:"Dashboard views"},
   changeTheme:{ja:"テーマを切り替え", en:"Change theme"},
   photoCredit:{ja:"背景写真：{name} / Unsplash", en:"Photo: {name} / Unsplash"},
+  shuffleBackground:{ja:"背景を変える", en:"Shuffle scenery"},
+  backgroundLoading:{ja:"背景を読み込み中…", en:"Loading scenery…"},
+  backgroundFailed:{ja:"背景を読み込めませんでした。もう一度お試しください。", en:"Scenery could not load. Try again."},
+  backgroundSettings:{ja:"背景と動き", en:"Scenery and motion"},
   lunch:{ja:"昼休み 12:10–13:00", en:"Lunch break 12:10-13:00"},
   courses:{ja:"科目一覧", en:"Course list"},
   creditsAll:{ja:"合計単位", en:"Total credits"},
@@ -687,6 +691,11 @@ function nextWallpaper(theme){
   store.set(key,JSON.stringify({last:id,remaining:remaining}));
   return photos.find(photo=>photo.id===id);
 }
+function wallpaperSize(){
+  const width = window.innerWidth, height = window.innerHeight;
+  const scale = Math.min(window.devicePixelRatio||1,2.5,3840/Math.max(width,height),Math.sqrt(8294400/(width*height)));
+  return {width:Math.round(width*scale),height:Math.round(height*scale)};
+}
 function loadWallpaperImage(photo){
   return new Promise((resolve,reject)=>{
     const image = new Image();
@@ -703,15 +712,13 @@ function loadWallpaperImage(photo){
       if(success) resolve(image);
       else{ image.removeAttribute('src'); reject(new Error('Wallpaper unavailable')); }
     };
-    const timeout = setTimeout(()=>finish(false),8000);
+    const timeout = setTimeout(()=>finish(false),12000);
     image.onload = async()=>{
       try{ if(image.decode) await image.decode(); finish(true); }catch(e){ finish(false); }
     };
     image.onerror = ()=>finish(false);
-    const scale = Math.min(window.devicePixelRatio||1,2);
-    const width = Math.min(2400,Math.ceil(window.innerWidth*scale/100)*100);
-    const height = Math.min(1800,Math.ceil(window.innerHeight*scale/100)*100);
-    image.src = 'https://images.unsplash.com/photo-'+photo.id+'?auto=format&fit=crop&w='+width+'&h='+height+'&q=80';
+    const {width,height} = wallpaperSize();
+    image.src = 'https://images.unsplash.com/photo-'+photo.id+'?auto=format&fit=crop&w='+width+'&h='+height+'&q=90';
   });
 }
 async function loadThemeWallpaper(theme){
@@ -728,22 +735,29 @@ function renderPhotoCredit(){
   credit.innerHTML = '<a href="https://unsplash.com/photos/'+wallpaperPhoto.page+'?utm_source=kuas_course_planner&amp;utm_medium=referral" target="_blank" rel="noopener noreferrer">'
     +esc(fill(t('photoCredit'),{name:wallpaperPhoto.author}))+'</a>';
 }
-async function updateWallpaper(){
+async function updateWallpaper(force=false){
   const theme = resolvedTheme();
-  if(wallpaperTheme===theme){ renderPhotoCredit(); return; }
+  if(wallpaperTheme===theme && !force){ renderPhotoCredit(); return; }
   wallpaperTheme = theme;
   const request = ++wallpaperRequest;
   const layer = $('wallpaper');
   layer.hidden = true;
   wallpaperPhoto = null;
   renderPhotoCredit();
-  if(!wallpaperCache[theme]) wallpaperCache[theme] = loadThemeWallpaper(theme);
+  window.dispatchEvent(new CustomEvent('wallpaperchange',{detail:null}));
+  $('shuffle-btn').disabled = true;
+  $('background-status').textContent = t('backgroundLoading');
+  if(force || !wallpaperCache[theme]) wallpaperCache[theme] = loadThemeWallpaper(theme);
   const result = await wallpaperCache[theme];
-  if(request!==wallpaperRequest || !result) return;
+  if(request!==wallpaperRequest) return;
+  $('shuffle-btn').disabled = false;
+  $('background-status').textContent = result ? '' : t('backgroundFailed');
+  if(!result) return;
   layer.replaceChildren(result.image);
   layer.hidden = false;
   wallpaperPhoto = result.photo;
   renderPhotoCredit();
+  window.dispatchEvent(new CustomEvent('wallpaperchange',{detail:result.image}));
 }
 
 /* Motion never delays state changes, focus, or interaction. */
@@ -817,7 +831,8 @@ function uiIcon(name){
     mats:'<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 3v18m4-13h3m-3 4h3"/>',
     light:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
     dark:'<path d="M20.5 14.2A8.7 8.7 0 0 1 9.8 3.5a8.8 8.8 0 1 0 10.7 10.7Z"/>',
-    auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18Z" fill="currentColor" stroke="none"/>'
+    auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18Z" fill="currentColor" stroke="none"/>',
+    shuffle:'<path d="m17 3 4 4-4 4m0 2 4 4-4 4M3 7h3c5 0 7 10 12 10h3M3 17h3c2 0 4-3 6-6s4-4 6-4h3"/>'
   };
   return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[name]+'</svg>';
 }
@@ -1253,6 +1268,9 @@ function renderAll(){
     $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats"][i])+'</span>';
   });
   $("foot").textContent = t("foot");
+  $('shuffle-btn').innerHTML = uiIcon('shuffle')+'<span>'+t('shuffleBackground')+'</span>';
+  if($('background-status').textContent) $('background-status').textContent = t($('shuffle-btn').disabled?'backgroundLoading':'backgroundFailed');
+  document.querySelector('.ambience').setAttribute('aria-label',t('backgroundSettings'));
   document.querySelector('.tabs').setAttribute('aria-label', t("navigation"));
   ["home","week","course","mats"].forEach(k=>{
     $("tab-"+k).setAttribute('aria-controls', 'view-'+k);
@@ -1297,6 +1315,7 @@ $("tab-mats").addEventListener("click", ()=>setView("mats"));
 $("btn-ja").addEventListener("click", ()=>setLang("ja"));
 $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
+$('shuffle-btn').addEventListener('click',()=>updateWallpaper(true));
 document.addEventListener("keydown", e=>{
   const tab = e.target.closest('[role="tab"]');
   if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
