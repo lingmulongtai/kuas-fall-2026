@@ -871,10 +871,8 @@ function mainMode(c){
   return Object.keys(tally).sort((a,b)=>tally[b]-tally[a])[0] || "f2f";
 }
 function termText(c){
-  const first = dateOf(c.slots[0].day, c.firstWeek);
-  const lastSlot = c.slots[c.slots.length-1];
-  const last = dateOf(lastSlot.day, c.lastWeek);
-  return fmtDate(first)+" – "+fmtDate(last);
+  const dates = courseDates(c);
+  return fmtDate(dates[0])+" – "+fmtDate(dates.at(-1));
 }
 function shade(hex,i){
   const a=[1,.66,.42,.25][i%4];
@@ -1062,8 +1060,8 @@ function renderCourse(){
     + fact(t("colLocation"), esc(locationText(c))+(c.classMode==="f2f"?"　"+t("campus"):""))
     + fact(t("colMode"), courseModeLabel(c))
     + fact(t("sessh"), totalPeriods(c)+(LANG==="ja"?" コマ":" periods"))
-    + fact(t("firstDay"), fmtDate(dateOf(c.slots[0].day, c.firstWeek)))
-    + fact(t("lastDay"), fmtDate(dateOf(c.slots[c.slots.length-1].day, c.lastWeek)))
+    + fact(t("firstDay"), fmtDate(courseDates(c)[0]))
+    + fact(t("lastDay"), fmtDate(courseDates(c).at(-1)))
     + fact(t("codeh"), c.code)
     + fact(t("ttcodeh"), c.ttcode)
     + '</dl></div>';

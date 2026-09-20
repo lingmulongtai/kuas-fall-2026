@@ -70,3 +70,14 @@ test('exercise courses retain late starts and multi-period spans',()=>{
   assert.ok(exercises.every(item=>item.s.span===2));
   assert.equal(courseDates(COURSES.find(c=>c.id==='calc')).at(-1),'2027-01-18');
 });
+
+test('course term boundaries include the earliest and latest actual lesson dates',()=>{
+  for(const id of ['mom','emt']){
+    const dates=courseDates(COURSES.find(c=>c.id===id));
+    assert.equal(dates[0],'2026-09-25');
+    assert.equal(dates.at(-1),'2027-01-15');
+  }
+  const calculus=courseDates(COURSES.find(c=>c.id==='calc'));
+  assert.equal(calculus[0],'2026-09-28');
+  assert.equal(calculus.at(-1),'2027-01-18');
+});
