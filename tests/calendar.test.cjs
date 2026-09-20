@@ -81,3 +81,20 @@ test('course term boundaries include the earliest and latest actual lesson dates
   assert.equal(calculus[0],'2026-09-28');
   assert.equal(calculus.at(-1),'2027-01-18');
 });
+
+test('changing the calendar week refreshes the lesson highlights on the course tab',()=>{
+  const elements=new Map();
+  const element=id=>{
+    if(!elements.has(id)) elements.set(id,{innerHTML:'',addEventListener(){},focus(){}});
+    return elements.get(id);
+  };
+  const browser=vm.createContext({
+    localStorage:{getItem:()=>null},
+    window:{matchMedia:()=>({matches:false,addEventListener(){}}),addEventListener(){}},
+    document:{getElementById:element,addEventListener(){},querySelectorAll:()=>[],activeElement:{id:'w-select',closest:()=>true}}
+  });
+  vm.runInContext(app.slice(0,app.indexOf('/* ---------- 起動'))+
+    ';WEEK=1;VIEW="week";COURSE="mom";renderCourse();setWeek(2);',browser);
+  const highlighted=[...element('view-course').innerHTML.matchAll(/<tr class="now"><td class="n">(\d+)/g)].map(match=>Number(match[1]));
+  assert.deepEqual(highlighted,[1,4]);
+});

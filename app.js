@@ -1300,7 +1300,7 @@ function setWeek(n){
   const focusId = active && active.id;
   WEEK = next;
   renderWeek();
-  if(VIEW==="course") renderCourse();
+  renderCourse();
   if(VIEW==="week"){
     const target = inWeek ? ($(focusId) || $('w-select')) : null;
     if(target) (target.disabled ? $('w-select') : target).focus({preventScroll:true});
