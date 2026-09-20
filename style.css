@@ -335,7 +335,7 @@ ul.goals li{margin-bottom:8px}
   .switches{margin-left:auto}
   .stat{padding:0 12px;gap:8px}
   .stat b{font-size:25px}
-  .blk{padding:10px 9px}
+  .blk{padding:10px 9px 10px 17px}
   .blk .nm{font-size:14px}
   .facts{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
