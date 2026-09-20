@@ -533,6 +533,11 @@ const T = {
   backgroundLoading:{ja:"背景を読み込み中…", en:"Loading scenery…"},
   backgroundFailed:{ja:"背景を読み込めませんでした。もう一度お試しください。", en:"Scenery could not load. Try again."},
   backgroundSettings:{ja:"背景と動き", en:"Scenery and motion"},
+  rainOn:{ja:"雨：オン", en:"Rain: on"},
+  rainOff:{ja:"雨：オフ", en:"Rain: off"},
+  motionOn:{ja:"動きを止める", en:"Pause motion"},
+  motionOff:{ja:"動きを再開", en:"Resume motion"},
+  motionReduced:{ja:"動き：控えめ", en:"Reduced motion"},
   lunch:{ja:"昼休み 12:10–13:00", en:"Lunch break 12:10-13:00"},
   courses:{ja:"科目一覧", en:"Course list"},
   creditsAll:{ja:"合計単位", en:"Total credits"},
@@ -762,14 +767,26 @@ async function updateWallpaper(force=false){
 
 /* Motion never delays state changes, focus, or interaction. */
 const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+let MOTION = store.get('motion')!=='off';
+let RAIN = store.get('rain')!=='off';
 const runningMotion = new Map();
 let printing = false;
+function motionEnabled(){ return MOTION && !(motionPreference && motionPreference.matches); }
+function renderAmbience(){
+  document.documentElement.dataset.motion = motionEnabled()?'on':'off';
+  $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?'rainOn':'rainOff')+'</span>';
+  $('rain-btn').setAttribute('aria-pressed',RAIN);
+  $('motion-btn').innerHTML = uiIcon(motionEnabled()?'pause':'play')+'<span>'+t(motionPreference && motionPreference.matches?'motionReduced':MOTION?'motionOn':'motionOff')+'</span>';
+  $('motion-btn').setAttribute('aria-pressed',motionEnabled());
+  $('motion-btn').disabled = !!(motionPreference && motionPreference.matches);
+  window.dispatchEvent(new Event('ambiencechange'));
+}
 function stopMotion(){
   runningMotion.forEach(animation=>animation.cancel());
   runningMotion.clear();
 }
 function moveIn(element, direction=0, delay=0){
-  if(!element || !element.animate || printing || (motionPreference && motionPreference.matches)) return;
+  if(!element || !element.animate || printing || !motionEnabled()) return;
   if(runningMotion.has(element)) runningMotion.get(element).cancel();
   const animation = element.animate([
     {opacity:0, transform:direction ? 'translateX('+direction*12+'px)' : 'translateY(14px)'},
@@ -797,7 +814,7 @@ function syncSelections(){
 }
 window.addEventListener('resize', ()=>{ stopMotion(); syncSelections(); });
 if(motionPreference && motionPreference.addEventListener){
-  motionPreference.addEventListener('change', ()=>{ if(motionPreference.matches) stopMotion(); });
+  motionPreference.addEventListener('change', ()=>{ if(motionPreference.matches) stopMotion(); renderAmbience(); });
 }
 
 /* ---------- テーマ ---------- */
@@ -832,7 +849,10 @@ function uiIcon(name){
     light:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
     dark:'<path d="M20.5 14.2A8.7 8.7 0 0 1 9.8 3.5a8.8 8.8 0 1 0 10.7 10.7Z"/>',
     auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18Z" fill="currentColor" stroke="none"/>',
-    shuffle:'<path d="m17 3 4 4-4 4m0 2 4 4-4 4M3 7h3c5 0 7 10 12 10h3M3 17h3c2 0 4-3 6-6s4-4 6-4h3"/>'
+    shuffle:'<path d="m17 3 4 4-4 4m0 2 4 4-4 4M3 7h3c5 0 7 10 12 10h3M3 17h3c2 0 4-3 6-6s4-4 6-4h3"/>',
+    rain:'<path d="M8 16H6a4 4 0 1 1 1-7 5 5 0 0 1 10-1 4 4 0 1 1 1 8M10 16l-1 4m5-4-1 4m5-1-1 3"/>',
+    pause:'<path d="M8 5v14M16 5v14"/>',
+    play:'<path d="m8 4 12 8-12 8Z"/>'
   };
   return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[name]+'</svg>';
 }
@@ -1271,6 +1291,7 @@ function renderAll(){
   $('shuffle-btn').innerHTML = uiIcon('shuffle')+'<span>'+t('shuffleBackground')+'</span>';
   if($('background-status').textContent) $('background-status').textContent = t($('shuffle-btn').disabled?'backgroundLoading':'backgroundFailed');
   document.querySelector('.ambience').setAttribute('aria-label',t('backgroundSettings'));
+  renderAmbience();
   document.querySelector('.tabs').setAttribute('aria-label', t("navigation"));
   ["home","week","course","mats"].forEach(k=>{
     $("tab-"+k).setAttribute('aria-controls', 'view-'+k);
@@ -1316,6 +1337,8 @@ $("btn-ja").addEventListener("click", ()=>setLang("ja"));
 $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
 $('shuffle-btn').addEventListener('click',()=>updateWallpaper(true));
+$('rain-btn').addEventListener('click',()=>{ RAIN=!RAIN; store.set('rain',RAIN?'on':'off'); renderAmbience(); });
+$('motion-btn').addEventListener('click',()=>{ MOTION=!MOTION; store.set('motion',MOTION?'on':'off'); stopMotion(); renderAmbience(); });
 document.addEventListener("keydown", e=>{
   const tab = e.target.closest('[role="tab"]');
   if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
