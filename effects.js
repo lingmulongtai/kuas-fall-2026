@@ -6,7 +6,7 @@
   const lessTransparency = matchMedia('(prefers-reduced-transparency: reduce)');
   const moreContrast = matchMedia('(prefers-contrast: more)');
   let photo = document.querySelector('#wallpaper img');
-  let rainFrame=null, resizeTimer=0, suspended=false, rainFailed=false;
+  let rainFrame=null, rainDimensions='', resizeTimer=0, suspended=false, rainFailed=false;
 
   /* A neutral centre and curved edge normals refract only the lens perimeter. */
   function createLens(){
@@ -108,15 +108,21 @@
   function sendRainState(){
     rainFrame?.contentWindow.postMessage({type:'rain-state',running:canMove(),image:photo?.src},'*');
   }
+  function rainSize(){
+    const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+    return rainLayer.clientWidth+'x'+rainLayer.clientHeight+'@'+dpr;
+  }
   function removeRain(){
     rainFrame?.remove();
     rainFrame=null;
+    rainDimensions='';
     rainLayer.hidden=true;
   }
   function refresh(){
     if(!canMove()) resetSprings();
     const show=RAIN && photo?.naturalWidth && !lessTransparency.matches && !moreContrast.matches && !rainFailed;
     if(!show){ removeRain(); return; }
+    rainLayer.hidden=false;
     if(!rainFrame){
       rainFrame=document.createElement('iframe');
       rainFrame.title='Rain on glass';
@@ -125,8 +131,8 @@
       rainFrame.setAttribute('aria-hidden','true');
       rainFrame.src='rain.html';
       rainLayer.replaceChildren(rainFrame);
+      rainDimensions=rainSize();
     }
-    rainLayer.hidden=false;
     sendRainState();
   }
   window.addEventListener('message',event=>{
@@ -141,10 +147,14 @@
       rainFrame.contentWindow.postMessage({type:'rain-pointer',x:event.clientX,y:event.clientY},'*');
     }
   },{passive:true});
-  // The supplied renderer stores its dimensions at boot; recreate it after a resize.
+  // Mobile browser chrome changes innerHeight, not our stable background viewport.
+  // Rebuild the supplied renderer only when its actual size or rendering density changes.
   window.addEventListener('resize',()=>{
     resetSprings(); clearTimeout(resizeTimer);
-    resizeTimer=setTimeout(()=>{ removeRain(); refresh(); },250);
+    resizeTimer=setTimeout(()=>{
+      if(!rainFrame || !rainLayer.clientWidth || !rainLayer.clientHeight || rainDimensions===rainSize()) return;
+      removeRain(); refresh();
+    },250);
   });
   document.addEventListener('visibilitychange',refresh);
   for(const preference of [lessTransparency,moreContrast,finePointer]) preference.addEventListener('change',()=>{ resetSprings(); refresh(); });

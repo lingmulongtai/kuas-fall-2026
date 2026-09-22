@@ -17,7 +17,8 @@ function setup(storage=new Map()){
   let timerId = 0;
   const context = vm.createContext({
     store:{get:key=>storage.get(key)||null,set:(key,value)=>storage.set(key,value)},
-    window:{innerWidth:375,innerHeight:812,devicePixelRatio:3,dispatchEvent(){},addEventListener(){}},
+    window:{innerWidth:375,innerHeight:812,devicePixelRatio:3,dispatchEvent(){},addEventListener(){},
+      getComputedStyle:()=>({height:(context.backgroundHeight??context.window.innerHeight)+'px'})},
     CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},
     Image:class{set src(value){this.url=value;pending.push(this);}removeAttribute(){this.url=null;}},
     setTimeout:callback=>{timers.set(++timerId,callback);return timerId;},
@@ -120,6 +121,27 @@ test('rotating or expanding the viewport upgrades the same photograph',async()=>
   assert.equal(elements.wallpaper.image,pending[1]);
   await api.refreshWallpaperResolution();
   assert.equal(pending.length,2,'An already adequate image is reused');
+});
+
+test('initial load and toolbar resizes use the stable background height even while hidden',async()=>{
+  const {api,context,pending,elements}=setup();
+  context.backgroundHeight=900;
+  context.window.innerHeight=650;
+  const initial=api.updateWallpaper();
+  assert.match(pending[0].url,/w=938&h=2250/);
+  pending[0].onload();await initial;
+  const photo=elements.wallpaper.image;
+  for(const height of [500,800,900,650]){
+    context.window.innerHeight=height;
+    await api.refreshWallpaperResolution();
+  }
+  assert.equal(pending.length,1,'Browser chrome must not trigger another image download');
+  assert.equal(elements.wallpaper.image,photo);
+  context.backgroundHeight=375;context.window.innerWidth=900;
+  const rotated=api.refreshWallpaperResolution();
+  assert.match(pending[1].url,/w=2250&h=938/);
+  pending[1].onload();await rotated;
+  assert.equal(elements.wallpaper.image,pending[1]);
 });
 
 test('failed resolution upgrades preserve the displayed image and lose races to shuffle',async()=>{
