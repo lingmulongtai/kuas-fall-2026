@@ -11,7 +11,7 @@ function setup({motion=true}={}){
   let id=0;
   const listen=(name,fn)=>{if(!handlers.has(name)) handlers.set(name,[]);handlers.get(name).push(fn);};
   const drawing={createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){}};
-  const layer={hidden:true,children:[],replaceChildren(child){this.children=[child];}};
+  const layer={hidden:true,clientWidth:375,clientHeight:812,children:[],replaceChildren(child){this.children=[child];}};
   const photo={naturalWidth:3840,naturalHeight:2160,src:'https://images.unsplash.com/photo-test?w=3840'};
   const document={hidden:false,documentElement:{dataset:{}},addEventListener:listen,
     getElementById:id=>id==='rain'?layer:{setAttribute(){}},querySelector:()=>photo,
@@ -23,15 +23,16 @@ function setup({motion=true}={}){
       created.push(frame);return frame;
     }
   };
-  const context=vm.createContext({document,window:{addEventListener:listen},RAIN:true,motion,motionEnabled:()=>context.motion,
+  const context=vm.createContext({document,window:{addEventListener:listen,innerWidth:375,innerHeight:812,devicePixelRatio:2},RAIN:true,motion,motionEnabled:()=>context.motion,
     requestAnimationFrame:fn=>{frames.set(++id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),
     setTimeout:fn=>{timers.set(++id,fn);return id;},clearTimeout:id=>timers.delete(id),
     matchMedia:query=>{const pref={matches:query.includes('pointer: fine'),addEventListener:(name,fn)=>listen(query,fn)};preferences.set(query,pref);return pref;}
   });
   vm.runInContext(source,context);
   const emit=(name,event={})=>handlers.get(name)?.forEach(fn=>fn(event));
-  const resize=()=>{emit('resize');for(const [id,fn] of timers){timers.delete(id);fn();}};
-  return {context,document,layer,created,preferences,emit,resize};
+  const flushTimers=()=>{for(const [id,fn] of timers){timers.delete(id);fn();}};
+  const resize=()=>{emit('resize');flushTimers();};
+  return {context,document,layer,created,preferences,emit,resize,flushTimers};
 }
 
 test('the reference renderer gets one isolated background frame and the current photograph',()=>{
@@ -80,6 +81,7 @@ test('rain off and unavailable photographs remove the rendering document',()=>{
 
 test('resize rebuilds dimensions, contrast hides rain, and only the active frame can report failure',()=>{
   const state=setup(),old=state.created[0];
+  state.layer.clientWidth=812;state.layer.clientHeight=375;
   state.resize();
   const current=state.layer.children[0];assert.notEqual(current,old);
   state.emit('message',{source:old.contentWindow,data:{type:'rain-error'}});
@@ -90,6 +92,37 @@ test('resize rebuilds dimensions, contrast hides rain, and only the active frame
   const query='(prefers-contrast: more)';
   state.preferences.get(query).matches=true;state.emit(query);
   assert.equal(state.layer.hidden,true);assert.equal(state.layer.children.length,0);
+});
+
+test('mobile toolbar and keyboard resizes preserve the existing rain simulation',()=>{
+  const state=setup(),frame=state.created[0];
+  for(const height of [740,690,500,812,740,812]){
+    state.context.window.innerHeight=height;
+    state.resize();
+    assert.equal(state.layer.children[0],frame);
+  }
+  assert.equal(state.created.length,1);
+});
+
+test('desktop height changes and rendering density changes still resize rain',()=>{
+  const state=setup();
+  state.layer.clientHeight=900;state.resize();
+  assert.equal(state.created.length,2);
+  state.context.window.devicePixelRatio=3;state.resize();
+  assert.equal(state.created.length,2,'The supplied renderer caps density at 2');
+  state.context.window.devicePixelRatio=1;state.resize();
+  assert.equal(state.created.length,3);
+});
+
+test('a resize burst creates only one frame and returning to the original size creates none',()=>{
+  const state=setup();
+  state.layer.clientWidth=600;state.emit('resize');
+  state.layer.clientWidth=800;state.emit('resize');
+  state.layer.clientWidth=375;state.emit('resize');state.flushTimers();
+  assert.equal(state.created.length,1);
+  state.layer.clientWidth=600;state.emit('resize');
+  state.layer.clientWidth=800;state.emit('resize');state.flushTimers();
+  assert.equal(state.created.length,2);
 });
 
 function setupFrame({webgl=true}={}){

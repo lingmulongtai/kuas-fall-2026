@@ -715,7 +715,8 @@ function nextWallpaper(theme){
   return photos.find(photo=>photo.id===id);
 }
 function wallpaperSize(){
-  const width = window.innerWidth, height = window.innerHeight;
+  // CSS resolves the stable viewport height even while the photograph is hidden.
+  const width = window.innerWidth, height = parseFloat(window.getComputedStyle($('wallpaper')).height);
   const scale = Math.min(window.devicePixelRatio||1,2.5,3840/Math.max(width,height),Math.sqrt(8294400/(width*height)));
   return {width:Math.round(width*scale),height:Math.round(height*scale)};
 }
