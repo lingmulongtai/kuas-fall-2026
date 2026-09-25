@@ -192,6 +192,8 @@ main{max-width:1320px;margin:auto;padding:26px 28px 48px}
 .b-exam{color:var(--exam)}
 .b-quiz{color:var(--quiz)}
 .b-check{color:var(--ink-2);border-style:dashed}
+.b-bring{color:var(--f2f)}
+.b-bring.fill{background:var(--f2f-bg);font-weight:700}
 .b-exam.fill{background:var(--exam-bg);font-weight:700}
 .b-quiz.fill{background:var(--quiz-bg)}
 .marks{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
@@ -245,6 +247,21 @@ main{max-width:1320px;margin:auto;padding:26px 28px 48px}
 .exam-meta{margin:0;font-size:12px;color:var(--ink-2);line-height:1.7}
 .exam-note{margin:8px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.7}
 .exam-subhead{font-size:14px;margin:20px 0 10px}
+.notice-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:8px}
+.notice-list li{display:grid;grid-template-columns:104px minmax(0,1fr);gap:2px 16px;padding:10px 16px 10px 18px;background:var(--inlay);border:1px solid var(--rule-2);border-left:3px solid var(--c);border-radius:12px}
+.notice-list .exam-when time{font-size:16px}
+.notice-list .exam-meta .linkbtn{font-size:12px}
+.notice-list .badge{margin-bottom:3px}
+.extra{margin:6px 0 0;font-size:11.5px;line-height:1.7;color:var(--ink-2)}
+.memo-line b{display:inline-block;margin-right:4px;padding:0 5px;border-radius:5px;background:var(--notice-bg);color:var(--notice-ink);font-size:10px;font-weight:700}
+.memo-box{border-top:3px solid var(--notice-rule)}
+.memo-box li b{font-variant-numeric:tabular-nums;margin-right:4px}
+.plan-source{font-size:12px;color:var(--ink-3);margin:-4px 0 10px}
+.handouts{margin:0 0 12px;padding:10px 12px;background:var(--inlay);border:1px solid var(--rule-2);border-radius:12px}
+.handouts-title{margin:0 0 4px;font-size:12px;font-weight:650;color:var(--ink-2)}
+.handout summary{cursor:pointer;padding:6px 0;font-size:13px;color:var(--indigo)}
+.handout img{display:block;width:100%;height:auto;margin:6px 0;border:1px solid var(--rule-2);border-radius:8px;background:#fff}
+.handout-open{font-size:12px}
 .stat:first-child{padding-left:0}
 .stat:last-child{padding-right:0;border:0}
 .stat b{font-family:var(--gothic);font-size:28px;font-weight:700;letter-spacing:-.04em;white-space:nowrap;line-height:1.4;font-variant-numeric:lining-nums tabular-nums}
@@ -347,10 +364,12 @@ ul.goals li{margin-bottom:8px}
 .plan td{border-bottom:1px solid var(--rule-2);padding:10px 6px;vertical-align:top}
 .plan tr:last-child td{border:0}
 .plan td.n{width:30px;color:var(--ink-3);font-variant-numeric:tabular-nums;text-align:right;padding-right:12px}
+.plan tr.phase td{padding:14px 6px 6px;font-size:12px;font-weight:700;color:var(--ink-2);border-bottom:1px solid var(--rule)}
 .plan tr.exam td{background:var(--exam-bg)}
 .plan tr.exam td.n{color:var(--exam);font-weight:700}
 .plan tr.now td{background:var(--hl)}
 .plan td.m{width:76px;text-align:right}
+.plan td.m .badge{white-space:nowrap}
 .mat{font-size:12px;border-collapse:collapse;width:100%;overflow-wrap:anywhere}
 .mat td{padding:8px 5px;border-bottom:1px solid var(--rule-2);vertical-align:top}
 .mat td:first-child{color:var(--ink-3);width:62px}
@@ -460,6 +479,7 @@ ul.goals li{margin-bottom:8px}
   .cards{grid-template-columns:1fr}
   .exam-card{grid-template-columns:88px minmax(0,1fr);gap:4px 12px;padding:12px 12px 12px 14px}
   .exam-when time{font-size:18px}
+  .notice-list li{grid-template-columns:88px minmax(0,1fr);gap:2px 12px;padding:10px 12px 10px 14px}
   table.grid:has(thead){min-width:960px}
   .foot{padding:0 12px calc(104px + env(safe-area-inset-bottom))}
 }
@@ -523,7 +543,8 @@ ul.goals li{margin-bottom:8px}
   .blk .mt,.blk .cr{font-size:9px}
   .blk .location,.wk .location,table.grid .location{font-size:9px}
   .sec{margin-bottom:18px;padding:0;border:0;border-radius:0}
-  .ttwrap,.chead,.notice,.cards>.panel,.exam-card{break-inside:avoid}
+  .ttwrap,.chead,.notice,.cards>.panel,.exam-card,.notice-list li{break-inside:avoid}
+  .handouts{display:none}
   table.grid{font-size:9px}
   table.grid th,table.grid td{padding:6px 4px}
   table.grid td:first-child{min-width:0}
