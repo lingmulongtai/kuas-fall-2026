@@ -43,14 +43,27 @@ const MODES = {
   ondemand: {ja:"オンデマンド", en:"On-demand",    cls:"b-ondemand"}
 };
 
-/* 試験・小テスト。各科目の marks で、授業回(n)か曜日(day)を指定する。 */
+/* 試験・小テスト・持ち物。各科目の marks で、授業回(n)・日付(date)・曜日(day)のどれかを指定する。 */
 const MARKS = {
-  midterm: {ja:"中間試験",           en:"Midterm exam",          cls:"b-exam"},
-  quiz:    {ja:"小テスト",           en:"Quiz",                  cls:"b-quiz"},
-  check:   {ja:"中間の節目（要確認）", en:"Midpoint (to confirm)", cls:"b-check"}
+  midterm: {ja:"中間試験",           en:"Midterm exam",          cls:"b-exam",  group:"exam"},
+  quiz:    {ja:"小テスト",           en:"Quiz",                  cls:"b-quiz",  group:"exam"},
+  check:   {ja:"中間の節目（要確認）", en:"Midpoint (to confirm)", cls:"b-check", group:"check"},
+  pc:      {ja:"PC持参必須",          en:"Bring your PC",         cls:"b-bring", group:"notice"}
 };
 
-const S = (arr, mode, offset) => arr.map((x,i)=>({n:i+1+(offset||0), ja:x[0], en:x[1], mode:x[2]||mode||"f2f"}));
+/* 各回は [日本語, 英語, 形態, 追加情報]。追加情報は showcase（ゲスト）や format（進め方と課題）など。 */
+const S = (arr, mode, offset) => arr.map((x,i)=>({n:i+1+(offset||0), ja:x[0], en:x[1], mode:x[2]||mode||"f2f", ...x[3]}));
+/* 週2回の科目で、同じ週の2コマに実際の日付順で番号を振る。 */
+const inOrder = (own, other) => w => [DATES[own][w-1]<DATES[other][w-1] ? 2*w-1 : 2*w];
+
+/* キャリアデザイン第6〜13回の進め方（9/25配布のスケジュール）。偶数回は講義、奇数回はグループ発表。 */
+const CAREER_FORMAT = {
+  lecture:{ja:"講義25分・グループワーク(GW)20分・キャリアショーケース45分。課題1：キャリアショーケースレポート　課題2：PPT（全員提出）",
+           en:"25 min lecture, 20 min group work (GW), 45 min Career Showcase. Assignment 1: Career Showcase report. Assignment 2: PPT (everyone submits)"},
+  present:{ja:"GW発表30分（各回4チーム？）・Q&A 15分・キャリアショーケース45分。課題1：キャリアショーケースレポート　課題2：GWレポート（全員提出）",
+           en:"30 min GW presentations (about 4 teams each?), 15 min Q&A, 45 min Career Showcase. Assignment 1: Career Showcase report. Assignment 2: GW report (everyone submits)"}
+};
+const TBD = {ja:"未定", en:"TBD"};
 
 /* ---------- 科目 ---------- */
 const COURSES = [
@@ -61,8 +74,16 @@ const COURSES = [
   credits:4, lang:{ja:"英語", en:"English"},
   code:"MM214411", ttcode:"JM0001401", classMode:"f2f",
   location:{ja:"嵯峨野ホールA", en:"Sagano Hall A"},
-  slots:[{day:1,period:2,span:1,pick:w=>[2*w-1]},{day:4,period:1,span:1,pick:w=>[2*w]}],
+  slots:[{day:1,period:2,span:1,pick:inOrder("tue","fri")},{day:4,period:1,span:1,pick:inOrder("fri","tue")}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
+  alert:{ja:"中間試験（11/13・成績の27%）に要警戒。", en:"Watch out for the midterm (Nov 13, 27% of the grade)."},
+  memos:[
+    {date:"2026-09-25", ja:"実際の内容は応力とひずみ。公式はしっかり暗記する。", en:"Actually covered stress and strain. Memorise the formulas."}],
+  hw:{due:"class", submit:false,
+    rule:{ja:"宿題は毎回提示される。提出はないが、やっておいた方がいい。", en:"Homework is given every class. Nothing is submitted, but it is worth doing."}},
+  tasks:[
+    {date:"2026-09-25", ja:"01_Exercises：Ex1.1〜Ex1.4（応力とひずみ）", en:"01_Exercises: Ex1.1-Ex1.4 (stress and strain)"},
+    {date:"2026-09-25", ja:"動画を見る：Demonstration Video 3.9: Why We Study Stress and Strain", en:"Watch: Demonstration Video 3.9: Why We Study Stress and Strain", url:"https://www.youtube.com/watch?v=RY9X_O8is-k"}],
   outline:{
     ja:"機械やその構造物の破損は人命や経済に大きな損害を与える。この授業では、十分な強度と妥当な重さを両立させるために、適切な材料を選び構造部材の寸法を決める力を身につける。まず材料力学の基本概念と基礎的な仮定を学び、外力を受ける棒やはりの応力・変形の計算へと進む。",
     en:"Breakages in machine systems and structures endanger lives and cause economic losses. The course builds the skills to choose an appropriate material and define the dimensions of a structural member with both sufficient strength and reasonable weight, starting from basic concepts and moving to stress and deformation of bars and beams under external loads."},
@@ -79,7 +100,7 @@ const COURSES = [
     {kind:"midterm", n:[14], note:{ja:"シラバスではこの回は「棒のねじり(2)」。成績の27%はこの中間試験の結果になる。", en:"The syllabus lists this session as Torsion of bars (2). The 27% share of the grade comes from this exam."}},
     {kind:"quiz", day:1, note:{ja:"2回に1回、授業の終わりに実施。9/25(金)の授業ではなかったので、火曜の回と見込んでいる。10/23(金)の休講で火・金の交互がずれるため、10/30以降は金曜に移る可能性もある。", en:"Given at the end of every other class. There was none in the Fri 9/25 class, so Tuesdays are expected. The Fri 10/23 cancellation breaks the Tue/Fri alternation, so from 10/30 it may move to Fridays."}}],
   prep:{ja:"予習120分／復習120分（毎回）", en:"120 min prep / 120 min review per class"},
-  homework:{ja:"予習：指定教材を読む・視聴する　復習：授業内容の復習と課題", en:"Prep: read or watch assigned materials. Review: review class contents and work on assignments"},
+  homework:{ja:"予習：指定教材を読む・視聴する。配布資料は毎回チェックする　復習：授業内容の復習と課題", en:"Prep: read or watch assigned materials, and check the handouts every time. Review: review class contents and work on assignments"},
   materials:{
     text:[{t:"Mechanics of Materials, International Adaptation, 5th Edition", a:"Timothy A. Philpot; Jeffery S. Thomas", p:"Wiley", i:"978-1-119-85997-0", m:{ja:"電子教科書", en:"eTextbook"}}],
     ref:[{t:"Mechanics of Materials: An Integrated Learning System, Enhanced eText, 5th Edition", a:"Timothy A. Philpot; Jeffery S. Thomas", p:"Wiley", i:"978-1-119-60301-6", m:{ja:"電子教科書", en:"eTextbook"}}]},
@@ -123,9 +144,23 @@ const COURSES = [
   teachers:{ja:"今井 欽之、堀井 滋", en:"IMAI Tadayuki, HORII Shigeru"},
   credits:4, lang:{ja:"英語", en:"English"},
   code:"MM314415", ttcode:"JM0001601", classMode:"f2f",
-  location:{ja:"S306教室", en:"Room S306"},
-  slots:[{day:1,period:3,span:1,pick:w=>[2*w-1]},{day:4,period:3,span:1,pick:w=>[2*w]}],
+  location:{ja:"S307教室（満員時はS306）", en:"Room S307 (S306 if full)"},
+  slots:[{day:1,period:3,span:1,pick:inOrder("tue","fri")},{day:4,period:3,span:1,pick:inOrder("fri","tue")}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
+  memos:[
+    {ja:"教室はS307がメイン。S306はリモート（中継）の教室で、人数オーバーの時はS306になる。", en:"S307 is the main room. S306 receives a remote relay and is used when S307 is over capacity."},
+    {ja:"担当は範囲に合わせて交代する：電気は今井先生、磁気は堀井先生、最後の波はまた今井先生（Lecture 1のスライドでも確認）。回の区切りは授業計画からの推定。", en:"Instructors change with the topic: Imai for electricity, Horii for magnetism, and Imai again for waves (confirmed in the Lecture 1 slides). Session boundaries are estimated from the class schedule."},
+    {ja:"ノートを持ってきてメモを取る。配布資料に載っていないことも話す。", en:"Bring a notebook and take notes: some things are not in the materials."}],
+  hw:{due:"dayBefore", submit:true, what:{ja:"小テスト・演習", en:"quiz and exercises"},
+    rule:{ja:"授業の始めの小テストと授業中の演習を、先端なびで提出する（必須）。期限は次の授業の前日の終わり（23:59）。遅れは一切受け付けない（通信トラブルも自己責任）。", en:"Submit the start-of-class quiz and the in-class exercises on Sentan-navi (required). The deadline is the end of the day before the next class (23:59). Late submissions are never accepted, even with network trouble."},
+    format:{ja:"紙やタブレットに書いて、写真・スクリーンショットで提出。受け付ける形式：.jpg .jpeg .png .bmp .tif .tiff .pdf。iPhoneの高効率（HEIC）写真とMATLABファイルは不可。iPhoneは「設定 → カメラ → フォーマット → 互換性優先」でJPEGになる。", en:"Write on paper or a tablet and submit a photo or screenshot. Accepted: .jpg .jpeg .png .bmp .tif .tiff .pdf. iPhone High Efficiency (HEIC) photos and MATLAB files are not accepted. On an iPhone, Settings → Camera → Formats → Most Compatible saves JPEG."},
+    short:{ja:"先端なびで提出。遅れ不可、HEIC・MATLABファイル不可。", en:"Submit on Sentan-navi. No late work; no HEIC or MATLAB files."}},
+  tasks:[
+    {date:"2026-09-25", ja:"Lecture 1の演習：EX1-1（塩化セシウムの立方体で、イオンAがCl⁻の位置につくる電位）、EX1-2-1（微分）、EX1-2-2（偏微分）", en:"Lecture 1 exercises: EX1-1 (potential from ion A at the Cl⁻ ion in caesium chloride), EX1-2-1 (derivatives), EX1-2-2 (partial derivatives)"}],
+  phases:[
+    {from:1,  to:13, ja:"電気", en:"Electricity", teacher:{ja:"今井先生", en:"Imai"}},
+    {from:14, to:24, ja:"磁気", en:"Magnetism",   teacher:{ja:"堀井先生", en:"Horii"}},
+    {from:25, to:30, ja:"波",   en:"Waves",       teacher:{ja:"今井先生", en:"Imai"}}],
   outline:{
     ja:"電磁気学は電気現象と磁気現象を合わせて扱う分野で、物理学とメカトロニクス技術の基礎をなす。この授業では電磁現象の基本方程式であるマクスウェル方程式を理解し、現象を定性的にも定量的にも解析する力を身につける。電界・磁界の空間分布の計算方法と電磁波の基礎も扱う。",
     en:"Electromagnetic theory deals with electric phenomena in combination with magnetic phenomena. Students gain an understanding of Maxwell's equations and the skills to analyse such phenomena qualitatively and quantitatively, including methods for calculating spatial distributions of electric and magnetic fields and the basis of electromagnetic waves."},
@@ -134,12 +169,15 @@ const COURSES = [
     {ja:"電気部品に電圧を加えたとき電界・磁界がどう生じるかを定性的に説明できる", en:"Explain qualitatively how electric and magnetic fields are generated when a voltage is applied to a component"},
     {ja:"電磁誘導の法則とメカトロニクスの基本的な関係を理解する", en:"Understand the fundamental relationship between the law of electromagnetic induction and mechatronics"}],
   evals:[
-    {pct:60, ja:"期末試験", en:"Final examination", note:null},
-    {pct:40, ja:"授業の理解度", en:"Degree of understanding of lecture", note:{ja:"授業内の小テストで評価", en:"Evaluated by in-class quizzes"}}],
+    {pct:35, ja:"期末試験", en:"Final examination", note:{ja:"授業での案内。シラバスでは60%", en:"As announced in class; 60% in the syllabus"}},
+    {pct:25, ja:"中間試験", en:"Midterm exam", mark:"midterm", note:{ja:"授業での案内。シラバスには記載なし", en:"As announced in class; not in the syllabus"}},
+    {pct:40, ja:"EX（小テスト・演習）", en:"EX (quizzes and exercises)", mark:"quiz", note:{ja:"毎回の小テストと授業中の演習を先端なびで提出。シラバスでは「授業の理解度：授業内の小テストで評価」", en:"The quiz and in-class exercises submitted on Sentan-navi each class. Listed in the syllabus as understanding of lectures, evaluated by in-class quizzes"}}],
   marks:[
-    {kind:"check", n:[13], note:{ja:"前半（電気分野）のまとめ回。成績評価に中間試験の項目はない（期末60%・授業内の小テスト40%）が、区切りの確認テストがあるかもしれない。", en:"Wrap-up of the electric half. The grading has no midterm (final 60%, in-class quizzes 40%), but a checkpoint test may be given here."}}],
+    {kind:"midterm", date:"2026-11-24", note:{ja:"授業で案内された日程。成績の25%。シラバスではこの回は「ビオ・サバールの法則」。", en:"Date announced in class; 25% of the grade. The syllabus lists this session as Biot-Savart's law."}},
+    {kind:"pc", n:[7], note:{ja:"MATLABを使うのでPC持参必須（授業での案内）。", en:"MATLAB is used, so bringing your PC is mandatory (announced in class)."}},
+    {kind:"quiz", all:true, note:{ja:"毎回、授業の始めに短い小テスト。授業中の演習とあわせて、次の授業の前日23:59までに先端なびで提出。", en:"A short quiz at the start of every class, submitted on Sentan-navi with the in-class exercises by 23:59 the day before the next class."}}],
   prep:{ja:"予習120分／復習120分（毎回）", en:"120 min prep / 120 min review per class"},
-  homework:{ja:"予習：次回の内容に目を通す　復習：授業内容と配布資料を理解する", en:"Prep: look over contents to be learned in class. Review: understand contents learned and distributed materials."},
+  homework:{ja:"予習：先端なびに毎回授業前に配られる資料で予習してから授業に出る　復習：授業内容と配布資料を理解する", en:"Prep: study the materials posted on Sentan-navi before every class. Review: understand contents learned and distributed materials."},
   materials:{
     text:[],
     ref:[{t:"Fundamentals of Physics", a:"David Halliday, Robert Resnick, Jearl Walker", p:"John Wiley & Sons", i:"1119801141", m:{ja:"第12版", en:"12th Edition"}},
@@ -155,7 +193,7 @@ const COURSES = [
     ["ベクトル場の発散とポアソン方程式","Divergence of vector field and Poisson's equation"],
     ["電位の数値計算","Numerical calculation of potential"],
     ["導体とコンデンサ","Conductors and capacitors"],
-    ["双極子・分極・誘電体","Dipole, polarization and dielectrics"],
+    ["双極子・分極・誘電体","Dipole, polarization and dielectrics","ondemand"],
     ["誘電体があるときのガウスの法則","Gauss's law with dielectrics"],
     ["誘電体に蓄えられるエネルギー","Energy stored in dielectrics"],
     ["電流・電圧・電力","Current, voltage and electric power"],
@@ -163,7 +201,7 @@ const COURSES = [
     ["ベクトル演算(1)：発散","Vector calculations (1): Divergence"],
     ["ベクトル演算(2)：回転、ガウスの発散定理","Vector calculations (2): Rotation, Gauss divergence theorem"],
     ["ベクトル演算(3)：ストークスの定理","Vector calculations (3): Stokes theorem"],
-    ["ビオ・サバールの法則","Biot-Savart's law"],
+    ["中間試験","Midterm exam"],
     ["アンペールの法則","Ampere's law"],
     ["ベクトルポテンシャル","Vector potential"],
     ["アンペールの法則とガウスの法則の微分形（磁界）","Differential forms of Ampere's and Gauss' laws (for magnetic field)"],
@@ -376,6 +414,17 @@ const COURSES = [
   location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:4,period:5,span:1,pick:w=>[w]}],
   total:15, perWeek:1, firstWeek:1, lastWeek:15,
+  planSource:{ja:"9/25の授業で配布されたスケジュールにもとづく（シラバスの計画から差し替え）。", en:"Based on the schedule handed out in the 9/25 class, replacing the syllabus plan."},
+  handouts:[
+    {src:"handouts/career-schedule.jpg", ja:"配布スケジュール（全15回）", en:"Handout: schedule for all 15 classes"},
+    {src:"handouts/career-schedule-6-13.jpg", ja:"配布スケジュール（第6〜13回の進め方と課題）", en:"Handout: format and assignments for classes 6-13"}],
+  phases:[
+    {from:1,  to:5,  teacher:{ja:"西先生", en:"Nishi"}},
+    {from:6,  to:9,  teacher:{ja:"今井先生", en:"Imai"}},
+    {from:10, to:13, teacher:{ja:"的場先生", en:"Matoba"}},
+    {from:14, to:15, teacher:{ja:"西先生（講座は外部講師）", en:"Nishi (workshops by an external lecturer)"}}],
+  hw:{due:"dayBefore", submit:true, what:{ja:"課題", en:"assignments"},
+    rule:{ja:"課題の提出期限は木曜の深夜23:59（次の授業の前日）。", en:"Assignments are due Thursday 23:59, the night before the next class."}},
   outline:{
     ja:"人生設計のなかで働くことの意味と、キャリアをどう位置づけるかを考える。将来の自分のキャリア像を形づくり、就職活動に必要な基礎知識とスキルを身につける。あわせて、3年次から始まるプレキャップストーン・プログラムに向けて、学生としてのKUAS行動規範を修得する。",
     en:"Students think about the meaning of working within their life planning, form their own future career image, and acquire basic knowledge and skills for job hunting, plus the KUAS Code of Conduct."},
@@ -392,21 +441,21 @@ const COURSES = [
   feedback:{ja:"必要に応じて次回授業の先端なびフィードバック欄でコメントする。", en:"Comments are provided as necessary in the Sentan Navi feedback column in the following lecture."},
   req:{ja:"4月入学者のみ履修登録可。", en:"Only students enrolled in April can register."},
   schedule:S([
-    ["オリエンテーション／社会人の人生論・キャリアを聴く(1)","Orientation / Listen to life theory and career from working people (1)"],
-    ["日本の経済と労働環境(1)／社会人の話を聴く(2)","Economic and working environment in Japan (1) / working people (2)"],
-    ["日本の経済と労働環境(2)／社会人の話を聴く(3)","Economic and working environment in Japan (2) / working people (3)"],
-    ["職業を持つこと（働くこと）の意味と意義(1)／社会人の話を聴く(4)","Meaning and significance of having a profession (1) / working people (4)"],
-    ["職業を持つこと（働くこと）の意味と意義(2)／社会人の話を聴く(5)","Meaning and significance of having a profession (2) / working people (5)"],
-    ["生活とマネーリテラシー(1)／社会人の話を聴く(6)","Life and money literacy (1) / working people (6)"],
-    ["生活とマネーリテラシー(2)／社会人の話を聴く(7)","Life and money literacy (2) / working people (7)"],
-    ["企業を知る(1)／社会人の話を聴く(8)","Get to know the company (1) / working people (8)"],
-    ["企業を知る(2)／社会人の話を聴く(9)","Get to know the company (2) / working people (9)"],
-    ["企業の職種と雇用環境を知る(1)／社会人の話を聴く(10)","Know the occupation and employment environment of a company (1) / working people (10)"],
-    ["企業の職種と雇用環境を知る(2)／社会人の話を聴く(11)","Know the occupation and employment environment of a company (2) / working people (11)"],
-    ["キャリア形成と自己分析(1)／社会人の話を聴く(12)","Career formation and self-analysis (1) / working people (12)"],
-    ["キャリア形成と自己分析(2)／社会人の話を聴く(13)","Career formation and self-analysis (2) / working people (13)"],
-    ["行動規範1（ビジネスマナーを含む）","Code of conduct 1 (incl. business etiquette)"],
-    ["行動規範2（ビジネスマナーを含む）","Code of conduct 2 (incl. business etiquette)"]],"f2f")
+    ["ガイダンス","Guidance"],
+    ["日本型雇用慣行と日本が直面する社会変化","Japanese employment practices and the social changes Japan faces"],
+    ["自己理解","Self-understanding"],
+    ["自己理解","Self-understanding"],
+    ["グループ発表","Group presentations"],
+    ["職業をもつ（働く）ことの意味・意義","The meaning and significance of having a profession (working)",null,{showcase:{ja:"今井／KUAS", en:"Imai / KUAS"}, format:CAREER_FORMAT.lecture}],
+    ["グループ発表","Group presentations",null,{showcase:TBD, format:CAREER_FORMAT.present}],
+    ["就職活動とインターンシップ","Job hunting and internships",null,{showcase:TBD, format:CAREER_FORMAT.lecture}],
+    ["グループ発表","Group presentations",null,{showcase:TBD, format:CAREER_FORMAT.present}],
+    ["人生100年時代のマネーリテラシー","Money literacy for a 100-year life",null,{showcase:{ja:"的場／KUAS", en:"Matoba / KUAS"}, format:CAREER_FORMAT.lecture}],
+    ["グループ発表","Group presentations",null,{showcase:TBD, format:CAREER_FORMAT.present}],
+    ["企業を知る（業種）","Getting to know companies (industries)",null,{showcase:{ja:"OB／Nidec Group（予定）", en:"Alumni / Nidec Group (planned)"}, format:CAREER_FORMAT.lecture}],
+    ["グループ発表","Group presentations",null,{showcase:{ja:"OB／Nidec Group（予定）", en:"Alumni / Nidec Group (planned)"}, format:CAREER_FORMAT.present}],
+    ["就活マナー講座（外部講師 担当）","Job-hunting etiquette workshop (external lecturer)"],
+    ["就活マナー講座（外部講師 担当）","Job-hunting etiquette workshop (external lecturer)"]],"f2f")
 },
 {
   id:"qol", color:"#B0863C", colorD:"#E0BC7F",
@@ -521,8 +570,28 @@ function calendarWeekFor(iso){
   return index<0 ? (iso<CALENDAR_WEEKS[0]?1:CALENDAR_WEEKS.length) : index+1;
 }
 function courseDates(c){ return OCCURRENCES.filter(item=>item.c.id===c.id).map(item=>item.date); }
-function marksFor(c,n,day){ return (c.marks||[]).filter(m=>m.n ? m.n.includes(n) : m.day===day); }
-function markedSessions(c,m){ return OCCURRENCES.filter(item=>item.c===c && marksFor(c,item.n,item.s.day).includes(m)); }
+/* all:true は毎回の印（中間試験の回は除く）。 */
+function marksFor(item){
+  const marks = item.c.marks||[];
+  const own = marks.filter(m=>!m.all && (m.date ? m.date===item.date : m.n ? m.n.includes(item.n) : m.day===item.s.day));
+  return own.some(m=>m.kind==="midterm") ? own : own.concat(marks.filter(m=>m.all));
+}
+/* 宿題：その回に出たもの、次の授業、期限（前日23:59か、次の授業まで）。 */
+function tasksOn(item){ return (item.c.tasks||[]).filter(task=>task.date===item.date); }
+function nextClass(item){ return OCCURRENCES.find(o=>o.c===item.c && o.date>item.date); }
+function hwDue(item){
+  const hw = item.c.hw, next = nextClass(item);
+  if(!hw || !next) return null;
+  return hw.due==="dayBefore" ? {date:addDays(next.date,-1), next} : {date:next.date, next};
+}
+function markedSessions(c,m){ return OCCURRENCES.filter(item=>item.c===c && marksFor(item).includes(m)); }
+function occurrenceOf(c,n){ return OCCURRENCES.find(item=>item.c===c && item.n===n); }
+function memosOn(item){ return (item.c.memos||[]).filter(m=>m.date===item.date); }
+function phaseFor(c,n){ return (c.phases||[]).find(p=>n>=p.from && n<=p.to); }
+/* 通常の形態と違う回（対面科目のオンデマンド回など）。 */
+function formatChanges(){
+  return OCCURRENCES.filter(item=>item.c.classMode==="f2f" && item.session && item.session.mode!=="f2f");
+}
 
 /* ---------- UI 文言 ---------- */
 const T = {
@@ -576,9 +645,27 @@ const T = {
            en:"Calculated on the common rule of attending at least two thirds of classes. None of the nine syllabi states an attendance rule, so confirm the official one in the student handbook and with each instructor."},
   absUnitP:{ja:"コマ", en:"periods"},
   absUnitW:{ja:"週", en:"weeks"},
-  examsTitle:{ja:"試験・小テスト", en:"Exams & quizzes"},
-  examsLead:{ja:"材料力学の中間試験と小テストの日程。日付は授業の実施日から計算しています。", en:"Mechanics of Materials midterm and quiz dates, worked out from the actual class dates."},
+  examsTitle:{ja:"試験・予定", en:"Exams & key dates"},
+  examsLead:{ja:"中間試験・小テストと、持ち物や授業形式に注意する日。日付は授業の実施日から計算しています。", en:"Midterms, quizzes, and days when you need to bring something or the class format changes. Dates follow the actual class days."},
+  examsNotice:{ja:"持ち物・授業形式に注意する日", en:"Bring something or format changes"},
   examsCheck:{ja:"他の授業で中間にあたりそうな回（要確認）", en:"Possible midpoints in other courses (to confirm)"},
+  examsHw:{ja:"次の提出期限・宿題", en:"Next deadlines and homework"},
+  hwTitle:{ja:"宿題・提出", en:"Homework & submissions"},
+  hwSubmit:{ja:"提出", en:"Submit"},
+  hwNoSubmit:{ja:"宿題（提出なし）", en:"Homework (not submitted)"},
+  hwFrom:{ja:"{date}の授業の分", en:"From the {date} class"},
+  hwGeneric:{ja:"この回の{what}", en:"This class's {what}"},
+  dueBy:{ja:"{date} 23:59まで", en:"Due {date} 23:59"},
+  dueNext:{ja:"次の授業（{date}）まで", en:"By the next class ({date})"},
+  dueUnknown:{ja:"最終回のため期限は授業で確認", en:"Last class: check the deadline in class"},
+  everyClass:{ja:"毎回（{days}）", en:"Every class ({days})"},
+  memoTitle:{ja:"授業メモ", en:"Class notes"},
+  memoLabel:{ja:"メモ", en:"Note"},
+  showcase:{ja:"キャリアショーケース（45分）：{who}", en:"Career Showcase (45 min): {who}"},
+  phaseTeacher:{ja:"担当：{who}", en:"Taught by {who}"},
+  phaseRange:{ja:"第{a}〜{b}回", en:"Sessions {a}-{b}"},
+  handoutsTitle:{ja:"配布資料を開く", en:"Open the handouts"},
+  handoutOpen:{ja:"元のサイズで開く", en:"Open full size"},
   nextQuiz:{ja:"次回", en:"Next"},
   lastQuiz:{ja:"最終回", en:"Last"},
   countToday:{ja:"今日", en:"Today"},
@@ -645,8 +732,8 @@ const T = {
   colIsbn:{ja:"ISBN", en:"ISBN"},
   colForm:{ja:"形態", en:"Format"},
   paper:{ja:"（記載なし）", en:"(not stated)"},
-  foot:{ja:"内容は先端なびのシラバス9件と学生時間割表にもとづきます。日本語は原文からの要約訳です。正式な情報は必ず先端なびのシラバスを確認してください。授業時間は2025年度からの全学統一時間、6限は18:00–19:00。",
-        en:"Built from the nine Sentan-navi syllabi and the student timetable. Japanese text is a summarised translation; always check the official syllabus. Period times follow the university-wide schedule from 2025; period 6 is 18:00-19:00."}
+  foot:{ja:"内容は先端なびのシラバス9件と学生時間割表、授業での案内・配布資料にもとづきます。日本語は原文からの要約訳です。正式な情報は必ず先端なびのシラバスと授業での案内を確認してください。授業時間は2025年度からの全学統一時間、6限は18:00–19:00。",
+        en:"Built from the nine Sentan-navi syllabi, the student timetable, and announcements and handouts from class. Japanese text is a summarised translation; always check the official syllabus and class announcements. Period times follow the university-wide schedule from 2025; period 6 is 18:00-19:00."}
 };
 
 /* 教材ビュー用のメモ */
@@ -958,7 +1045,6 @@ function fmtDate(iso){
   const wdEn = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(y,m-1,d).getDay()];
   return LANG==="ja" ? `${m}/${d}(${wd})` : `${wdEn} ${m}/${d}`;
 }
-function dateOf(dayIdx, week){ return DATES[DAYS[dayIdx].key][week-1]; }
 
 function weeklyPeriods(c){ return c.slots.reduce((a,s)=>a+(s.span||1),0); }
 function courseWeeks(c){ return c.unit==="week" ? c.total : c.total/(c.perWeek||1); }
@@ -999,16 +1085,45 @@ function sessionTime(item){
   const span = item.s.span||1;
   return periodLabel(item.s.period,span)+' '+slotTime(item.s.period,span);
 }
-function weeklyTime(item){ return fill(t("everyWeek"),{day:DAYS[item.s.day].s[LANG]})+' '+sessionTime(item); }
+/* 毎週1曜日なら「毎週火曜 2限…」、複数の曜日なら「毎回（火・金）3限…」。 */
+function weeklyTime(items){
+  const days = [...new Set(items.map(item=>item.s.day))].sort();
+  const samePeriod = items.every(item=>item.s.period===items[0].s.period && (item.s.span||1)===(items[0].s.span||1));
+  const when = days.length===1 ? fill(t("everyWeek"),{day:DAYS[days[0]].s[LANG]})
+    : fill(t("everyClass"),{days:days.map(d=>DAYS[d].s[LANG]).join(LANG==="ja"?"・":"/")});
+  return when+(samePeriod?' '+sessionTime(items[0]):'');
+}
 /* 1回だけなら日付と時限、毎週なら曜日と回数。 */
 function markWhen(c,m){
   const items = markedSessions(c,m);
   if(items.length===1) return fmtDate(items[0].date)+' '+sessionTime(items[0]);
-  return weeklyTime(items[0])+(LANG==="ja"?"（":" (")+fill(t("quizTimes"),{n:items.length})+(LANG==="ja"?"）":")");
+  return weeklyTime(items)+(LANG==="ja"?"（":" (")+fill(t("quizTimes"),{n:items.length})+(LANG==="ja"?"）":")");
+}
+function dueText(due){
+  if(!due) return t("dueUnknown");
+  return fill(t(due.date===due.next.date?"dueNext":"dueBy"),{date:fmtDate(due.date)});
+}
+/* 宿題の行。generic は、具体的な内容がわからない回にも提出期限を出すかどうか。 */
+function homeworkBlock(item,generic){
+  const hw = item.c.hw, tasks = tasksOn(item);
+  if(!hw || (!tasks.length && !(generic && hw.submit))) return '';
+  const list = tasks.length ? tasks.map(task=>task.url
+      ? '<a href="'+esc(task.url)+'" target="_blank" rel="noopener">'+esc(L(task))+'</a>'
+      : esc(L(task))).join(LANG==="ja"?'／':' / ')
+    : esc(fill(t("hwGeneric"),{what:L(hw.what)}));
+  return '<p class="extra hw-line"><b class="'+(hw.submit?'is-submit':'')+'">'+t(hw.submit?"hwSubmit":"hwNoSubmit")+'</b> '
+    + list+'<span class="due">'+esc(dueText(hwDue(item)))+'</span></p>';
 }
 function countdown(date,today){
   const days = Math.round((new Date(date+'T12:00:00Z')-new Date(today+'T12:00:00Z'))/864e5);
   return days<0 ? t("countDone") : days===0 ? t("countToday") : days===1 ? t("countTomorrow") : fill(t("countDays"),{n:days});
+}
+
+/* 各回の補足：キャリアショーケースのゲストと、その日の授業メモ。 */
+function sessionExtras(item){
+  const sess = item.session;
+  return (sess && sess.showcase ? '<p class="extra">'+esc(fill(t("showcase"),{who:L(sess.showcase)}))+'</p>' : '')
+    + memosOn(item).map(m=>'<p class="extra memo-line"><b>'+t("memoLabel")+'</b> '+esc(L(m))+'</p>').join('');
 }
 
 /* ---------- ホーム ---------- */
@@ -1032,22 +1147,64 @@ function examCard(c,m,today){
     +   '<span class="exam-count">'+countdown(shown.date,today)+'</span></div>'
     + '<div class="exam-body">'+markBadge(m)
     +   '<h3><button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button></h3>'
-    +   '<p class="exam-meta">'+esc(items.length===1 ? sessionTime(shown) : weeklyTime(shown))+'</p>'
+    +   '<p class="exam-meta">'+esc(items.length===1 ? sessionTime(shown) : weeklyTime(items))+'</p>'
     +   '<p class="exam-meta">'+esc(locationText(c,sess?sess.mode:undefined))+'</p>'
     +   '<p class="exam-meta">'+esc(meta.join(LANG==="ja"?" ・ ":" · "))+'</p>'
     +   (m.note ? '<p class="exam-note">'+esc(L(m.note))+'</p>' : '')
     + '</div></article>';
 }
+function noticeRow(item,badge,note,today){
+  const c = item.c, sess = item.session;
+  return '<li style="--c:'+cc(c)+'"><div class="exam-when"><time datetime="'+item.date+'">'+fmtDate(item.date)+'</time>'
+    + '<span class="exam-count">'+countdown(item.date,today)+'</span></div>'
+    + '<div class="exam-body">'+badge
+    +   '<p class="exam-meta"><button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button> '
+    +     esc(sessionTime(item))+'</p>'
+    +   '<p class="exam-meta">'+esc(fill(t("session"),{n:item.n})+(sess?(LANG==="ja"?"「"+L(sess)+"」":" “"+L(sess)+"”"):""))+'</p>'
+    +   (note ? '<p class="exam-note">'+esc(L(note))+'</p>' : '')
+    + '</div></li>';
+}
+function hwRow(item,due,today){
+  const c = item.c, hw = c.hw, tasks = tasksOn(item);
+  return '<li style="--c:'+cc(c)+'"><div class="exam-when"><time datetime="'+due.date+'">'+fmtDate(due.date)+'</time>'
+    + '<span class="exam-count">'+countdown(due.date,today)+'</span></div>'
+    + '<div class="exam-body"><span class="badge fill '+(hw.submit?'b-due':'b-check')+'">'+t(hw.submit?"hwSubmit":"hwNoSubmit")+'</span>'
+    +   '<p class="exam-meta"><button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button> '+esc(dueText(due))+'</p>'
+    +   '<p class="exam-meta">'+esc(fill(t("hwFrom"),{date:fmtDate(item.date)}))+(LANG==="ja"?"：":": ")
+    +     (tasks.length ? tasks.map(task=>task.url
+          ? '<a href="'+esc(task.url)+'" target="_blank" rel="noopener">'+esc(L(task))+'</a>' : esc(L(task))).join(LANG==="ja"?'／':' / ')
+        : esc(fill(t("hwGeneric"),{what:L(hw.what)})))+'</p>'
+    +   (hw.short ? '<p class="exam-note">'+esc(L(hw.short))+'</p>' : '')
+    + '</div></li>';
+}
+/* 科目ごとに、今日以降で一番近い提出期限（提出のない科目は具体的な宿題がある回だけ）。 */
+function upcomingHomework(today){
+  return COURSES.filter(c=>c.hw).flatMap(c=>{
+    const next = OCCURRENCES.filter(item=>item.c===c && (c.hw.submit || tasksOn(item).length))
+      .map(item=>({item, due:hwDue(item)}))
+      .find(x=>x.due && x.due.date>=today);
+    return next ? [next] : [];
+  }).sort((a,b)=>a.due.date.localeCompare(b.due.date));
+}
 function renderExams(){
-  const today = todayISO(), main = [], checks = [];
+  const today = todayISO(), main = [], checks = [], notices = [], homework = upcomingHomework(today);
   COURSES.forEach(c=>(c.marks||[]).forEach(m=>{
-    if(!markedSessions(c,m).length) return;
-    (m.kind==="check" ? checks : main).push(examCard(c,m,today));
+    const items = markedSessions(c,m);
+    if(!items.length) return;
+    const group = MARKS[m.kind].group;
+    if(group==="notice") items.forEach(item=>notices.push({item, html:noticeRow(item,markBadge(m),m.note,today)}));
+    else (group==="check" ? checks : main).push({recurring:items.length>1, date:items[0].date, html:examCard(c,m,today)});
   }));
-  if(!main.length && !checks.length) return '';
+  formatChanges().forEach(item=>notices.push({item, html:noticeRow(item,modeBadge(item.session.mode,true),null,today)}));
+  if(!main.length && !checks.length && !notices.length && !homework.length) return '';
+  /* 1回きりの試験を日付順に先に、毎週の小テストはその後。 */
+  main.sort((a,b)=>a.recurring-b.recurring || a.date.localeCompare(b.date));
+  notices.sort((a,b)=>a.item.date.localeCompare(b.item.date) || a.item.s.period-b.item.s.period);
   return '<div class="sec exams"><div class="sec-head"><h2>'+t("examsTitle")+'</h2><span>'+t("examsLead")+'</span></div>'
-    + '<div class="exam-list">'+main.join('')+'</div>'
-    + (checks.length ? '<h3 class="exam-subhead">'+t("examsCheck")+'</h3><div class="exam-list">'+checks.join('')+'</div>' : '')
+    + '<div class="exam-list">'+main.map(x=>x.html).join('')+'</div>'
+    + (homework.length ? '<h3 class="exam-subhead">'+t("examsHw")+'</h3><ul class="notice-list hw-list">'+homework.map(x=>hwRow(x.item,x.due,today)).join('')+'</ul>' : '')
+    + (notices.length ? '<h3 class="exam-subhead">'+t("examsNotice")+'</h3><ul class="notice-list">'+notices.map(x=>x.html).join('')+'</ul>' : '')
+    + (checks.length ? '<h3 class="exam-subhead">'+t("examsCheck")+'</h3><div class="exam-list">'+checks.map(x=>x.html).join('')+'</div>' : '')
     + '</div>';
 }
 
@@ -1188,7 +1345,7 @@ function renderWeek(){
       h += '<div class="dayoff">'+(closure?L(closure):outside?t(date<SEMESTER_DATES[0]?'beforeTerm':'afterTerm'):t(di>4?'weekend':'noClass'))+'</div>';
     } else {
       items.forEach(it=>{
-        const c=it.c, sess=it.session, marks=marksFor(c,it.n,it.s.day);
+        const c=it.c, sess=it.session, marks=marksFor(it), phase=phaseFor(c,it.n);
         h += '<article class="wk'+(marks.some(m=>m.kind==="midterm")?' is-exam':'')+'" style="--c:'+cc(c)+'" data-session="'+c.id+'-'+it.n+'">'
           + '<div class="top"><span class="p">'+periodLabel(it.s.period,it.s.span||1)+' '+slotTime(it.s.period,it.s.span||1)+'</span>'
           + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+courseName(c)+'</button>'
@@ -1199,8 +1356,11 @@ function renderWeek(){
           h += '<p class="topic"><span class="sn">'
              + fill(t("session"),{n:it.n})+'</span>'+esc(L(sess))+'</p>';
         }
-        h += '<details class="study-details"><summary>'+t("studyDetails")+'</summary>'
-           + '<p class="p">'+esc(L(c.teachers))+'</p><p class="hw">'+esc(L(c.homework))+'</p></details></article>';
+        h += sessionExtras(it) + homeworkBlock(it,true)
+           + '<details class="study-details"><summary>'+t("studyDetails")+'</summary>'
+           + '<p class="p">'+esc(phase ? fill(t("phaseTeacher"),{who:L(phase.teacher)}) : L(c.teachers))+'</p>'
+           + (sess && sess.format ? '<p class="hw">'+esc(L(sess.format))+'</p>' : '')
+           + '<p class="hw">'+esc(L(c.homework))+'</p></details></article>';
       });
     }
     h += '</div></section>';
@@ -1236,21 +1396,29 @@ function renderCourse(){
     + '</dl></div>';
 
   h += '<div class="cbody"><div>';
+  if(c.memos && c.memos.length){
+    h += '<div class="box memo-box"><h3>'+t("memoTitle")+'</h3><ul class="goals">'
+       + c.memos.map(m=>'<li>'+(m.date?'<b>'+fmtDate(m.date)+'</b> ':'')+esc(L(m))+'</li>').join('')+'</ul></div>';
+  }
   h += '<div class="box"><h3>'+t("outline")+'</h3><p>'+esc(L(c.outline))+'</p></div>';
   h += '<div class="box"><h3>'+t("goals")+'</h3><ul class="goals">'
      + c.goals.map(g=>'<li>'+esc(L(g))+'</li>').join('')+'</ul></div>';
 
-  h += '<div class="box"><h3>'+t("plan")+'</h3><table class="plan"><tbody>';
+  h += '<div class="box"><h3>'+t("plan")+'</h3>'
+     + (c.planSource ? '<p class="plan-source">'+esc(L(c.planSource))+'</p>' : '')
+     + handoutLinks(c)+'<table class="plan"><tbody>';
   c.schedule.forEach(s=>{
-    const wk = c.unit==="week" ? s.n + (c.firstWeek-1) : Math.ceil(s.n/(c.perWeek||1));
-    const day = c.unit==="week" || c.perWeek===1 ? c.slots[0].day
-              : (s.n%2===1 ? c.slots[0].day : c.slots[1].day);
-    const marks = marksFor(c,s.n,day);
-    const cls = [calendarWeekFor(dateOf(day,wk))===WEEK?'now':'', marks.some(m=>m.kind==="midterm")?'exam':''].filter(Boolean).join(' ');
+    const item = occurrenceOf(c,s.n), marks = marksFor(item), phase = phaseFor(c,s.n);
+    if(phase && phase.from===s.n){
+      h += '<tr class="phase"><td colspan="3">'+esc([fill(t("phaseRange"),{a:phase.from,b:phase.to}), phase[LANG], fill(t("phaseTeacher"),{who:L(phase.teacher)})].filter(Boolean).join(LANG==="ja"?" ・ ":" · "))+'</td></tr>';
+    }
+    const cls = [calendarWeekFor(item.date)===WEEK?'now':'', marks.some(m=>m.kind==="midterm")?'exam':''].filter(Boolean).join(' ');
     h += '<tr'+(cls?' class="'+cls+'"':'')+'>'
       + '<td class="n">'+s.n+'</td>'
       + '<td>'+esc(L(s))+'<div style="font-size:11.5px;color:var(--ink-3)">'
-      +   fill(t("weekLabel"),{n:wk})+' ・ '+fmtDate(dateOf(day,wk))+'</div>'+markBadges(marks)+'</td>'
+      +   fill(t("weekLabel"),{n:item.teachingWeek})+' ・ '+fmtDate(item.date)+'</div>'
+      +   markBadges(marks.filter(m=>!m.all))+sessionExtras(item)+homeworkBlock(item,false)
+      +   (s.format ? '<p class="extra">'+esc(L(s.format))+'</p>' : '')+'</td>'
       + '<td class="m">'+modeBadge(s.mode,false)+'</td></tr>';
   });
   h += '</tbody></table></div>';
@@ -1268,6 +1436,14 @@ function renderCourse(){
      + t("absTitle")+'：<b style="font-family:var(--mincho);font-size:16px">'+allowedAbsence(c)+'</b> '+t("absUnitP")
      + ' / '+totalPeriods(c)+'（≒ '+allowedWeeks(c)+' '+t("absUnitW")+'）</div></div>';
 
+  if(c.hw){
+    const given = OCCURRENCES.filter(item=>item.c===c && tasksOn(item).length);
+    h += '<div class="box hw-box"><h3>'+t("hwTitle")+'</h3><p>'+esc(L(c.hw.rule))+'</p>'
+       + (c.hw.format ? '<p class="hw-format">'+esc(L(c.hw.format))+'</p>' : '')
+       + (given.length ? '<ul class="goals">'+given.map(item=>'<li><b>'+esc(fill(t("hwFrom"),{date:fmtDate(item.date)}))+'</b>'
+           + homeworkBlock(item,false)+'</li>').join('')+'</ul>' : '')
+       + '</div>';
+  }
   h += '<div class="box"><h3>'+t("preph")+'</h3><p>'+esc(L(c.prep))+'</p><p style="font-size:13px;color:var(--ink-2)">'+esc(L(c.homework))+'</p></div>';
 
   h += '<div class="box"><h3>'+t("mats")+'</h3><table class="mat"><tbody>';
@@ -1282,6 +1458,15 @@ function renderCourse(){
   $("view-course").innerHTML = h;
 }
 function fact(k,v){ return '<div class="fact"><dt>'+k+'</dt><dd>'+v+'</dd></div>'; }
+/* 配布資料の画像。開いたときだけ読み込む。 */
+function handoutLinks(c){
+  if(!c.handouts || !c.handouts.length) return '';
+  return '<div class="handouts"><p class="handouts-title">'+t("handoutsTitle")+'</p>'
+    + c.handouts.map(d=>'<details class="handout"><summary>'+esc(L(d))+'</summary>'
+      + '<a href="'+esc(d.src)+'" target="_blank" rel="noopener"><img src="'+esc(d.src)+'" alt="'+esc(L(d))+'" loading="lazy" decoding="async"></a>'
+      + '<a class="handout-open" href="'+esc(d.src)+'" target="_blank" rel="noopener">'+t("handoutOpen")+'</a></details>').join('')
+    + '</div>';
+}
 function matRows(label,list){
   if(!list || !list.length) return '<tr><td>'+label+'</td><td style="color:var(--ink-3)">'+t("none")+'</td></tr>';
   return list.map((m,i)=>{
