@@ -7,8 +7,8 @@ const vm = require('node:vm');
 const app = fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
 const context = vm.createContext({});
 vm.runInContext(app.slice(0,app.indexOf('/* ---------- UI 文言'))+
-  ';globalThis.calendar={COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions};',context);
-const {COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions} = context.calendar;
+  ';globalThis.calendar={COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue};',context);
+const {COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue} = context.calendar;
 const ids = date=>Array.from(sessionsOn(date),item=>item.c.id+'-'+item.n);
 const course = id=>COURSES.find(c=>c.id===id);
 /* Runs the page code against a minimal DOM and returns the rendered element lookup. */
@@ -143,7 +143,7 @@ test('Mechanics of Materials quizzes fall on every Tuesday class and never on Fr
 test('possible midpoints in other courses point at their wrap-up and interim sessions',()=>{
   const check=id=>{
     const c=COURSES.find(course=>course.id===id);
-    return Array.from(c.marks).flatMap(m=>Array.from(markedSessions(c,m),item=>[m.kind,item.date,item.n]));
+    return Array.from(c.marks.filter(m=>!m.all)).flatMap(m=>Array.from(markedSessions(c,m),item=>[m.kind,item.date,item.n]));
   };
   assert.deepEqual(check('emt'),[['midterm','2026-11-24',17],['pc','2026-10-16',7]]);
   assert.deepEqual(check('bds'),[['check','2026-11-26',10]]);
@@ -202,4 +202,39 @@ test('class notes appear on their date and in the course summary',()=>{
   const html=render('WEEK=1;COURSE="mom";renderWeek();renderCourse();');
   assert.match(html('view-week'),/data-session="mom-1"[^]*?メモ<\/b> 実際の内容は応力とひずみ/);
   assert.match(html('view-course'),/class="box memo-box"[^]*?9\/25\(金\)<\/b> 実際の内容は応力とひずみ/);
+});
+
+test('homework deadlines follow each course rule from the actual next class',()=>{
+  const due=(id,date)=>{
+    const item=sessionsOn(date).find(item=>item.c.id===id);
+    const d=hwDue(item);
+    return d && d.date;
+  };
+  assert.equal(due('emt','2026-09-25'),'2026-09-28');
+  assert.equal(due('emt','2026-09-29'),'2026-10-01');
+  assert.equal(due('emt','2026-10-20'),'2026-10-26');
+  assert.equal(due('emt','2027-01-15'),null);
+  assert.equal(due('mom','2026-09-25'),'2026-09-29');
+  const career=OCCURRENCES.filter(item=>item.c.id==='career').slice(0,-1);
+  for(const item of career){
+    const date=hwDue(item).date;
+    assert.equal(new Date(date+'T12:00:00Z').getUTCDay(),4,item.date+' -> '+date);
+  }
+  assert.equal(hwDue(career.find(item=>item.date==='2026-10-16')).date,'2026-10-29');
+  const emtQuiz=course('emt').marks.find(m=>m.kind==='quiz');
+  assert.equal(markedSessions(course('emt'),emtQuiz).length,29);
+  assert.ok(!marksFor(sessionsOn('2026-11-24').find(item=>item.c.id==='emt')).includes(emtQuiz));
+});
+
+test('the 9/25 homework and the next deadlines appear on the home page, calendar and course page',()=>{
+  const html=render('WEEK=1;COURSE="emt";renderHome();renderWeek();renderCourse();');
+  const home=html('view-home');
+  assert.match(home,/次の提出期限・宿題[^]*?9\/28\(月\)[^]*?電磁気学[^]*?EX1-1[^]*?HEIC/);
+  assert.match(home,/9\/29\(火\)[^]*?材料力学[^]*?Ex1\.1〜Ex1\.4[^]*?RY9X_O8is-k/);
+  assert.match(home,/10\/1\(木\)[^]*?キャリアデザイン[^]*?この回の課題/);
+  assert.match(home,/class="exam-card is-quiz"[^]*?毎回（火・金） 3限 13:00–14:30[^]*?電磁気学|電磁気学[^]*?毎回（火・金） 3限 13:00–14:30/);
+  const week=html('view-week');
+  assert.match(week,/data-session="emt-1"[^]*?提出<\/b> Lecture 1の演習[^]*?9\/28\(月\) 23:59まで/);
+  assert.match(week,/data-session="career-1"[^]*?この回の課題[^]*?10\/1\(木\) 23:59まで/);
+  assert.match(html('view-course'),/class="box hw-box"[^]*?HEIC[^]*?互換性優先/);
 });
