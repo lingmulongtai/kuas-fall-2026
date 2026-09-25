@@ -22,6 +22,10 @@
   --live-bg:#F0EAF1;
   --ondemand:#664114;
   --ondemand-bg:#F6EEDB;
+  --exam:#9B2C1A;
+  --exam-bg:#FBE8E2;
+  --quiz:#1C4E8A;
+  --quiz-bg:#E5EEFA;
   --mincho:var(--gothic);
   --gothic:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
   --glass:rgba(243,249,255,.58);
@@ -60,6 +64,10 @@
   --live-bg:#383040;
   --ondemand:#E9CE99;
   --ondemand-bg:#3D3423;
+  --exam:#F5A08C;
+  --exam-bg:#46261F;
+  --quiz:#AFCBF2;
+  --quiz-bg:#22324A;
   --glass:rgba(18,32,43,.53);
   --frost:rgba(16,29,40,.70);
   --inlay:rgba(4,14,23,.14);
@@ -181,6 +189,12 @@ main{max-width:1320px;margin:auto;padding:26px 28px 48px}
 .b-f2f.fill{background:var(--f2f-bg)}
 .b-live.fill{background:var(--live-bg)}
 .b-ondemand.fill{background:var(--ondemand-bg)}
+.b-exam{color:var(--exam)}
+.b-quiz{color:var(--quiz)}
+.b-check{color:var(--ink-2);border-style:dashed}
+.b-exam.fill{background:var(--exam-bg);font-weight:700}
+.b-quiz.fill{background:var(--quiz-bg)}
+.marks{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
 .tagbuy{color:var(--vermilion);border-color:var(--vermilion)}
 .tagopt{color:var(--ink-3)}
 
@@ -216,6 +230,21 @@ main{max-width:1320px;margin:auto;padding:26px 28px 48px}
 .blk .tagopt{border-color:var(--rule)}
 .stats{display:grid;grid-template-columns:repeat(2,1fr) 1.8fr repeat(2,1fr);padding:18px 22px}
 .stat{display:flex;align-items:center;gap:14px;padding:0 20px;border-right:1px solid var(--rule-2)}
+.exam-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px}
+.exam-card{display:grid;grid-template-columns:104px minmax(0,1fr);gap:4px 16px;padding:14px 16px 14px 18px;background:var(--inlay);border:1px solid var(--rule-2);border-left:3px solid var(--c);border-radius:14px;box-shadow:inset 0 1px 0 var(--shine)}
+.exam-card.is-midterm{border-color:var(--exam);border-left-color:var(--c);background:var(--exam-bg)}
+.exam-card.is-check{border-style:dashed;border-left-style:solid}
+.exam-when{display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums}
+.exam-when time{font-size:21px;font-weight:700;letter-spacing:-.03em;line-height:1.35;white-space:nowrap}
+.exam-label{font-size:10px;color:var(--ink-3)}
+.exam-count{font-size:11px;font-weight:650;color:var(--ink-2)}
+.is-midterm .exam-count{color:var(--exam)}
+.exam-body{min-width:0}
+.exam-body h3{margin:6px 0 2px;font-size:15px;line-height:1.5}
+.exam-body h3 .linkbtn{font-size:15px;font-weight:700}
+.exam-meta{margin:0;font-size:12px;color:var(--ink-2);line-height:1.7}
+.exam-note{margin:8px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.7}
+.exam-subhead{font-size:14px;margin:20px 0 10px}
 .stat:first-child{padding-left:0}
 .stat:last-child{padding-right:0;border:0}
 .stat b{font-family:var(--gothic);font-size:28px;font-weight:700;letter-spacing:-.04em;white-space:nowrap;line-height:1.4;font-variant-numeric:lining-nums tabular-nums}
@@ -280,6 +309,7 @@ table.grid .location{margin-top:4px;font-size:11.5px}
 .week-board .wk{padding:12px 10px;background:var(--inlay);margin:0 5px 8px;border:1px solid var(--rule-2);border-left:3px solid var(--c);border-radius:12px}
 .week-board .wk .nm{font-size:13px}
 .week-board .wk .topic{font-size:12px}
+.week-board .wk.is-exam{border-color:var(--exam);border-left-color:var(--c);background:var(--exam-bg)}
 .week-board .dayoff{padding:16px 10px;font-size:11px}
 .study-details{margin-top:12px;border-top:1px solid var(--rule-2);font-size:11px;color:var(--ink-2)}
 .study-details summary{cursor:pointer;padding:9px 0;line-height:1.7}
@@ -317,6 +347,8 @@ ul.goals li{margin-bottom:8px}
 .plan td{border-bottom:1px solid var(--rule-2);padding:10px 6px;vertical-align:top}
 .plan tr:last-child td{border:0}
 .plan td.n{width:30px;color:var(--ink-3);font-variant-numeric:tabular-nums;text-align:right;padding-right:12px}
+.plan tr.exam td{background:var(--exam-bg)}
+.plan tr.exam td.n{color:var(--exam);font-weight:700}
 .plan tr.now td{background:var(--hl)}
 .plan td.m{width:76px;text-align:right}
 .mat{font-size:12px;border-collapse:collapse;width:100%;overflow-wrap:anywhere}
@@ -426,6 +458,8 @@ ul.goals li{margin-bottom:8px}
   .plan td.m{width:58px}
   .plan .badge{font-size:9px}
   .cards{grid-template-columns:1fr}
+  .exam-card{grid-template-columns:88px minmax(0,1fr);gap:4px 12px;padding:12px 12px 12px 14px}
+  .exam-when time{font-size:18px}
   table.grid:has(thead){min-width:960px}
   .foot{padding:0 12px calc(104px + env(safe-area-inset-bottom))}
 }
@@ -472,6 +506,7 @@ ul.goals li{margin-bottom:8px}
     --ink:#171D19;--ink-2:#343F37;--ink-3:#495448;--rule:#9A9F95;--rule-2:#D1D5CE;
     --indigo:#0058C7;--vermilion:#A34220;--notice-bg:#FFF;--notice-ink:#703A29;--notice-rule:#AAA;
     --hl:#EBEBE7;--f2f:#315E4F;--f2f-bg:#FFF;--live:#69476B;--live-bg:#FFF;--ondemand:#79501E;--ondemand-bg:#FFF;
+    --exam:#A34220;--exam-bg:#FFF;--quiz:#1C4E8A;--quiz-bg:#FFF;
     --frost:#FFF;--glass:#FFF;--cell:#FFF;--inlay:#FFF;--shine:#AAA;--reflection:transparent;
   }
   @page{size:A4 landscape;margin:12mm}
@@ -488,7 +523,7 @@ ul.goals li{margin-bottom:8px}
   .blk .mt,.blk .cr{font-size:9px}
   .blk .location,.wk .location,table.grid .location{font-size:9px}
   .sec{margin-bottom:18px;padding:0;border:0;border-radius:0}
-  .ttwrap,.chead,.notice,.cards>.panel{break-inside:avoid}
+  .ttwrap,.chead,.notice,.cards>.panel,.exam-card{break-inside:avoid}
   table.grid{font-size:9px}
   table.grid th,table.grid td{padding:6px 4px}
   table.grid td:first-child{min-width:0}
