@@ -7,8 +7,8 @@ const vm = require('node:vm');
 const app = fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
 const context = vm.createContext({});
 vm.runInContext(app.slice(0,app.indexOf('/* ---------- UI 文言'))+
-  ';globalThis.calendar={COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates};',context);
-const {COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates} = context.calendar;
+  ';globalThis.calendar={COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions};',context);
+const {COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions} = context.calendar;
 const ids = date=>Array.from(sessionsOn(date),item=>item.c.id+'-'+item.n);
 
 test('18 real Monday-to-Sunday weeks cover the complete semester exactly once',()=>{
@@ -97,4 +97,59 @@ test('changing the calendar week refreshes the lesson highlights on the course t
     ';WEEK=1;VIEW="week";COURSE="mom";renderCourse();setWeek(2);',browser);
   const highlighted=[...element('view-course').innerHTML.matchAll(/<tr class="now"><td class="n">(\d+)/g)].map(match=>Number(match[1]));
   assert.deepEqual(highlighted,[1,4]);
+});
+
+test('the Mechanics of Materials midterm is session 14 on Friday 13 November and fills the 27% share',()=>{
+  const mom=COURSES.find(c=>c.id==='mom');
+  const midterm=mom.marks.find(m=>m.kind==='midterm');
+  const sessions=markedSessions(mom,midterm);
+  assert.deepEqual(Array.from(sessions,item=>[item.date,item.n,item.s.period]),[['2026-11-13',14,1]]);
+  assert.equal(sessions[0].session.en,'Midterm exam');
+  const share=mom.evals.find(e=>e.mark==='midterm');
+  assert.equal(share.pct,27);
+  assert.equal(share.en,'Midterm exam');
+  assert.equal(mom.evals.reduce((sum,e)=>sum+e.pct,0),100);
+});
+
+test('Mechanics of Materials quizzes fall on every Tuesday class and never on Fridays',()=>{
+  const mom=COURSES.find(c=>c.id==='mom');
+  const quiz=mom.marks.find(m=>m.kind==='quiz');
+  const dates=markedSessions(mom,quiz).map(item=>item.date);
+  assert.deepEqual(dates,DATES.tue);
+  assert.ok(!dates.includes('2026-09-25'));
+  assert.equal(dates[0],'2026-09-29');
+  assert.equal(marksFor(mom,2,4).length,0);
+  assert.equal(mom.evals.find(e=>e.mark==='quiz').pct,33);
+});
+
+test('possible midpoints in other courses point at their wrap-up and interim sessions',()=>{
+  const check=id=>{
+    const c=COURSES.find(course=>course.id===id);
+    return Array.from(c.marks).flatMap(m=>Array.from(markedSessions(c,m),item=>[m.kind,item.date,item.n]));
+  };
+  assert.deepEqual(check('emt'),[['check','2026-11-10',13]]);
+  assert.deepEqual(check('bds'),[['check','2026-11-26',10]]);
+  const marked=Array.from(COURSES.filter(c=>c.marks),c=>c.id).sort();
+  assert.deepEqual(marked,['bds','emt','mom']);
+});
+
+test('the home page lists the midterm date and flags it in the calendar',()=>{
+  const elements=new Map();
+  const element=id=>{
+    if(!elements.has(id)) elements.set(id,{innerHTML:'',addEventListener(){},focus(){}});
+    return elements.get(id);
+  };
+  const browser=vm.createContext({
+    localStorage:{getItem:()=>null},
+    window:{matchMedia:()=>({matches:false,addEventListener(){}}),addEventListener(){}},
+    document:{getElementById:element,addEventListener(){},querySelectorAll:()=>[]}
+  });
+  vm.runInContext(app.slice(0,app.indexOf('/* ---------- 起動'))+
+    ';todayISO=()=>"2026-09-25";WEEK=calendarWeekFor("2026-11-13");renderHome();renderWeek();',browser);
+  const home=element('view-home').innerHTML;
+  assert.match(home,/class="exam-card is-midterm"[^]*?11\/13\(金\)[^]*?あと49日/);
+  assert.match(home,/class="exam-card is-quiz"[^]*?次回[^]*?9\/29\(火\)/);
+  assert.ok(home.indexOf('exams')<home.indexOf('class="stats"'));
+  const week=element('view-week').innerHTML;
+  assert.match(week,/class="wk is-exam"[^>]*data-session="mom-14"/);
 });

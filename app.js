@@ -43,6 +43,13 @@ const MODES = {
   ondemand: {ja:"オンデマンド", en:"On-demand",    cls:"b-ondemand"}
 };
 
+/* 試験・小テスト。各科目の marks で、授業回(n)か曜日(day)を指定する。 */
+const MARKS = {
+  midterm: {ja:"中間試験",           en:"Midterm exam",          cls:"b-exam"},
+  quiz:    {ja:"小テスト",           en:"Quiz",                  cls:"b-quiz"},
+  check:   {ja:"中間の節目（要確認）", en:"Midpoint (to confirm)", cls:"b-check"}
+};
+
 const S = (arr, mode, offset) => arr.map((x,i)=>({n:i+1+(offset||0), ja:x[0], en:x[1], mode:x[2]||mode||"f2f"}));
 
 /* ---------- 科目 ---------- */
@@ -66,8 +73,11 @@ const COURSES = [
     {ja:"曲げを受ける単純はりのたわみ曲線を描ける", en:"Draw the deflection curve of a simple beam under bending"}],
   evals:[
     {pct:40, ja:"期末試験", en:"Final exam", note:{ja:"総合的な理解を評価", en:"Comprehensive understanding is evaluated"}},
-    {pct:33, ja:"小テスト", en:"Quiz", note:{ja:"おおむね2回の授業ごとに実施", en:"Provided every ~two classes"}},
-    {pct:27, ja:"総合演習", en:"Comprehensive exercise", note:{ja:"中間期に実施", en:"Provided at midterm"}}],
+    {pct:33, ja:"小テスト", en:"Quiz", mark:"quiz", note:{ja:"2回に1回、授業の終わりに実施", en:"Given at the end of every other class"}},
+    {pct:27, ja:"中間試験", en:"Midterm exam", mark:"midterm", note:{ja:"シラバスでは「総合演習（中間期に実施）」の枠", en:"Listed in the syllabus as a comprehensive exercise at midterm"}}],
+  marks:[
+    {kind:"midterm", n:[14], note:{ja:"シラバスではこの回は「棒のねじり(2)」。成績の27%はこの中間試験の結果になる。", en:"The syllabus lists this session as Torsion of bars (2). The 27% share of the grade comes from this exam."}},
+    {kind:"quiz", day:1, note:{ja:"2回に1回、授業の終わりに実施。9/25(金)の授業ではなかったので、火曜の回と見込んでいる。10/23(金)の休講で火・金の交互がずれるため、10/30以降は金曜に移る可能性もある。", en:"Given at the end of every other class. There was none in the Fri 9/25 class, so Tuesdays are expected. The Fri 10/23 cancellation breaks the Tue/Fri alternation, so from 10/30 it may move to Fridays."}}],
   prep:{ja:"予習120分／復習120分（毎回）", en:"120 min prep / 120 min review per class"},
   homework:{ja:"予習：指定教材を読む・視聴する　復習：授業内容の復習と課題", en:"Prep: read or watch assigned materials. Review: review class contents and work on assignments"},
   materials:{
@@ -89,7 +99,7 @@ const COURSES = [
     ["単軸応力：トラス構造(1)","Uniaxial stress: truss structures (1)"],
     ["単軸応力：トラス構造(2)","Uniaxial stress: truss structures (2)"],
     ["棒のねじり(1)","Torsion of bars (1)"],
-    ["棒のねじり(2)","Torsion of bars (2)"],
+    ["中間試験","Midterm exam"],
     ["はりの曲げ：せん断力図(SFD)と曲げモーメント図(BMD) (1)","Bending of beams: shear force diagrams (SFD) and bending moment diagrams (BMD) (1)"],
     ["はりの曲げ：SFDとBMD (2)","Bending of beams: SFD and BMD (2)"],
     ["はりの曲げ：SFDとBMD (3)","Bending of beams: SFD and BMD (3)"],
@@ -126,6 +136,8 @@ const COURSES = [
   evals:[
     {pct:60, ja:"期末試験", en:"Final examination", note:null},
     {pct:40, ja:"授業の理解度", en:"Degree of understanding of lecture", note:{ja:"授業内の小テストで評価", en:"Evaluated by in-class quizzes"}}],
+  marks:[
+    {kind:"check", n:[13], note:{ja:"前半（電気分野）のまとめ回。成績評価に中間試験の項目はない（期末60%・授業内の小テスト40%）が、区切りの確認テストがあるかもしれない。", en:"Wrap-up of the electric half. The grading has no midterm (final 60%, in-class quizzes 40%), but a checkpoint test may be given here."}}],
   prep:{ja:"予習120分／復習120分（毎回）", en:"120 min prep / 120 min review per class"},
   homework:{ja:"予習：次回の内容に目を通す　復習：授業内容と配布資料を理解する", en:"Prep: look over contents to be learned in class. Review: understand contents learned and distributed materials."},
   materials:{
@@ -456,6 +468,8 @@ const COURSES = [
   evals:[
     {pct:75, ja:"各回の活動と課題", en:"Activities and assignments in each class", note:{ja:"授業中または授業後に各回で課される", en:"Assigned in the classroom or after each class"}},
     {pct:25, ja:"最終レポート", en:"Final report", note:{ja:"全授業終了後に課される", en:"Assigned after all classes"}}],
+  marks:[
+    {kind:"check", n:[10], note:{ja:"「中間ディスカッション」の回。試験ではなく、前半の内容を踏まえた討議。評価は各回の活動と課題（75%）に含まれると考えられる。", en:"Interim discussion: not an exam but a discussion of the first half, likely counted in the per-class activities (75%)."}}],
   prep:{ja:"予習120分／復習120分（毎回）", en:"120 min prep / 120 min review per class"},
   homework:{ja:"予習：参考資料を読む　復習：課題に沿って講義とディスカッションの内容を振り返る", en:"Prep: read reference materials. Review: review the lecture and discussion according to the assignment."},
   materials:{text:[],ref:[],other:{ja:"参考資料は先端なびまたはTeamsで提供", en:"Reference materials are given in Sentan Navi and/or Teams"}},
@@ -507,6 +521,8 @@ function calendarWeekFor(iso){
   return index<0 ? (iso<CALENDAR_WEEKS[0]?1:CALENDAR_WEEKS.length) : index+1;
 }
 function courseDates(c){ return OCCURRENCES.filter(item=>item.c.id===c.id).map(item=>item.date); }
+function marksFor(c,n,day){ return (c.marks||[]).filter(m=>m.n ? m.n.includes(n) : m.day===day); }
+function markedSessions(c,m){ return OCCURRENCES.filter(item=>item.c===c && marksFor(c,item.n,item.s.day).includes(m)); }
 
 /* ---------- UI 文言 ---------- */
 const T = {
@@ -560,6 +576,18 @@ const T = {
            en:"Calculated on the common rule of attending at least two thirds of classes. None of the nine syllabi states an attendance rule, so confirm the official one in the student handbook and with each instructor."},
   absUnitP:{ja:"コマ", en:"periods"},
   absUnitW:{ja:"週", en:"weeks"},
+  examsTitle:{ja:"試験・小テスト", en:"Exams & quizzes"},
+  examsLead:{ja:"材料力学の中間試験と小テストの日程。日付は授業の実施日から計算しています。", en:"Mechanics of Materials midterm and quiz dates, worked out from the actual class dates."},
+  examsCheck:{ja:"他の授業で中間にあたりそうな回（要確認）", en:"Possible midpoints in other courses (to confirm)"},
+  nextQuiz:{ja:"次回", en:"Next"},
+  lastQuiz:{ja:"最終回", en:"Last"},
+  countToday:{ja:"今日", en:"Today"},
+  countTomorrow:{ja:"明日", en:"Tomorrow"},
+  countDays:{ja:"あと{n}日", en:"In {n} days"},
+  countDone:{ja:"実施済み", en:"Done"},
+  everyWeek:{ja:"毎週{day}曜", en:"Every {day}"},
+  quizTimes:{ja:"全{n}回", en:"{n} sessions"},
+  gradeShare:{ja:"成績の{pct}%", en:"{pct}% of the grade"},
   calTitle:{ja:"休講日", en:"No-class days"},
   calLead:{ja:"下の日は授業がありません。各科目の実施日はこれを除いて数えてあります。", en:"No classes on these days. All session dates below already exclude them."},
   weekOf:{ja:"第{n}週", en:"Week {n}"},
@@ -960,7 +988,69 @@ function shade(hex,i){
   return "rgb("+m(r)+","+m(g)+","+m(b)+")";
 }
 
+function markBadge(m){
+  const d = MARKS[m.kind];
+  return '<span class="badge fill '+d.cls+'">'+d[LANG]+'</span>';
+}
+function markBadges(list){
+  return list.length ? '<div class="marks">'+list.map(markBadge).join('')+'</div>' : '';
+}
+function sessionTime(item){
+  const span = item.s.span||1;
+  return periodLabel(item.s.period,span)+' '+slotTime(item.s.period,span);
+}
+function weeklyTime(item){ return fill(t("everyWeek"),{day:DAYS[item.s.day].s[LANG]})+' '+sessionTime(item); }
+/* 1回だけなら日付と時限、毎週なら曜日と回数。 */
+function markWhen(c,m){
+  const items = markedSessions(c,m);
+  if(items.length===1) return fmtDate(items[0].date)+' '+sessionTime(items[0]);
+  return weeklyTime(items[0])+(LANG==="ja"?"（":" (")+fill(t("quizTimes"),{n:items.length})+(LANG==="ja"?"）":")");
+}
+function countdown(date,today){
+  const days = Math.round((new Date(date+'T12:00:00Z')-new Date(today+'T12:00:00Z'))/864e5);
+  return days<0 ? t("countDone") : days===0 ? t("countToday") : days===1 ? t("countTomorrow") : fill(t("countDays"),{n:days});
+}
+
 /* ---------- ホーム ---------- */
+function examCard(c,m,today){
+  const items = markedSessions(c,m);
+  const next = items.find(item=>item.date>=today);
+  const shown = next || items.at(-1);
+  const share = c.evals.find(e=>e.mark===m.kind);
+  const sess = shown.session;
+  const meta = [];
+  if(items.length===1){
+    meta.push(fill(t("session"),{n:shown.n})+(m.kind==="check"?(LANG==="ja"?"「":" “")+L(sess)+(LANG==="ja"?"」":"”"):""));
+  } else {
+    meta.push(fill(t("quizTimes"),{n:items.length}));
+  }
+  if(share) meta.push(fill(t("gradeShare"),{pct:share.pct}));
+  return '<article class="exam-card is-'+m.kind+'" style="--c:'+cc(c)+'">'
+    + '<div class="exam-when">'
+    +   (items.length>1 ? '<span class="exam-label">'+t(next?"nextQuiz":"lastQuiz")+'</span>' : '')
+    +   '<time datetime="'+shown.date+'">'+fmtDate(shown.date)+'</time>'
+    +   '<span class="exam-count">'+countdown(shown.date,today)+'</span></div>'
+    + '<div class="exam-body">'+markBadge(m)
+    +   '<h3><button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button></h3>'
+    +   '<p class="exam-meta">'+esc(items.length===1 ? sessionTime(shown) : weeklyTime(shown))+'</p>'
+    +   '<p class="exam-meta">'+esc(locationText(c,sess?sess.mode:undefined))+'</p>'
+    +   '<p class="exam-meta">'+esc(meta.join(LANG==="ja"?" ・ ":" · "))+'</p>'
+    +   (m.note ? '<p class="exam-note">'+esc(L(m.note))+'</p>' : '')
+    + '</div></article>';
+}
+function renderExams(){
+  const today = todayISO(), main = [], checks = [];
+  COURSES.forEach(c=>(c.marks||[]).forEach(m=>{
+    if(!markedSessions(c,m).length) return;
+    (m.kind==="check" ? checks : main).push(examCard(c,m,today));
+  }));
+  if(!main.length && !checks.length) return '';
+  return '<div class="sec exams"><div class="sec-head"><h2>'+t("examsTitle")+'</h2><span>'+t("examsLead")+'</span></div>'
+    + '<div class="exam-list">'+main.join('')+'</div>'
+    + (checks.length ? '<h3 class="exam-subhead">'+t("examsCheck")+'</h3><div class="exam-list">'+checks.join('')+'</div>' : '')
+    + '</div>';
+}
+
 function renderHome(){
   const totalCredits = COURSES.reduce((a,c)=>a+c.credits,0);
   const totalPer = COURSES.reduce((a,c)=>a+weeklyPeriods(c),0);
@@ -1012,7 +1102,7 @@ function renderHome(){
       }
     }
   }
-  h += '</div></div></div>'+summary;
+  h += '</div></div></div>'+renderExams()+summary;
 
   /* 科目一覧 */
   h += '<div class="sec"><div class="sec-head"><h2>'+t("courses")+'</h2><span>'+(LANG==="ja"?"成績評価の割合・開講期間・欠席の目安":"grade weights, term and absence guide")+'</span></div>';
@@ -1098,12 +1188,13 @@ function renderWeek(){
       h += '<div class="dayoff">'+(closure?L(closure):outside?t(date<SEMESTER_DATES[0]?'beforeTerm':'afterTerm'):t(di>4?'weekend':'noClass'))+'</div>';
     } else {
       items.forEach(it=>{
-        const c=it.c, sess=it.session;
-        h += '<article class="wk" style="--c:'+cc(c)+'" data-session="'+c.id+'-'+it.n+'">'
+        const c=it.c, sess=it.session, marks=marksFor(c,it.n,it.s.day);
+        h += '<article class="wk'+(marks.some(m=>m.kind==="midterm")?' is-exam':'')+'" style="--c:'+cc(c)+'" data-session="'+c.id+'-'+it.n+'">'
           + '<div class="top"><span class="p">'+periodLabel(it.s.period,it.s.span||1)+' '+slotTime(it.s.period,it.s.span||1)+'</span>'
           + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+courseName(c)+'</button>'
           + modeBadge(sess?sess.mode:"f2f",true)
-          + '</div><p class="location">'+t("colLocation")+(LANG==="ja"?"：":": ")+esc(locationText(c,sess?sess.mode:undefined))+'</p>';
+          + '</div><p class="location">'+t("colLocation")+(LANG==="ja"?"：":": ")+esc(locationText(c,sess?sess.mode:undefined))+'</p>'
+          + markBadges(marks);
         if(sess){
           h += '<p class="topic"><span class="sn">'
              + fill(t("session"),{n:it.n})+'</span>'+esc(L(sess))+'</p>';
@@ -1154,10 +1245,12 @@ function renderCourse(){
     const wk = c.unit==="week" ? s.n + (c.firstWeek-1) : Math.ceil(s.n/(c.perWeek||1));
     const day = c.unit==="week" || c.perWeek===1 ? c.slots[0].day
               : (s.n%2===1 ? c.slots[0].day : c.slots[1].day);
-    h += '<tr'+(calendarWeekFor(dateOf(day,wk))===WEEK?' class="now"':'')+'>'
+    const marks = marksFor(c,s.n,day);
+    const cls = [calendarWeekFor(dateOf(day,wk))===WEEK?'now':'', marks.some(m=>m.kind==="midterm")?'exam':''].filter(Boolean).join(' ');
+    h += '<tr'+(cls?' class="'+cls+'"':'')+'>'
       + '<td class="n">'+s.n+'</td>'
       + '<td>'+esc(L(s))+'<div style="font-size:11.5px;color:var(--ink-3)">'
-      +   fill(t("weekLabel"),{n:wk})+' ・ '+fmtDate(dateOf(day,wk))+'</div></td>'
+      +   fill(t("weekLabel"),{n:wk})+' ・ '+fmtDate(dateOf(day,wk))+'</div>'+markBadges(marks)+'</td>'
       + '<td class="m">'+modeBadge(s.mode,false)+'</td></tr>';
   });
   h += '</tbody></table></div>';
@@ -1165,8 +1258,10 @@ function renderCourse(){
 
   h += '<div class="box"><h3>'+t("evalh")+'</h3>';
   c.evals.forEach(e=>{
+    const m = e.mark && (c.marks||[]).find(x=>x.kind===e.mark);
     h += '<div class="evrow"><span class="pct">'+e.pct+'%</span><span class="lab">'+esc(L(e))
-       + (e.note?'<span class="note">'+esc(L(e.note))+'</span>':'')+'</span></div>';
+       + (e.note?'<span class="note">'+esc(L(e.note))+'</span>':'')
+       + (m?'<span class="note when">'+esc(markWhen(c,m))+'</span>':'')+'</span></div>';
   });
   if(c.alert) h += '<div class="notice" style="margin-top:12px"><b>'+t("watch")+'</b><br>'+esc(L(c.alert))+'</div>';
   h += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12.5px;color:var(--ink-2)">'
