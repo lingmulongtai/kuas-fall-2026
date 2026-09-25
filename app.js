@@ -79,6 +79,11 @@ const COURSES = [
   alert:{ja:"中間試験（11/13・成績の27%）に要警戒。", en:"Watch out for the midterm (Nov 13, 27% of the grade)."},
   memos:[
     {date:"2026-09-25", ja:"実際の内容は応力とひずみ。公式はしっかり暗記する。", en:"Actually covered stress and strain. Memorise the formulas."}],
+  hw:{due:"class", submit:false,
+    rule:{ja:"宿題は毎回提示される。提出はないが、やっておいた方がいい。", en:"Homework is given every class. Nothing is submitted, but it is worth doing."}},
+  tasks:[
+    {date:"2026-09-25", ja:"01_Exercises：Ex1.1〜Ex1.4（応力とひずみ）", en:"01_Exercises: Ex1.1-Ex1.4 (stress and strain)"},
+    {date:"2026-09-25", ja:"動画を見る：Demonstration Video 3.9: Why We Study Stress and Strain", en:"Watch: Demonstration Video 3.9: Why We Study Stress and Strain", url:"https://www.youtube.com/watch?v=RY9X_O8is-k"}],
   outline:{
     ja:"機械やその構造物の破損は人命や経済に大きな損害を与える。この授業では、十分な強度と妥当な重さを両立させるために、適切な材料を選び構造部材の寸法を決める力を身につける。まず材料力学の基本概念と基礎的な仮定を学び、外力を受ける棒やはりの応力・変形の計算へと進む。",
     en:"Breakages in machine systems and structures endanger lives and cause economic losses. The course builds the skills to choose an appropriate material and define the dimensions of a structural member with both sufficient strength and reasonable weight, starting from basic concepts and moving to stress and deformation of bars and beams under external loads."},
@@ -144,7 +149,14 @@ const COURSES = [
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
   memos:[
     {ja:"教室はS307がメイン。S306はリモート（中継）の教室で、人数オーバーの時はS306になる。", en:"S307 is the main room. S306 receives a remote relay and is used when S307 is over capacity."},
-    {ja:"担当は範囲に合わせて交代する：電気は今井先生、磁気は堀井先生、最後の波はまた今井先生。回の区切りは授業計画からの推定。", en:"Instructors change with the topic: Imai for electricity, Horii for magnetism, and Imai again for waves. Session boundaries are estimated from the class schedule."}],
+    {ja:"担当は範囲に合わせて交代する：電気は今井先生、磁気は堀井先生、最後の波はまた今井先生（Lecture 1のスライドでも確認）。回の区切りは授業計画からの推定。", en:"Instructors change with the topic: Imai for electricity, Horii for magnetism, and Imai again for waves (confirmed in the Lecture 1 slides). Session boundaries are estimated from the class schedule."},
+    {ja:"ノートを持ってきてメモを取る。配布資料に載っていないことも話す。", en:"Bring a notebook and take notes: some things are not in the materials."}],
+  hw:{due:"dayBefore", submit:true, what:{ja:"小テスト・演習", en:"quiz and exercises"},
+    rule:{ja:"授業の始めの小テストと授業中の演習を、先端なびで提出する（必須）。期限は次の授業の前日の終わり（23:59）。遅れは一切受け付けない（通信トラブルも自己責任）。", en:"Submit the start-of-class quiz and the in-class exercises on Sentan-navi (required). The deadline is the end of the day before the next class (23:59). Late submissions are never accepted, even with network trouble."},
+    format:{ja:"紙やタブレットに書いて、写真・スクリーンショットで提出。受け付ける形式：.jpg .jpeg .png .bmp .tif .tiff .pdf。iPhoneの高効率（HEIC）写真とMATLABファイルは不可。iPhoneは「設定 → カメラ → フォーマット → 互換性優先」でJPEGになる。", en:"Write on paper or a tablet and submit a photo or screenshot. Accepted: .jpg .jpeg .png .bmp .tif .tiff .pdf. iPhone High Efficiency (HEIC) photos and MATLAB files are not accepted. On an iPhone, Settings → Camera → Formats → Most Compatible saves JPEG."},
+    short:{ja:"先端なびで提出。遅れ不可、HEIC・MATLABファイル不可。", en:"Submit on Sentan-navi. No late work; no HEIC or MATLAB files."}},
+  tasks:[
+    {date:"2026-09-25", ja:"Lecture 1の演習：EX1-1（塩化セシウムの立方体で、イオンAがCl⁻の位置につくる電位）、EX1-2-1（微分）、EX1-2-2（偏微分）", en:"Lecture 1 exercises: EX1-1 (potential from ion A at the Cl⁻ ion in caesium chloride), EX1-2-1 (derivatives), EX1-2-2 (partial derivatives)"}],
   phases:[
     {from:1,  to:13, ja:"電気", en:"Electricity", teacher:{ja:"今井先生", en:"Imai"}},
     {from:14, to:24, ja:"磁気", en:"Magnetism",   teacher:{ja:"堀井先生", en:"Horii"}},
@@ -159,10 +171,11 @@ const COURSES = [
   evals:[
     {pct:35, ja:"期末試験", en:"Final examination", note:{ja:"授業での案内。シラバスでは60%", en:"As announced in class; 60% in the syllabus"}},
     {pct:25, ja:"中間試験", en:"Midterm exam", mark:"midterm", note:{ja:"授業での案内。シラバスには記載なし", en:"As announced in class; not in the syllabus"}},
-    {pct:40, ja:"EX（小テスト・宿題など）", en:"EX (quizzes, homework, etc.)", note:{ja:"シラバスでは「授業の理解度：授業内の小テストで評価」", en:"Listed in the syllabus as understanding of lectures, evaluated by in-class quizzes"}}],
+    {pct:40, ja:"EX（小テスト・演習）", en:"EX (quizzes and exercises)", mark:"quiz", note:{ja:"毎回の小テストと授業中の演習を先端なびで提出。シラバスでは「授業の理解度：授業内の小テストで評価」", en:"The quiz and in-class exercises submitted on Sentan-navi each class. Listed in the syllabus as understanding of lectures, evaluated by in-class quizzes"}}],
   marks:[
     {kind:"midterm", date:"2026-11-24", note:{ja:"授業で案内された日程。成績の25%。シラバスではこの回は「ビオ・サバールの法則」。", en:"Date announced in class; 25% of the grade. The syllabus lists this session as Biot-Savart's law."}},
-    {kind:"pc", n:[7], note:{ja:"MATLABを使うのでPC持参必須（授業での案内）。", en:"MATLAB is used, so bringing your PC is mandatory (announced in class)."}}],
+    {kind:"pc", n:[7], note:{ja:"MATLABを使うのでPC持参必須（授業での案内）。", en:"MATLAB is used, so bringing your PC is mandatory (announced in class)."}},
+    {kind:"quiz", all:true, note:{ja:"毎回、授業の始めに短い小テスト。授業中の演習とあわせて、次の授業の前日23:59までに先端なびで提出。", en:"A short quiz at the start of every class, submitted on Sentan-navi with the in-class exercises by 23:59 the day before the next class."}}],
   prep:{ja:"予習120分／復習120分（毎回）", en:"120 min prep / 120 min review per class"},
   homework:{ja:"予習：先端なびに毎回授業前に配られる資料で予習してから授業に出る　復習：授業内容と配布資料を理解する", en:"Prep: study the materials posted on Sentan-navi before every class. Review: understand contents learned and distributed materials."},
   materials:{
@@ -410,6 +423,8 @@ const COURSES = [
     {from:6,  to:9,  teacher:{ja:"今井先生", en:"Imai"}},
     {from:10, to:13, teacher:{ja:"的場先生", en:"Matoba"}},
     {from:14, to:15, teacher:{ja:"西先生（講座は外部講師）", en:"Nishi (workshops by an external lecturer)"}}],
+  hw:{due:"dayBefore", submit:true, what:{ja:"課題", en:"assignments"},
+    rule:{ja:"課題の提出期限は木曜の深夜23:59（次の授業の前日）。", en:"Assignments are due Thursday 23:59, the night before the next class."}},
   outline:{
     ja:"人生設計のなかで働くことの意味と、キャリアをどう位置づけるかを考える。将来の自分のキャリア像を形づくり、就職活動に必要な基礎知識とスキルを身につける。あわせて、3年次から始まるプレキャップストーン・プログラムに向けて、学生としてのKUAS行動規範を修得する。",
     en:"Students think about the meaning of working within their life planning, form their own future career image, and acquire basic knowledge and skills for job hunting, plus the KUAS Code of Conduct."},
@@ -555,8 +570,19 @@ function calendarWeekFor(iso){
   return index<0 ? (iso<CALENDAR_WEEKS[0]?1:CALENDAR_WEEKS.length) : index+1;
 }
 function courseDates(c){ return OCCURRENCES.filter(item=>item.c.id===c.id).map(item=>item.date); }
+/* all:true は毎回の印（中間試験の回は除く）。 */
 function marksFor(item){
-  return (item.c.marks||[]).filter(m=>m.date ? m.date===item.date : m.n ? m.n.includes(item.n) : m.day===item.s.day);
+  const marks = item.c.marks||[];
+  const own = marks.filter(m=>!m.all && (m.date ? m.date===item.date : m.n ? m.n.includes(item.n) : m.day===item.s.day));
+  return own.some(m=>m.kind==="midterm") ? own : own.concat(marks.filter(m=>m.all));
+}
+/* 宿題：その回に出たもの、次の授業、期限（前日23:59か、次の授業まで）。 */
+function tasksOn(item){ return (item.c.tasks||[]).filter(task=>task.date===item.date); }
+function nextClass(item){ return OCCURRENCES.find(o=>o.c===item.c && o.date>item.date); }
+function hwDue(item){
+  const hw = item.c.hw, next = nextClass(item);
+  if(!hw || !next) return null;
+  return hw.due==="dayBefore" ? {date:addDays(next.date,-1), next} : {date:next.date, next};
 }
 function markedSessions(c,m){ return OCCURRENCES.filter(item=>item.c===c && marksFor(item).includes(m)); }
 function occurrenceOf(c,n){ return OCCURRENCES.find(item=>item.c===c && item.n===n); }
@@ -623,6 +649,16 @@ const T = {
   examsLead:{ja:"中間試験・小テストと、持ち物や授業形式に注意する日。日付は授業の実施日から計算しています。", en:"Midterms, quizzes, and days when you need to bring something or the class format changes. Dates follow the actual class days."},
   examsNotice:{ja:"持ち物・授業形式に注意する日", en:"Bring something or format changes"},
   examsCheck:{ja:"他の授業で中間にあたりそうな回（要確認）", en:"Possible midpoints in other courses (to confirm)"},
+  examsHw:{ja:"次の提出期限・宿題", en:"Next deadlines and homework"},
+  hwTitle:{ja:"宿題・提出", en:"Homework & submissions"},
+  hwSubmit:{ja:"提出", en:"Submit"},
+  hwNoSubmit:{ja:"宿題（提出なし）", en:"Homework (not submitted)"},
+  hwFrom:{ja:"{date}の授業の分", en:"From the {date} class"},
+  hwGeneric:{ja:"この回の{what}", en:"This class's {what}"},
+  dueBy:{ja:"{date} 23:59まで", en:"Due {date} 23:59"},
+  dueNext:{ja:"次の授業（{date}）まで", en:"By the next class ({date})"},
+  dueUnknown:{ja:"最終回のため期限は授業で確認", en:"Last class: check the deadline in class"},
+  everyClass:{ja:"毎回（{days}）", en:"Every class ({days})"},
   memoTitle:{ja:"授業メモ", en:"Class notes"},
   memoLabel:{ja:"メモ", en:"Note"},
   showcase:{ja:"キャリアショーケース（45分）：{who}", en:"Career Showcase (45 min): {who}"},
@@ -1049,12 +1085,34 @@ function sessionTime(item){
   const span = item.s.span||1;
   return periodLabel(item.s.period,span)+' '+slotTime(item.s.period,span);
 }
-function weeklyTime(item){ return fill(t("everyWeek"),{day:DAYS[item.s.day].s[LANG]})+' '+sessionTime(item); }
+/* 毎週1曜日なら「毎週火曜 2限…」、複数の曜日なら「毎回（火・金）3限…」。 */
+function weeklyTime(items){
+  const days = [...new Set(items.map(item=>item.s.day))].sort();
+  const samePeriod = items.every(item=>item.s.period===items[0].s.period && (item.s.span||1)===(items[0].s.span||1));
+  const when = days.length===1 ? fill(t("everyWeek"),{day:DAYS[days[0]].s[LANG]})
+    : fill(t("everyClass"),{days:days.map(d=>DAYS[d].s[LANG]).join(LANG==="ja"?"・":"/")});
+  return when+(samePeriod?' '+sessionTime(items[0]):'');
+}
 /* 1回だけなら日付と時限、毎週なら曜日と回数。 */
 function markWhen(c,m){
   const items = markedSessions(c,m);
   if(items.length===1) return fmtDate(items[0].date)+' '+sessionTime(items[0]);
-  return weeklyTime(items[0])+(LANG==="ja"?"（":" (")+fill(t("quizTimes"),{n:items.length})+(LANG==="ja"?"）":")");
+  return weeklyTime(items)+(LANG==="ja"?"（":" (")+fill(t("quizTimes"),{n:items.length})+(LANG==="ja"?"）":")");
+}
+function dueText(due){
+  if(!due) return t("dueUnknown");
+  return fill(t(due.date===due.next.date?"dueNext":"dueBy"),{date:fmtDate(due.date)});
+}
+/* 宿題の行。generic は、具体的な内容がわからない回にも提出期限を出すかどうか。 */
+function homeworkBlock(item,generic){
+  const hw = item.c.hw, tasks = tasksOn(item);
+  if(!hw || (!tasks.length && !(generic && hw.submit))) return '';
+  const list = tasks.length ? tasks.map(task=>task.url
+      ? '<a href="'+esc(task.url)+'" target="_blank" rel="noopener">'+esc(L(task))+'</a>'
+      : esc(L(task))).join(LANG==="ja"?'／':' / ')
+    : esc(fill(t("hwGeneric"),{what:L(hw.what)}));
+  return '<p class="extra hw-line"><b class="'+(hw.submit?'is-submit':'')+'">'+t(hw.submit?"hwSubmit":"hwNoSubmit")+'</b> '
+    + list+'<span class="due">'+esc(dueText(hwDue(item)))+'</span></p>';
 }
 function countdown(date,today){
   const days = Math.round((new Date(date+'T12:00:00Z')-new Date(today+'T12:00:00Z'))/864e5);
@@ -1089,7 +1147,7 @@ function examCard(c,m,today){
     +   '<span class="exam-count">'+countdown(shown.date,today)+'</span></div>'
     + '<div class="exam-body">'+markBadge(m)
     +   '<h3><button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button></h3>'
-    +   '<p class="exam-meta">'+esc(items.length===1 ? sessionTime(shown) : weeklyTime(shown))+'</p>'
+    +   '<p class="exam-meta">'+esc(items.length===1 ? sessionTime(shown) : weeklyTime(items))+'</p>'
     +   '<p class="exam-meta">'+esc(locationText(c,sess?sess.mode:undefined))+'</p>'
     +   '<p class="exam-meta">'+esc(meta.join(LANG==="ja"?" ・ ":" · "))+'</p>'
     +   (m.note ? '<p class="exam-note">'+esc(L(m.note))+'</p>' : '')
@@ -1106,8 +1164,30 @@ function noticeRow(item,badge,note,today){
     +   (note ? '<p class="exam-note">'+esc(L(note))+'</p>' : '')
     + '</div></li>';
 }
+function hwRow(item,due,today){
+  const c = item.c, hw = c.hw, tasks = tasksOn(item);
+  return '<li style="--c:'+cc(c)+'"><div class="exam-when"><time datetime="'+due.date+'">'+fmtDate(due.date)+'</time>'
+    + '<span class="exam-count">'+countdown(due.date,today)+'</span></div>'
+    + '<div class="exam-body"><span class="badge fill '+(hw.submit?'b-due':'b-check')+'">'+t(hw.submit?"hwSubmit":"hwNoSubmit")+'</span>'
+    +   '<p class="exam-meta"><button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button> '+esc(dueText(due))+'</p>'
+    +   '<p class="exam-meta">'+esc(fill(t("hwFrom"),{date:fmtDate(item.date)}))+(LANG==="ja"?"：":": ")
+    +     (tasks.length ? tasks.map(task=>task.url
+          ? '<a href="'+esc(task.url)+'" target="_blank" rel="noopener">'+esc(L(task))+'</a>' : esc(L(task))).join(LANG==="ja"?'／':' / ')
+        : esc(fill(t("hwGeneric"),{what:L(hw.what)})))+'</p>'
+    +   (hw.short ? '<p class="exam-note">'+esc(L(hw.short))+'</p>' : '')
+    + '</div></li>';
+}
+/* 科目ごとに、今日以降で一番近い提出期限（提出のない科目は具体的な宿題がある回だけ）。 */
+function upcomingHomework(today){
+  return COURSES.filter(c=>c.hw).flatMap(c=>{
+    const next = OCCURRENCES.filter(item=>item.c===c && (c.hw.submit || tasksOn(item).length))
+      .map(item=>({item, due:hwDue(item)}))
+      .find(x=>x.due && x.due.date>=today);
+    return next ? [next] : [];
+  }).sort((a,b)=>a.due.date.localeCompare(b.due.date));
+}
 function renderExams(){
-  const today = todayISO(), main = [], checks = [], notices = [];
+  const today = todayISO(), main = [], checks = [], notices = [], homework = upcomingHomework(today);
   COURSES.forEach(c=>(c.marks||[]).forEach(m=>{
     const items = markedSessions(c,m);
     if(!items.length) return;
@@ -1116,12 +1196,13 @@ function renderExams(){
     else (group==="check" ? checks : main).push({recurring:items.length>1, date:items[0].date, html:examCard(c,m,today)});
   }));
   formatChanges().forEach(item=>notices.push({item, html:noticeRow(item,modeBadge(item.session.mode,true),null,today)}));
-  if(!main.length && !checks.length && !notices.length) return '';
+  if(!main.length && !checks.length && !notices.length && !homework.length) return '';
   /* 1回きりの試験を日付順に先に、毎週の小テストはその後。 */
   main.sort((a,b)=>a.recurring-b.recurring || a.date.localeCompare(b.date));
   notices.sort((a,b)=>a.item.date.localeCompare(b.item.date) || a.item.s.period-b.item.s.period);
   return '<div class="sec exams"><div class="sec-head"><h2>'+t("examsTitle")+'</h2><span>'+t("examsLead")+'</span></div>'
     + '<div class="exam-list">'+main.map(x=>x.html).join('')+'</div>'
+    + (homework.length ? '<h3 class="exam-subhead">'+t("examsHw")+'</h3><ul class="notice-list hw-list">'+homework.map(x=>hwRow(x.item,x.due,today)).join('')+'</ul>' : '')
     + (notices.length ? '<h3 class="exam-subhead">'+t("examsNotice")+'</h3><ul class="notice-list">'+notices.map(x=>x.html).join('')+'</ul>' : '')
     + (checks.length ? '<h3 class="exam-subhead">'+t("examsCheck")+'</h3><div class="exam-list">'+checks.map(x=>x.html).join('')+'</div>' : '')
     + '</div>';
@@ -1275,7 +1356,7 @@ function renderWeek(){
           h += '<p class="topic"><span class="sn">'
              + fill(t("session"),{n:it.n})+'</span>'+esc(L(sess))+'</p>';
         }
-        h += sessionExtras(it)
+        h += sessionExtras(it) + homeworkBlock(it,true)
            + '<details class="study-details"><summary>'+t("studyDetails")+'</summary>'
            + '<p class="p">'+esc(phase ? fill(t("phaseTeacher"),{who:L(phase.teacher)}) : L(c.teachers))+'</p>'
            + (sess && sess.format ? '<p class="hw">'+esc(L(sess.format))+'</p>' : '')
@@ -1336,7 +1417,7 @@ function renderCourse(){
       + '<td class="n">'+s.n+'</td>'
       + '<td>'+esc(L(s))+'<div style="font-size:11.5px;color:var(--ink-3)">'
       +   fill(t("weekLabel"),{n:item.teachingWeek})+' ・ '+fmtDate(item.date)+'</div>'
-      +   markBadges(marks)+sessionExtras(item)
+      +   markBadges(marks.filter(m=>!m.all))+sessionExtras(item)+homeworkBlock(item,false)
       +   (s.format ? '<p class="extra">'+esc(L(s.format))+'</p>' : '')+'</td>'
       + '<td class="m">'+modeBadge(s.mode,false)+'</td></tr>';
   });
@@ -1355,6 +1436,14 @@ function renderCourse(){
      + t("absTitle")+'：<b style="font-family:var(--mincho);font-size:16px">'+allowedAbsence(c)+'</b> '+t("absUnitP")
      + ' / '+totalPeriods(c)+'（≒ '+allowedWeeks(c)+' '+t("absUnitW")+'）</div></div>';
 
+  if(c.hw){
+    const given = OCCURRENCES.filter(item=>item.c===c && tasksOn(item).length);
+    h += '<div class="box hw-box"><h3>'+t("hwTitle")+'</h3><p>'+esc(L(c.hw.rule))+'</p>'
+       + (c.hw.format ? '<p class="hw-format">'+esc(L(c.hw.format))+'</p>' : '')
+       + (given.length ? '<ul class="goals">'+given.map(item=>'<li><b>'+esc(fill(t("hwFrom"),{date:fmtDate(item.date)}))+'</b>'
+           + homeworkBlock(item,false)+'</li>').join('')+'</ul>' : '')
+       + '</div>';
+  }
   h += '<div class="box"><h3>'+t("preph")+'</h3><p>'+esc(L(c.prep))+'</p><p style="font-size:13px;color:var(--ink-2)">'+esc(L(c.homework))+'</p></div>';
 
   h += '<div class="box"><h3>'+t("mats")+'</h3><table class="mat"><tbody>';
