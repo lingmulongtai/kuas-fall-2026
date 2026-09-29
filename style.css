@@ -135,10 +135,10 @@ button:disabled{cursor:default}
   box-shadow:0 4px 12px rgba(8,24,40,.13),inset 0 2px 3px var(--shine),inset 0 -2px 2px var(--shine);
   backdrop-filter:blur(5px) saturate(1.8);-webkit-backdrop-filter:blur(5px) saturate(1.8);
 }
-.day-switch.segmented::before{border-radius:12px}
-.day-switch button:focus-visible{outline-offset:-3px}
+.day-switch.segmented::before,.timetable-switch.segmented::before{border-radius:12px}
+.day-switch button:focus-visible,.timetable-switch button:focus-visible{outline-offset:-3px}
 .tabs button:focus-visible{outline-offset:-3px}
-.tabs.segmented button[aria-selected="true"],.day-switch.segmented button[aria-pressed="true"]{background:transparent;box-shadow:none}
+.tabs.segmented button[aria-selected="true"],.day-switch.segmented button[aria-pressed="true"],.timetable-switch.segmented button[aria-pressed="true"]{background:transparent;box-shadow:none}
 
 /* The fixed mobile dock stays outside the header's backdrop-filter root. */
 .masthead{max-width:1264px;width:calc(100% - 56px);margin:28px auto 0;padding:0}
@@ -202,9 +202,9 @@ main{max-width:1320px;margin:auto;padding:26px 28px 48px}
 .tagbuy{color:var(--vermilion);border-color:var(--vermilion)}
 .tagopt{color:var(--ink-3)}
 
-/* One timetable DOM: five columns on paper/desktop, one selected day on mobile. */
+/* One timetable DOM: five columns on paper/desktop, a day or week on mobile. */
 .timetable-section{margin-bottom:18px}
-.day-switch{display:none}
+.day-switch,.timetable-switch,.tt-day-short{display:none}
 .ttwrap{padding:0}
 .tt{
   display:grid;grid-template-columns:72px repeat(5,minmax(0,1fr));
@@ -427,14 +427,15 @@ ul.goals li{margin-bottom:8px}
   .timetable-section{margin-bottom:16px}
   .timetable-section .sec-head{padding:0 4px;margin-bottom:14px}
   .timetable-section .sec-head h2{font-size:21px}
-  .day-switch{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:4px;margin-bottom:14px;background:var(--inlay);border:1px solid var(--rule-2);border-radius:16px;box-shadow:inset 0 1px 3px rgba(0,10,20,.04)}
-  .day-switch button{position:relative;min-height:42px;border:0;border-radius:12px;background:transparent;font-size:13px;color:var(--ink-2)}
+  .day-switch,.timetable-switch{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:4px;margin-bottom:14px;background:var(--inlay);border:1px solid var(--rule-2);border-radius:16px;box-shadow:inset 0 1px 3px rgba(0,10,20,.04)}
+  .timetable-switch{grid-template-columns:repeat(2,1fr)}
+  .day-switch button,.timetable-switch button{position:relative;min-height:42px;border:0;border-radius:12px;background:transparent;font-size:13px;color:var(--ink-2)}
   .day-switch button:last-child{border:0}
-  .day-switch button[aria-pressed="true"]{background:var(--surface);box-shadow:var(--shadow);color:var(--indigo);font-weight:700}
+  .day-switch button[aria-pressed="true"],.timetable-switch button[aria-pressed="true"]{background:var(--surface);box-shadow:var(--shadow);color:var(--indigo);font-weight:700}
   .ttwrap{padding:0}
   .tt{grid-template-columns:45px minmax(0,1fr);grid-template-rows:30px repeat(2,minmax(64px,auto)) 22px repeat(4,minmax(64px,auto));gap:4px}
-  .tt [data-day]{grid-column:2!important}
-  .tt [data-day].day-hidden{display:none}
+  .timetable-section[data-timetable-view="day"] .tt [data-day]{grid-column:2!important}
+  .timetable-section[data-timetable-view="day"] .tt [data-day].day-hidden{display:none}
   .tt .hd{font-size:12px;letter-spacing:.08em}
   .tt .per{padding:7px 0}
   .tt .per b{font-size:20px}
@@ -444,6 +445,25 @@ ul.goals li{margin-bottom:8px}
   .blk .nm{font-size:15px;line-height:1.65}
   .blk .mt{font-size:11px}
   .blk .cr{padding-top:2px}
+  .timetable-section[data-timetable-view="week"] .day-switch{display:none}
+  .timetable-section[data-timetable-view="week"] .tt{grid-template-columns:28px repeat(5,minmax(0,1fr));grid-template-rows:26px repeat(2,minmax(88px,auto)) 20px repeat(4,minmax(80px,auto));gap:3px}
+  .timetable-section[data-timetable-view="week"] .tt-day-full,
+  .timetable-section[data-timetable-view="week"] .per span,
+  .timetable-section[data-timetable-view="week"] .empty span,
+  .timetable-section[data-timetable-view="week"] .blk .mt,
+  .timetable-section[data-timetable-view="week"] .blk .cr>span:not(.tagopt){display:none}
+  .timetable-section[data-timetable-view="week"] .blk .cr{display:contents}
+  .timetable-section[data-timetable-view="week"] .blk .tagopt{font-size:8px;line-height:1.4;padding:1px 2px}
+  .timetable-section[data-timetable-view="week"] .tt-day-short{display:inline}
+  .timetable-section[data-timetable-view="week"] .tt-corner{font-size:8px;line-height:1.3}
+  .timetable-section[data-timetable-view="week"] .hd{font-size:11px;letter-spacing:0}
+  .timetable-section[data-timetable-view="week"] .per b{font-size:16px}
+  .timetable-section[data-timetable-view="week"] .empty{padding:0;border-radius:7px}
+  .timetable-section[data-timetable-view="week"] .blk{padding:7px 4px 7px 8px;gap:5px;border-radius:7px}
+  .timetable-section[data-timetable-view="week"] .blk::before{left:3px;top:7px;bottom:7px;width:2px}
+  .timetable-section[data-timetable-view="week"] .blk .nm{font-size:10.5px;line-height:1.45;text-wrap:wrap;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+  .timetable-section[data-timetable-view="week"] .name-part{display:inline}
+  .timetable-section[data-timetable-view="week"] .blk .location{font-size:9px;line-height:1.45;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr));padding:0;overflow:hidden}
   .stat{padding:12px!important;border-bottom:1px solid var(--rule-2);display:flex;gap:12px}
   .stat:nth-child(2),.stat:nth-child(5){border-right:0}
@@ -519,7 +539,7 @@ ul.goals li{margin-bottom:8px}
   :root,[data-theme="dark"]{--frost:var(--surface);--glass:var(--surface);--cell:var(--surface);--inlay:var(--surface-2);--shine:var(--rule);--reflection:transparent}
   .masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head,.tabs,.picker button{backdrop-filter:none;-webkit-backdrop-filter:none}
   .rain-layer,.wallpaper,.tabs::after,.segmented::before{display:none!important}
-  .tabs.segmented button[aria-selected="true"],.day-switch.segmented button[aria-pressed="true"]{background:var(--hl)}
+  .tabs.segmented button[aria-selected="true"],.day-switch.segmented button[aria-pressed="true"],.timetable-switch.segmented button[aria-pressed="true"]{background:var(--hl)}
 }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   :root,[data-theme="dark"]{--frost:var(--surface);--glass:var(--surface);--cell:var(--surface);--inlay:var(--surface-2)}
@@ -538,7 +558,7 @@ ul.goals li{margin-bottom:8px}
   }
   @page{size:A4 landscape;margin:12mm}
   body{background:#FFF;font-size:10px}
-  .wallpaper,.rain-layer,.photo-credit,.masthead,.tabs,.switches,.ambience,.weekbar,.picker,.day-switch{display:none!important}
+  .wallpaper,.rain-layer,.photo-credit,.masthead,.tabs,.switches,.ambience,.weekbar,.picker,.day-switch,.timetable-switch{display:none!important}
   main{padding:0;max-width:none}
   .view[hidden]{display:block!important}
   .view+.view{break-before:page}
