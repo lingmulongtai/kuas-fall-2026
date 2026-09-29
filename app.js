@@ -371,6 +371,8 @@ const COURSES = [
   location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:3,period:3,span:3,pick:w=>[w]}],
   total:15, perWeek:1, unit:"week", firstWeek:1, lastWeek:15,
+  memos:[
+    {date:"2026-09-24", ja:"土曜日に練習できるか担当者に確認する。練習の可否・日時は未確定。", en:"Ask the workshop staff whether Saturday practice is possible. Availability and dates are not confirmed."}],
   outline:{
     ja:"旋盤・フライス盤・ボール盤などの工作機械を実際に使うハンズオン実習。機械加工の基礎、加工プロセス、工作機械、加工精度について知識と技能を身につける。さらに3Dプリンタによる積層造形を学び、加工プロセスと安全に関する一般知識を完成させる。",
     en:"Hands-on experience with machining tools including lathes, mills and drills, covering machining fundamentals, processes, machine tools and accuracy, plus additive manufacturing with 3D printing."},
@@ -425,6 +427,8 @@ const COURSES = [
     {from:14, to:15, teacher:{ja:"西先生（講座は外部講師）", en:"Nishi (workshops by an external lecturer)"}}],
   hw:{due:"dayBefore", submit:true, what:{ja:"課題", en:"assignments"},
     rule:{ja:"課題の提出期限は木曜の深夜23:59（次の授業の前日）。", en:"Assignments are due Thursday 23:59, the night before the next class."}},
+  tasks:[
+    {date:"2026-09-25", ja:"履歴書を書く", en:"Write a resume"}],
   outline:{
     ja:"人生設計のなかで働くことの意味と、キャリアをどう位置づけるかを考える。将来の自分のキャリア像を形づくり、就職活動に必要な基礎知識とスキルを身につける。あわせて、3年次から始まるプレキャップストーン・プログラムに向けて、学生としてのKUAS行動規範を修得する。",
     en:"Students think about the meaning of working within their life planning, form their own future career image, and acquire basic knowledge and skills for job hunting, plus the KUAS Code of Conduct."},
