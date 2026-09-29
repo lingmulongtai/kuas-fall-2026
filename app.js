@@ -614,6 +614,9 @@ const T = {
   themeDark:{ja:"テーマ：ダーク", en:"Theme: Dark"},
   timetable:{ja:"時間割", en:"Timetable"},
   ttHint:{ja:"科目をタップすると詳細へ", en:"Tap a course for details"},
+  chooseTimetableView:{ja:"時間割の表示を選択", en:"Choose a timetable view"},
+  timetableDay:{ja:"1日", en:"Day"},
+  timetableWeek:{ja:"1週間", en:"Week"},
   chooseDay:{ja:"時間割の曜日を選択", en:"Choose a timetable day"},
   emptyPeriod:{ja:"空き時間", en:"Free period"},
   studyDetails:{ja:"教員・授業外学修", en:"Instructors & preparation"},
@@ -761,6 +764,7 @@ let VIEW = "home";
 let WEEK = calendarWeekFor(todayISO());
 let COURSE = COURSES[0].id;
 let DAY = Math.min(4, Math.max(0, new Date().getDay()-1));
+let TIMETABLE_VIEW = "day";
 
 const $ = id => document.getElementById(id);
 const byId = id => COURSES.find(c=>c.id===id);
@@ -965,7 +969,7 @@ function revealView(){
   Array.from(view.children).forEach((element,i)=>moveIn(element,0,Math.min(i,3)*40));
 }
 function syncSelections(){
-  document.querySelectorAll('.tabs,.day-switch').forEach(group=>{
+  document.querySelectorAll('.tabs,.day-switch,.timetable-switch').forEach(group=>{
     if(!group.offsetWidth) return;
     const selected = group.querySelector('[aria-selected="true"],[aria-pressed="true"]');
     if(!selected) return;
@@ -1229,12 +1233,15 @@ function renderHome(){
     + '</div></div>';
 
   const summary = h;
-  /* 同じ時間割を、PCでは5列、スマホでは選択曜日の1列で表示する。 */
-  h = '<div class="sec timetable-section"><div class="sec-head"><h2>'+t("timetable")+'</h2><span>'+t("ttHint")+'</span></div>';
+  /* 同じ時間割を、PCでは5列、スマホでは1日／1週間に切り替えて表示する。 */
+  h = '<div class="sec timetable-section" data-timetable-view="'+TIMETABLE_VIEW+'"><div class="sec-head"><h2>'+t("timetable")+'</h2><span>'+t("ttHint")+'</span></div>';
+  h += '<div class="timetable-switch" role="group" aria-label="'+t("chooseTimetableView")+'">';
+  ["day","week"].forEach(mode=>{ h += '<button type="button" data-timetable-select="'+mode+'" aria-controls="timetable-grid" aria-pressed="'+(mode===TIMETABLE_VIEW)+'">'+t(mode==="day"?"timetableDay":"timetableWeek")+'</button>'; });
+  h += '</div>';
   h += '<div class="day-switch" role="group" aria-label="'+t("chooseDay")+'">';
   DAYS.forEach((d,i)=>{ h += '<button type="button" data-day-select="'+i+'" aria-pressed="'+(i===DAY)+'">'+d.s[LANG]+'</button>'; });
-  h += '</div><div class="ttwrap"><div class="tt"><div class="tt-corner">'+t("colSlot")+'</div>';
-  DAYS.forEach((d,i)=>{ h += '<div class="hd'+(i===DAY?'':' day-hidden')+'" data-day="'+i+'">'+d[LANG]+'</div>'; });
+  h += '</div><div class="ttwrap"><div class="tt" id="timetable-grid"><div class="tt-corner">'+t("colSlot")+'</div>';
+  DAYS.forEach((d,i)=>{ h += '<div class="hd'+(i===DAY?'':' day-hidden')+'" data-day="'+i+'"><span class="tt-day-full">'+d[LANG]+'</span><span class="tt-day-short">'+d.s[LANG]+'</span></div>'; });
 
   const occ = {};
   COURSES.forEach(c=>c.slots.forEach(s=>{
@@ -1553,6 +1560,15 @@ function renderMats(){
 }
 
 /* ---------- 操作 ---------- */
+function setTimetableView(mode){
+  if((mode!=="day" && mode!=="week") || mode===TIMETABLE_VIEW) return;
+  TIMETABLE_VIEW = mode;
+  store.set("timetable-view", mode);
+  stopMotion();
+  document.querySelector('.timetable-section').dataset.timetableView = mode;
+  document.querySelectorAll('[data-timetable-select]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.timetableSelect===mode));
+  syncSelections();
+}
 function setLang(l){
   LANG = l;
   document.documentElement.lang = l;
@@ -1635,6 +1651,8 @@ function renderAll(){
 
 /* イベント委譲：再描画してもハンドラを付け直さなくていい */
 document.addEventListener("click", e=>{
+  const tv = e.target.closest("[data-timetable-select]");
+  if(tv){ setTimetableView(tv.dataset.timetableSelect); return; }
   const db = e.target.closest("[data-day-select]");
   if(db){
     const direction = Math.sign(Number(db.dataset.daySelect)-DAY);
@@ -1703,6 +1721,7 @@ window.addEventListener("afterprint", ()=>{
   if(savedTheme) THEME = savedTheme;
   const savedLang = store.get("lang");
   if(savedLang) LANG = savedLang;
+  TIMETABLE_VIEW = store.get("timetable-view")==="week" ? "week" : "day";
   document.documentElement.lang = LANG;
   $("btn-ja").setAttribute("aria-pressed", LANG==="ja");
   $("btn-en").setAttribute("aria-pressed", LANG==="en");
