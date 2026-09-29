@@ -225,6 +225,8 @@ const COURSES = [
   location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:0,period:2,span:1,pick:w=>[2*w-1]},{day:1,period:5,span:1,pick:w=>[2*w]}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
+  memos:[
+    {date:"2026-09-28", ja:"10/26・10/27・1/12はオンデマンド授業。1月のもう1回は日付要確認（当初メモは1/25、後の補足では1/15の可能性あり）。", en:"Oct 26, Oct 27 and Jan 12 are on-demand. The other January date needs confirmation: the original note says Jan 25, with a later clarification suggesting Jan 15."}],
   outline:{
     ja:"微分積分学・線形代数1と2で学んだ内容を土台に、機械工学・電気工学で広く使われる常微分方程式(ODE)とベクトル解析を扱う。工学に関わるODEとベクトル解析を理解するための知識と実践的な計算技術の両方を身につけ、1階・2階のODEとベクトル解析の基礎に関する新しい技能を養う。",
     en:"Building on Calculus and Linear Algebra 1 and 2, this course introduces ordinary differential equations (ODE) and vector calculus widely used in mechanical and electrical engineering, developing both knowledge and practical calculation techniques."},
@@ -253,8 +255,8 @@ const COURSES = [
     ["1階非同次線形常微分方程式","Non-homogeneous linear ODE of 1st order"],
     ["変数分離法","Separation of variables"],
     ["ベルヌーイの微分方程式","Bernoulli differential equation"],
-    ["2階線形常微分方程式","Linear ODE of second order"],
-    ["2階同次線形常微分方程式","Homogeneous linear ODE of 2nd order"],
+    ["2階線形常微分方程式","Linear ODE of second order","ondemand"],
+    ["2階同次線形常微分方程式","Homogeneous linear ODE of 2nd order","ondemand"],
     ["2階非同次線形常微分方程式","Non-homogeneous linear ODE of 2nd order"],
     ["未定係数法","Method of undetermined coefficients"],
     ["強制力のあるばね–質量系","Mass-spring systems with driving force"],
