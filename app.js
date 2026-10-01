@@ -6,7 +6,7 @@
 /* ---------- 時限 ---------- */
 const PERIODS = {
   1:"9:00–10:30", 2:"10:40–12:10", 3:"13:00–14:30",
-  4:"14:40–16:10", 5:"16:20–17:50", 6:"18:00–19:00"
+  4:"14:40–16:10", 5:"16:20–17:50", 6:"18:00–19:30"
 };
 
 const DAYS = [
@@ -732,8 +732,8 @@ const T = {
   colIsbn:{ja:"ISBN", en:"ISBN"},
   colForm:{ja:"形態", en:"Format"},
   paper:{ja:"（記載なし）", en:"(not stated)"},
-  foot:{ja:"内容は先端なびのシラバス9件と学生時間割表、授業での案内・配布資料にもとづきます。日本語は原文からの要約訳です。正式な情報は必ず先端なびのシラバスと授業での案内を確認してください。授業時間は2025年度からの全学統一時間、6限は18:00–19:00。",
-        en:"Built from the nine Sentan-navi syllabi, the student timetable, and announcements and handouts from class. Japanese text is a summarised translation; always check the official syllabus and class announcements. Period times follow the university-wide schedule from 2025; period 6 is 18:00-19:00."}
+  foot:{ja:"内容は先端なびのシラバス9件と学生時間割表、授業での案内・配布資料にもとづきます。日本語は原文からの要約訳です。正式な情報は必ず先端なびのシラバスと授業での案内を確認してください。授業時間は日本時間。ビジネスデータサイエンス入門（6限）は18:00–19:30。",
+        en:"Built from the nine Sentan-navi syllabi, the student timetable, and announcements and handouts from class. Japanese text is a summarised translation; always check the official syllabus and class announcements. All class times are in Japan Standard Time. Introduction to Business Data Science (period 6) runs from 18:00 to 19:30."}
 };
 
 /* 教材ビュー用のメモ */
