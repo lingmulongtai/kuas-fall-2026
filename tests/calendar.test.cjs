@@ -7,8 +7,8 @@ const vm = require('node:vm');
 const app = fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
 const context = vm.createContext({});
 vm.runInContext(app.slice(0,app.indexOf('/* ---------- UI 文言'))+
-  ';globalThis.calendar={COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue};',context);
-const {COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue} = context.calendar;
+  ';globalThis.calendar={PERIODS,COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue};',context);
+const {PERIODS,COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue} = context.calendar;
 const ids = date=>Array.from(sessionsOn(date),item=>item.c.id+'-'+item.n);
 const course = id=>COURSES.find(c=>c.id===id);
 /* Runs the page code against a minimal DOM and returns the rendered element lookup. */
@@ -85,6 +85,44 @@ test('exercise courses retain late starts and multi-period spans',()=>{
   assert.equal(exercises.at(-1).date,'2027-01-18');
   assert.ok(exercises.every(item=>item.s.span===2));
   assert.equal(courseDates(COURSES.find(c=>c.id==='calc')).at(-1),'2027-01-18');
+});
+
+test('Business Data Science runs from 18:00 to 19:30 without changing other course times',()=>{
+  assert.deepEqual({...PERIODS},{
+    1:'9:00–10:30',2:'10:40–12:10',3:'13:00–14:30',
+    4:'14:40–16:10',5:'16:20–17:50',6:'18:00–19:30'
+  });
+  const items=OCCURRENCES.filter(item=>item.c.id==='bds');
+  assert.equal(items.length,15);
+  assert.ok(items.every(item=>item.s.day===3 && item.s.period===6 && item.s.span===1));
+  for(const c of COURSES.filter(c=>c.id!=='bds')){
+    assert.ok(c.slots.every(s=>s.period+(s.span||1)-1<6),c.id);
+  }
+  const minutes=time=>time.split(':').map(Number).reduce((hours,mins)=>hours*60+mins);
+  const [start,end]=PERIODS[6].split('–').map(minutes);
+  assert.equal(end-start,90);
+});
+
+test('every Business Data Science calendar session shows the corrected time in both languages',()=>{
+  for(const lang of ['ja','en']){
+    for(const item of OCCURRENCES.filter(item=>item.c.id==='bds')){
+      const html=render('LANG="'+lang+'";WEEK='+calendarWeekFor(item.date)+';renderWeek();')('view-week');
+      const card=html.match(new RegExp('data-session="bds-'+item.n+'"[^]*?</button>'));
+      assert.ok(card,item.date+' '+lang);
+      assert.match(card[0],/18:00–19:30/);
+      assert.doesNotMatch(card[0],/19:00/);
+    }
+  }
+});
+
+test('the timetable, midpoint notice and bilingual footer agree on the 19:30 end time',()=>{
+  for(const lang of ['ja','en']){
+    const html=render('LANG="'+lang+'";renderHome();$("test-foot").innerHTML=t("foot");');
+    assert.match(html('view-home'),/<b>6<\/b><span>18:00<br>– 19:30<\/span>/);
+    assert.match(html('view-home'),/18:00–19:30/);
+    assert.match(html('test-foot'),/18:00(?:[–-]| to )19:30/);
+    assert.doesNotMatch(html('view-home')+html('test-foot'),/19:00/);
+  }
 });
 
 test('course term boundaries include the earliest and latest actual lesson dates',()=>{
