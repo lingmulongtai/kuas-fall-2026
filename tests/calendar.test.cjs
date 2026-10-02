@@ -7,23 +7,25 @@ const vm = require('node:vm');
 const app = fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
 const context = vm.createContext({});
 vm.runInContext(app.slice(0,app.indexOf('/* ---------- UI 文言'))+
-  ';globalThis.calendar={PERIODS,COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue};',context);
-const {PERIODS,COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue} = context.calendar;
+  ';globalThis.calendar={PERIODS,COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue,classWindow,liveState,courseFocus,periodAt,weekdayOf};',context);
+const {PERIODS,COURSES,DATES,BREAKS,CALENDAR_WEEKS,OCCURRENCES,addDays,mondayOf,calendarWeekFor,sessionsOn,courseDates,marksFor,markedSessions,hwDue,classWindow,liveState,courseFocus,periodAt,weekdayOf} = context.calendar;
 const ids = date=>Array.from(sessionsOn(date),item=>item.c.id+'-'+item.n);
 const course = id=>COURSES.find(c=>c.id===id);
-/* Runs the page code against a minimal DOM and returns the rendered element lookup. */
-function render(script){
+/* Runs the page code against a minimal DOM and returns the rendered element lookup.
+   The clock is fixed (9/25 8:00 JST unless a test passes another time) so the output never depends on when tests run. */
+function render(script,date='2026-09-25',time='8:00'){
   const elements=new Map();
   const element=id=>{
-    if(!elements.has(id)) elements.set(id,{innerHTML:'',addEventListener(){},focus(){}});
+    if(!elements.has(id)) elements.set(id,{innerHTML:'',children:[],addEventListener(){},focus(){},setAttribute(){}});
     return elements.get(id);
   };
   const browser=vm.createContext({
     localStorage:{getItem:()=>null},
-    window:{matchMedia:()=>({matches:false,addEventListener(){}}),addEventListener(){}},
+    window:{matchMedia:()=>({matches:false,addEventListener(){}}),addEventListener(){},scrollTo(){}},
     document:{getElementById:element,addEventListener(){},querySelectorAll:()=>[],activeElement:{id:'w-select',closest:()=>true}}
   });
-  vm.runInContext(app.slice(0,app.indexOf('/* ---------- 起動'))+';todayISO=()=>"2026-09-25";'+script,browser);
+  const [hour,minute]=time.split(':').map(Number);
+  vm.runInContext(app.slice(0,app.indexOf('/* ---------- 起動'))+';nowJST=()=>({date:"'+date+'",min:'+(hour*60+minute)+'});'+script,browser);
   return id=>element(id).innerHTML;
 }
 
@@ -138,7 +140,7 @@ test('course term boundaries include the earliest and latest actual lesson dates
 
 test('changing the calendar week refreshes the lesson highlights on the course tab',()=>{
   const html=render('WEEK=1;VIEW="week";COURSE="mom";renderCourse();setWeek(2);');
-  const highlighted=[...html('view-course').matchAll(/<tr class="now"><td class="n">(\d+)/g)].map(match=>Number(match[1]));
+  const highlighted=[...html('view-course').matchAll(/<tr class="now"[^>]*><td class="n">(\d+)/g)].map(match=>Number(match[1]));
   assert.deepEqual(highlighted,[2,3]);
 });
 
@@ -275,4 +277,89 @@ test('the 9/25 homework and the next deadlines appear on the home page, calendar
   assert.match(week,/data-session="emt-1"[^]*?提出<\/b> Lecture 1の演習[^]*?9\/28\(月\) 23:59まで/);
   assert.match(week,/data-session="career-1"[^]*?この回の課題[^]*?10\/1\(木\) 23:59まで/);
   assert.match(html('view-course'),/class="box hw-box"[^]*?HEIC[^]*?互換性優先/);
+});
+
+test('weeks 3-14 of Machine Shop Practice follow the TA01 column of the group timetable PDF',()=>{
+  const shop=course('shop');
+  assert.equal(shop.groupName,'TA01');
+  const rows=Array.from(OCCURRENCES.filter(item=>item.c===shop && item.session.group),item=>{
+    const g=item.session.group;
+    return [item.date,g.practice,g.start,g.place.en,g.equip.en];
+  });
+  assert.deepEqual(rows,[
+    ['2026-10-08',1,'13:00','Machine Workshop (1F)','Machining Center'],
+    ['2026-10-15',1,'13:00','Precision Measurement Room (BF)','CNC coordinate measuring machine'],
+    ['2026-10-22',1,'13:00','Machine Workshop (BF)','Drilling machine'],
+    ['2026-10-29',4,'13:00','Machine Workshop (BF)','Lathe 3'],
+    ['2026-11-05',4,'13:00','Machine Workshop (BF)','NC Lathe 2'],
+    ['2026-11-12',4,'13:00','Science Plaza','3D Printer'],
+    ['2026-11-19',3,'16:15','Machine Workshop (1F)','Milling machine (OKK, blue)'],
+    ['2026-11-26',3,'17:05','Machine Workshop (BF)','Surface grinder'],
+    ['2026-12-03',3,'17:05','Machine Workshop (1F)','Laser cutting machine'],
+    ['2026-12-10',2,'13:00','Teaching Lab. 2 (2F)','Stepper motor'],
+    ['2026-12-17',2,'13:00','Teaching Lab. 2 (2F)','Stepper motor'],
+    ['2026-12-24',2,'13:00','Room S307','NC programming']]);
+  /* Every TA01 slot stays inside periods 3-5 and ends after it starts. */
+  for(const item of OCCURRENCES.filter(item=>item.c===shop)){
+    const w=classWindow(item);
+    assert.ok(w.start>=13*60 && w.end<=17*60+50 && w.start<w.end,item.date);
+  }
+  assert.ok(fs.statSync(path.join(__dirname,'..',shop.handouts[0].src)).isFile());
+});
+
+test('the live class and the next class follow the real Japan time, including TA01 start times',()=>{
+  const at=(date,time)=>{
+    const [h,m]=time.split(':').map(Number);
+    const st=liveState({date,min:h*60+m});
+    return [st.current&&st.current.c.id+'-'+st.current.n, st.next&&st.next.c.id+'-'+st.next.n+'@'+st.next.date];
+  };
+  assert.deepEqual(at('2026-10-02','13:30'),['emt-3','career-2@2026-10-02']);
+  assert.deepEqual(at('2026-10-02','12:30'),[null,'emt-3@2026-10-02']);
+  assert.deepEqual(at('2026-10-02','10:35'),[null,'emt-3@2026-10-02']);
+  assert.deepEqual(at('2026-10-02','19:00'),[null,'calc-3@2026-10-05']);
+  assert.deepEqual(at('2026-10-08','13:30'),['shop-3','bds-3@2026-10-08']);
+  assert.deepEqual(at('2026-10-08','14:20'),[null,'bds-3@2026-10-08']);
+  assert.deepEqual(at('2026-11-19','14:00'),[null,'shop-9@2026-11-19']);
+  assert.deepEqual(at('2026-11-19','16:30'),['shop-9','bds-9@2026-11-19']);
+  assert.deepEqual(at('2026-10-23','10:00'),[null,'calc-9@2026-10-26']);
+  assert.deepEqual(at('2027-01-18','18:00'),[null,null]);
+  assert.equal(periodAt(13*60),3);
+  assert.equal(periodAt(12*60+30),null);
+  assert.equal(weekdayOf('2026-10-08'),3);
+  assert.equal(courseFocus(course('mom'),{date:'2026-10-02',min:13*60}).date,'2026-10-06');
+});
+
+test('the timetable shows the clock, the class in progress and the next TA01 slot',()=>{
+  const home=render('renderHome();','2026-10-08','13:30')('view-home');
+  const panel=home.match(/<section class="now-panel"[^]*?<\/section>/)[0];
+  assert.match(panel,/<b>13:30<\/b><span>10\/8\(木\)<\/span>/);
+  assert.match(panel,/class="now-item is-live"[^]*?授業中[^]*?残り45分[^]*?機械製作実習[^]*?3–5限 ・ TA01 13:00〜14:15頃[^]*?Machine Workshop \(1F\)[^]*?第3回 実習1：マシニングセンタ[^]*?machine-shop-timetable\.pdf/);
+  assert.match(panel,/class="now-item is-next"[^]*?あと4時間30分で開始[^]*?ビジネスデータサイエンス入門/);
+  const before=render('renderHome();','2026-10-02','19:00')('view-home');
+  assert.match(before,/data-course="shop"[^]*?Machine Workshop \(1F\)[^]*?TA01<\/b> 10\/8\(木\) 13:00〜14:15頃<br>マシニングセンタ/);
+  assert.match(before,/いまは授業の時間ではありません[^]*?class="now-item is-next"[^]*?10\/5\(月\) あと3日[^]*?微分積分学続論 I[^]*?2限 10:40–12:10/);
+  const english=render('LANG="en";renderHome();','2026-11-19','16:30')('view-home');
+  assert.match(english,/In class[^]*?1 h 20 min left[^]*?Exercise for Machine Shop Practice[^]*?Periods 3-5 · TA01 16:15 to about 17:50[^]*?Up next[^]*?Starts in 1 h 30 min[^]*?Business Data Science/);
+});
+
+test('calendar cards and the course plan show TA01 times, rooms, machines and the PDF',()=>{
+  const html=render('WEEK=calendarWeekFor("2026-10-08");COURSE="shop";renderWeek();renderCourse();');
+  assert.match(html('view-week'),/data-session="shop-3"[^]*?3–5限 ・ TA01 13:00〜14:15頃[^]*?Machine Workshop \(1F\)[^]*?第3回<\/span>実習1：マシニングセンタ[^]*?machine-shop-timetable\.pdf/);
+  const page=html('view-course');
+  assert.match(page,/<details class="handout"><summary>班別Timetable[^]*?<iframe class="handout-pdf" src="handouts\/machine-shop-timetable\.pdf#view=FitH"[^]*?PDFを新しいタブで開く/);
+  assert.match(page,/data-session="shop-9"[^]*?実習3：フライス盤（OKK・青）[^]*?TA01<\/b> 16:15〜17:50頃 ・ Machine Workshop \(1F\)/);
+  assert.match(page,/<dt>班<\/dt><dd>TA01<\/dd>/);
+  assert.doesNotMatch(page,/\[object Object\]/);
+});
+
+test('the course tab opens the class in progress, or the next one, unless a course was picked',()=>{
+  const opened=(script,date,time)=>render('VIEW="home";COURSE="mom";renderCourse();'+script+'setView("course");',date,time)('view-course');
+  assert.match(opened('','2026-10-02','13:30'),/<h2>電磁気学<\/h2>[^]*?class="course-live is-live"><span class="now-tag">授業中<\/span><b>10\/2\(金\) 3限 13:00–14:30<\/b>[^]*?残り1時間/);
+  assert.match(opened('','2026-10-08','13:30'),/<h2>機械製作実習 Group A<\/h2>[^]*?授業中[^]*?TA01 13:00〜14:15頃/);
+  assert.match(opened('','2026-10-02','15:00'),/<h2>キャリアデザイン<\/h2>[^]*?class="course-live"><span class="now-tag">次回<\/span>[^]*?あと1時間20分で開始/);
+  assert.match(opened('COURSE_AUTO=false;','2026-10-02','13:30'),/<h2>材料力学<\/h2>/);
+  /* A pick holds until the class changes, then the tab follows the clock again. */
+  const html=render('COURSE_AUTO=false;COURSE_PICKED_AT=focusKey(focusItem());RENDERED_DATE=todayISO();'
+    +'nowJST=()=>({date:"2026-10-02",min:16*60+30});tick();VIEW="home";COURSE="mom";setView("course");','2026-10-02','13:30');
+  assert.match(html('view-course'),/<h2>キャリアデザイン<\/h2>/);
 });
