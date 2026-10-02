@@ -232,6 +232,42 @@ main{max-width:1320px;margin:auto;padding:26px 28px 48px}
 .blk .cr{display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;font-size:10px;color:var(--ink-2);margin-top:auto;padding-top:4px;line-height:1.6}
 .blk .badge{border-color:transparent;padding:0 3px}
 .blk .tagopt{border-color:var(--rule)}
+.blk .grp{font-size:11px;line-height:1.55;color:var(--ink-2);overflow-wrap:anywhere}
+.blk .grp b{color:var(--ink);font-weight:700}
+
+/* The current Japan time, the class in progress and the next one. */
+.now-panel{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px 20px;align-items:start;margin:0 0 18px;padding:14px 16px;background:var(--inlay);border:1px solid var(--rule-2);border-radius:16px;box-shadow:inset 0 1px 0 var(--shine)}
+.now-clock{margin:0;min-width:120px;font-variant-numeric:tabular-nums}
+.now-clock time{display:flex;flex-direction:column}
+.now-clock time b{font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.2}
+.now-clock time span{font-size:13px;color:var(--ink-2)}
+.now-clock small{font-size:10px;color:var(--ink-3)}
+.now-body{min-width:0}
+.now-empty{margin:0 0 8px;font-size:12px;color:var(--ink-3)}
+.now-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
+.now-item{position:relative;overflow:hidden;padding:10px 14px 13px 16px;background:var(--cell);border:1px solid var(--rule-2);border-left:3px solid var(--c);border-radius:12px}
+.now-item.is-live{border-color:var(--indigo);border-left-color:var(--c)}
+.now-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:0}
+.now-item h3{margin:4px 0 2px;font-size:15px;line-height:1.5}
+.now-item h3 .linkbtn{font-size:15px;font-weight:700}
+.now-meta{margin:0;font-size:12px;line-height:1.7;color:var(--ink-2)}
+.now-status{font-size:12px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.now-progress{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--band)}
+.now-progress i{display:block;height:100%;background:var(--c)}
+.now-tag,.live-tag{display:inline-block;width:fit-content;padding:0 7px;border:1px solid var(--indigo);border-radius:6px;background:var(--indigo);color:var(--surface);font-size:10px;font-weight:700;line-height:1.8;white-space:nowrap}
+.now-item.is-next .now-tag,.is-next>.live-tag,.course-live:not(.is-live) .now-tag{background:none;color:var(--indigo)}
+.tt .hd.is-today{color:var(--indigo);border-bottom:2px solid var(--indigo)}
+.tt .per.is-now{background:var(--hl);border-radius:10px}
+.tt .per.is-now b{color:var(--indigo);font-weight:700}
+.blk.is-live{border-color:var(--indigo);box-shadow:0 0 0 2px var(--indigo),0 8px 22px rgba(15,35,50,.14)}
+.blk.is-next{border:1px dashed var(--indigo)}
+.course-live-wrap:empty{display:none}
+.course-live{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:16px 0 0;padding:10px 14px;background:var(--inlay);border:1px solid var(--rule-2);border-left:3px solid var(--c);border-radius:12px;font-size:12.5px;color:var(--ink-2)}
+.course-live b{color:var(--ink);font-variant-numeric:tabular-nums}
+.course-live.is-live{border-color:var(--indigo);border-left-color:var(--c)}
+.group-line b{display:inline-block;margin-right:4px;padding:0 5px;border-radius:5px;background:var(--hl);color:var(--indigo);font-size:10px;font-weight:700}
+.group-line a{white-space:nowrap}
+
 .stats{display:grid;grid-template-columns:repeat(2,1fr) 1.8fr repeat(2,1fr);padding:18px 22px}
 .stat{display:flex;align-items:center;gap:14px;padding:0 20px;border-right:1px solid var(--rule-2)}
 .exam-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px}
@@ -269,6 +305,7 @@ main{max-width:1320px;margin:auto;padding:26px 28px 48px}
 .handout summary{cursor:pointer;padding:6px 0;font-size:13px;color:var(--indigo)}
 .handout img{display:block;width:100%;height:auto;margin:6px 0;border:1px solid var(--rule-2);border-radius:8px;background:#fff}
 .handout-open{font-size:12px}
+.handout-pdf{display:block;width:100%;height:min(75vh,760px);margin:6px 0;border:1px solid var(--rule-2);border-radius:8px;background:#fff}
 .stat:first-child{padding-left:0}
 .stat:last-child{padding-right:0;border:0}
 .stat b{font-family:var(--gothic);font-size:28px;font-weight:700;letter-spacing:-.04em;white-space:nowrap;line-height:1.4;font-variant-numeric:lining-nums tabular-nums}
@@ -334,6 +371,8 @@ table.grid .location{margin-top:4px;font-size:11.5px}
 .week-board .wk .nm{font-size:13px}
 .week-board .wk .topic{font-size:12px}
 .week-board .wk.is-exam{border-color:var(--exam);border-left-color:var(--c);background:var(--exam-bg)}
+.week-board .wk.is-live{border-color:var(--indigo);border-left-color:var(--c);box-shadow:0 0 0 1px var(--indigo)}
+.wk>.live-tag{margin-bottom:6px}
 .week-board .dayoff{padding:16px 10px;font-size:11px}
 .study-details{margin-top:12px;border-top:1px solid var(--rule-2);font-size:11px;color:var(--ink-2)}
 .study-details summary{cursor:pointer;padding:9px 0;line-height:1.7}
@@ -375,6 +414,9 @@ ul.goals li{margin-bottom:8px}
 .plan tr.exam td{background:var(--exam-bg)}
 .plan tr.exam td.n{color:var(--exam);font-weight:700}
 .plan tr.now td{background:var(--hl)}
+.plan tr.is-live td{background:var(--hl)}
+.plan tr.is-live td.n{color:var(--indigo);font-weight:700}
+.plan .live-tag{margin-right:6px}
 .plan td.m{width:76px;text-align:right}
 .plan td.m .badge{white-space:nowrap}
 .mat{font-size:12px;border-collapse:collapse;width:100%;overflow-wrap:anywhere}
@@ -479,6 +521,11 @@ ul.goals li{margin-bottom:8px}
   .facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
   .cbody{gap:0;margin-top:16px}
   .box{padding:16px 14px;margin-bottom:16px}
+  .now-panel{grid-template-columns:1fr;gap:8px;margin:0 0 14px;padding:12px}
+  .now-clock{display:flex;align-items:baseline;gap:8px}
+  .now-clock time{flex-direction:row;align-items:baseline;gap:8px}
+  .now-clock time b{font-size:26px}
+  .handout-pdf{display:none}
   .plan td{padding:9px 4px;font-size:12px}
   .plan td.n{width:24px;padding-right:6px}
   .plan td.m{width:58px}
@@ -551,7 +598,7 @@ ul.goals li{margin-bottom:8px}
   .blk .location,.wk .location,table.grid .location{font-size:9px}
   .sec{margin-bottom:18px;padding:0;border:0;border-radius:0}
   .ttwrap,.chead,.notice,.cards>.panel,.exam-card,.notice-list li{break-inside:avoid}
-  .handouts{display:none}
+  .handouts,.now-panel,.course-live-wrap,.live-tag{display:none!important}
   table.grid{font-size:9px}
   table.grid th,table.grid td{padding:6px 4px}
   table.grid td:first-child{min-width:0}
