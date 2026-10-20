@@ -19,18 +19,25 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 </style>
 </head>
 <body>
-<img id="custom-bg" crossorigin="anonymous" src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&amp;q=80" alt="Misty forest background">
+<img id="custom-bg" crossorigin="anonymous" data-default-src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&amp;q=80" alt="Misty forest background">
 <canvas id="bg-canvas" aria-hidden="true" hidden></canvas>
 <script>
 /* The reference rain simulation runs inside this background document. */
 const canvas=document.getElementById('bg-canvas');
 const customBg=document.getElementById('custom-bg');
+if(parent===window) customBg.src=customBg.dataset.defaultSrc;
+function reportPhotoReady(){
+  if(customBg.complete && customBg.naturalWidth){
+    parent.postMessage({type:'rain-photo-ready',image:customBg.src},'*');
+  }
+}
+customBg.addEventListener('load',reportPhotoReady);
 
 /* Pause the document's frames without changing the renderer or its simulation. */
 const nativeFrame=window.requestAnimationFrame.bind(window);
 const cancelNativeFrame=window.cancelAnimationFrame.bind(window);
 const pendingFrames=new Map();
-let frameId=0,paused=false;
+let frameId=0,paused=parent!==window;
 function scheduleFrame(id,entry){
   entry.native=nativeFrame(time=>{
     entry.native=0;
@@ -153,6 +160,7 @@ window.addEventListener('message',event=>{
       const url=new URL(message.image);
       if(url.protocol==='https:' && url.hostname==='images.unsplash.com') customBg.src=url.href;
     }
+    reportPhotoReady();
   }
   if(message.type==='rain-pointer' && !paused){
     document.dispatchEvent(new MouseEvent('mousemove',{clientX:message.x,clientY:message.y}));
