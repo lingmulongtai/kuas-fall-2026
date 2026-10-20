@@ -126,12 +126,13 @@ test('a resize burst creates only one frame and returning to the original size c
 });
 
 function setupFrame({webgl=true}={}){
-  const handlers=new Map(),nativeFrames=new Map(),scripts=[],messages=[];
+  const handlers=new Map(),nativeFrames=new Map(),scripts=[],messages=[],shaders=[];
   let id=0;
   const listen=(name,fn)=>{if(!handlers.has(name)) handlers.set(name,[]);handlers.get(name).push(fn);};
   const photo={complete:true,src:'https://images.unsplash.com/photo-forest',addEventListener:listen};
+  const gl={shaderSource(shader,source){assert.equal(this,gl);shaders.push({shader,source});}};
   const canvas={addEventListener:listen,getContext(type,options){
-    this.viewport=[this.width,this.height];this.options=options;return webgl?{options}:null;
+    this.viewport=[this.width,this.height];this.options=options;return webgl?gl:null;
   }};
   const parent={postMessage:message=>messages.push(message)};
   const window={addEventListener:listen,innerWidth:1440,innerHeight:810,devicePixelRatio:2,
@@ -141,7 +142,7 @@ function setupFrame({webgl=true}={}){
   vm.runInNewContext(frameSource,{window,document,parent,URL,console,MouseEvent:class{}});
   const message=data=>handlers.get('message').forEach(fn=>fn({source:parent,data}));
   const tick=()=>{for(const [id,fn] of [...nativeFrames]){nativeFrames.delete(id);fn(100);}};
-  return {window,photo,canvas,parent,scripts,messages,nativeFrames,message,tick,handlers};
+  return {window,photo,canvas,parent,scripts,messages,nativeFrames,message,tick,handlers,gl,shaders};
 }
 
 test('both external animation loops freeze, resume without duplication, and support cancellation',()=>{
@@ -182,4 +183,21 @@ test('WebGL unavailable falls back to the photograph without starting external l
   assert.equal(state.scripts.length,0);
   assert.ok(state.messages.some(message=>message.type==='rain-error'));
   assert.equal(state.nativeFrames.size,0);
+});
+
+test('only the baked fullscreen reflection backdrop is removed; droplet shaders pass through intact',()=>{
+  const state=setupFrame();
+  state.handlers.get('DOMContentLoaded').forEach(fn=>fn());
+  const foreground='vec4 tex=texture2D(u_textureFg,texturePos);\nvec4 fg=vec4(tex.rgb*u_brightness,a);';
+  const background='vec4 bg=texture2D(u_textureBg,scaledTexCoord()+parallax(5.));';
+  const output='gl_FragColor = blend(bg,fg);';
+  const fragment=foreground+'\n'+background+'\n'+output;
+  const shader={type:'fragment'};
+  state.gl.shaderSource(shader,fragment);
+  assert.equal(state.shaders[0].shader,shader);
+  assert.equal(state.shaders[0].source,foreground+'\nvec4 bg=vec4(0.,0.,0.,1.);\n'+output);
+  const vertex='void main(){gl_Position=vec4(0.,0.,0.,1.);}';
+  state.gl.shaderSource({},vertex);
+  assert.equal(state.shaders[1].source,vertex);
+  assert.equal(state.nativeFrames.size,0,'The backdrop adapter creates no animation loops');
 });
