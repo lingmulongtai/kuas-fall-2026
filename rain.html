@@ -14,13 +14,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 }
 #bg-canvas{
   position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;
-  mix-blend-mode:screen;opacity:.95;pointer-events:none;
+  opacity:.95;pointer-events:none;
 }
 </style>
 </head>
 <body>
-<img id="custom-bg" src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&amp;q=80" alt="Misty forest background">
-<canvas id="bg-canvas" aria-hidden="true"></canvas>
+<img id="custom-bg" crossorigin="anonymous" src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&amp;q=80" alt="Misty forest background">
+<canvas id="bg-canvas" aria-hidden="true" hidden></canvas>
 <script>
 /* The reference rain simulation runs inside this background document. */
 const canvas=document.getElementById('bg-canvas');
@@ -70,6 +70,58 @@ function initRaindrops(){
     });
   }catch(error){ console.error('Rain effect failed:',error); }
 }
+/* Replace only the supplied renderer's unrelated street-photo textures (units
+   2/3). Water, alpha, refraction, particles and animation remain in raindrops.js. */
+function usePhotoTextures(gl){
+  const upload=gl.texImage2D.bind(gl), sources=new Map();
+  const draw=gl.drawArrays.bind(gl);
+  gl.drawArrays=(...args)=>{
+    draw(...args);
+    if(customBg.complete && customBg.naturalWidth) canvas.hidden=false;
+  };
+  const getLocation=gl.getUniformLocation.bind(gl), uniform1f=gl.uniform1f.bind(gl), ratios=new Set();
+  gl.getUniformLocation=(program,name)=>{
+    const location=getLocation(program,name);
+    if(location && name==='u_textureRatio') ratios.add(location);
+    return location;
+  };
+  // Sources already contain the viewport's cover crop; avoid a second 3:2 crop.
+  gl.uniform1f=(location,value)=>uniform1f(location,ratios.has(location)?canvas.width/canvas.height:value);
+  function paint(source,background){
+    if(!customBg.complete || !customBg.naturalWidth) return source.image;
+    const image=source.image, ctx=image.getContext('2d');
+    const scale=Math.max(canvas.width/customBg.naturalWidth,canvas.height/customBg.naturalHeight)*1.05;
+    const width=canvas.width/scale, height=canvas.height/scale;
+    ctx.clearRect(0,0,image.width,image.height);
+    ctx.filter='brightness(.45)'+(background?' blur('+(4*image.width/window.innerWidth)+'px)':'');
+    ctx.drawImage(customBg,(customBg.naturalWidth-width)/2,(customBg.naturalHeight-height)/2,width,height,0,0,image.width,image.height);
+    return image;
+  }
+  gl.texImage2D=(...args)=>{
+    const unit=gl.getParameter(gl.ACTIVE_TEXTURE);
+    if(args.length===6 && (unit===gl.TEXTURE2 || unit===gl.TEXTURE3)){
+      const image=document.createElement('canvas');
+      image.width=args[5].width; image.height=args[5].height;
+      const source={image,texture:gl.getParameter(gl.TEXTURE_BINDING_2D)};
+      sources.set(unit,source);
+      args[5]=paint(source,unit===gl.TEXTURE3);
+    }
+    upload(...args);
+  };
+  customBg.addEventListener('load',()=>{
+    const active=gl.getParameter(gl.ACTIVE_TEXTURE);
+    for(const [unit,source] of sources){
+      gl.activeTexture(unit);
+      const bound=gl.getParameter(gl.TEXTURE_BINDING_2D);
+      gl.bindTexture(gl.TEXTURE_2D,source.texture);
+      upload(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,paint(source,unit===gl.TEXTURE3));
+      gl.bindTexture(gl.TEXTURE_2D,bound);
+    }
+    gl.activeTexture(active);
+    // Refresh a paused view too, without advancing the simulation or its loops.
+    if(sources.size && !canvas.hidden) gl.drawArrays(gl.TRIANGLES,0,6);
+  });
+}
 function loadRainScript(){
   // Retain the last rendered image when the user pauses the external animation loops.
   // Match the renderer's boot size before creating its WebGL viewport.
@@ -82,14 +134,7 @@ function loadRainScript(){
     parent.postMessage({type:'rain-error'},'*');
     return;
   }
-  // The supplied shader also paints a baked red/blue street photo over the whole view.
-  // Black is neutral for screen blending: remove only that backdrop, keeping every
-  // droplet/refraction calculation and the external simulation unchanged.
-  const shaderSource=gl.shaderSource.bind(gl);
-  gl.shaderSource=(shader,source)=>shaderSource(shader,source.replace(
-    'vec4 bg=texture2D(u_textureBg,scaledTexCoord()+parallax(5.));',
-    'vec4 bg=vec4(0.,0.,0.,1.);'
-  ));
+  usePhotoTextures(gl);
   const script=document.createElement('script');
   script.src='https://fyildiz1974.github.io/web/files/raindrops.js';
   script.onload=()=>{
@@ -114,6 +159,7 @@ window.addEventListener('message',event=>{
   }
 });
 canvas.addEventListener('webglcontextlost',()=>parent.postMessage({type:'rain-error'},'*'));
+customBg.addEventListener('error',()=>parent.postMessage({type:'rain-error'},'*'));
 document.addEventListener('DOMContentLoaded',()=>{
   loadRainScript();
   parent.postMessage({type:'rain-ready'},'*');
