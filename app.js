@@ -64,6 +64,11 @@ const CAREER_FORMAT = {
            en:"30 min GW presentations (about 4 teams each?), 15 min Q&A, 45 min Career Showcase. Assignment 1: Career Showcase report. Assignment 2: GW report (everyone submits)"}
 };
 const TBD = {ja:"未定", en:"TBD"};
+/* AC1 第9・10回：2026/10/19の教員連絡。具体的な締切日時は未確認。 */
+const CALC_VIDEO_NOTICE = {
+  ja:"10/19の連絡：第9・10回はオンデマンド動画。Teamsのクイズで出席判定。解答時間制限あり、中断後も再提出不可、期限後の回答不可。動画・クイズの具体的な締切日時は未確認のため、Teamsの案内を確認する。時間割の枠は視聴・学習の目安で、ライブ開始時刻や締切ではありません。",
+  en:"Oct 19 announcement: sessions 9 and 10 use on-demand videos. Attendance is checked through Teams quizzes. Answers are timed; resubmission is not allowed, even after interruption, and answers after the deadline are not accepted. Specific video and quiz deadlines are unconfirmed; check the Teams instructions. Timetable slots are study guides, not live start times or deadlines."
+};
 
 /* 機械製作実習 第3〜14週の班別実習。2026/9/18現在の Timetable（handouts/machine-shop-timetable.pdf）の TA01 の列。
    PDFにあるのは開始時刻だけなので、end は次の班の開始時刻（最後の班と、複数の班がそろって始める回は5限の終わり）を目安にしている。 */
@@ -269,8 +274,8 @@ const COURSES = [
     ["1階非同次線形常微分方程式","Non-homogeneous linear ODE of 1st order"],
     ["変数分離法","Separation of variables"],
     ["ベルヌーイの微分方程式","Bernoulli differential equation"],
-    ["2階線形常微分方程式","Linear ODE of second order"],
-    ["2階同次線形常微分方程式","Homogeneous linear ODE of 2nd order"],
+    ["2階線形常微分方程式","Linear ODE of second order","ondemand",{studySlot:true, notice:CALC_VIDEO_NOTICE}],
+    ["2階同次線形常微分方程式","Homogeneous linear ODE of 2nd order","ondemand",{studySlot:true, notice:CALC_VIDEO_NOTICE}],
     ["2階非同次線形常微分方程式","Non-homogeneous linear ODE of 2nd order"],
     ["未定係数法","Method of undetermined coefficients"],
     ["強制力のあるばね–質量系","Mass-spring systems with driving force"],
@@ -621,6 +626,8 @@ function memosOn(item){ return (item.c.memos||[]).filter(m=>m.date===item.date);
 function phaseFor(c,n){ return (c.phases||[]).find(p=>n>=p.from && n<=p.to); }
 /* 班別実習の回（機械製作実習の第3〜14週）。 */
 function groupOf(item){ return item && item.session && item.session.group || null; }
+/* 指定時刻のない動画回。時間割は学習の目安としてのみ残す。 */
+function isStudySlot(item){ return !!(item && item.session && item.session.studySlot); }
 /* 実際に教室にいる時間（分）。班別の回は班の開始時刻から。 */
 function classWindow(item){
   const g = groupOf(item);
@@ -634,14 +641,14 @@ function periodAt(min){
 }
 /* 授業中の回と、その次に始まる回。 */
 function liveState(now){
-  const current = sessionsOn(now.date).find(item=>{ const w=classWindow(item); return now.min>=w.start && now.min<w.end; }) || null;
-  const later = OCCURRENCES.filter(item=>item.date>now.date || (item.date===now.date && classWindow(item).start>now.min));
+  const current = sessionsOn(now.date).find(item=>{ const w=classWindow(item); return !isStudySlot(item) && now.min>=w.start && now.min<w.end; }) || null;
+  const later = OCCURRENCES.filter(item=>!isStudySlot(item) && (item.date>now.date || (item.date===now.date && classWindow(item).start>now.min)));
   later.sort((a,b)=>a.date.localeCompare(b.date) || classWindow(a).start-classWindow(b).start);
   return {current, next:later[0]||null};
 }
 /* その科目の、授業中の回か次の回。 */
 function courseFocus(c,now){
-  return OCCURRENCES.find(item=>item.c===c && (item.date>now.date || (item.date===now.date && classWindow(item).end>now.min))) || null;
+  return OCCURRENCES.find(item=>item.c===c && (item.date>now.date || (item.date===now.date && (isStudySlot(item) || classWindow(item).end>now.min)))) || null;
 }
 /* 通常の形態と違う回（対面科目のオンデマンド回など）。 */
 function formatChanges(){
@@ -1164,7 +1171,8 @@ function groupTime(g){
 /* 班別の回は「3–5限 ・ TA01 13:00〜14:15頃」。 */
 function sessionTime(item){
   const span = item.s.span||1, g = groupOf(item);
-  return periodLabel(item.s.period,span)+' '+(g ? (LANG==="ja"?'・ ':'· ')+item.c.groupName+' '+groupTime(g) : slotTime(item.s.period,span));
+  const time = periodLabel(item.s.period,span)+' '+(g ? (LANG==="ja"?'・ ':'· ')+item.c.groupName+' '+groupTime(g) : slotTime(item.s.period,span));
+  return isStudySlot(item) ? (LANG==="ja"?'視聴・学習の目安：':'Study guide: ')+time+(LANG==="ja"?'（ライブ開始・締切ではありません）':' (not a live start or deadline)') : time;
 }
 function sessionPlace(item){
   const g = groupOf(item);
@@ -1244,10 +1252,10 @@ function nowPanelHTML(now,st){
 function courseLiveHTML(c,now){
   const item = courseFocus(c,now);
   if(!item) return '';
-  const w = classWindow(item), live = item.date===now.date && now.min>=w.start;
-  const status = live ? fill(t("timeLeft"),{n:durationText(w.end-now.min)})
+  const study = isStudySlot(item), w = classWindow(item), live = !study && item.date===now.date && now.min>=w.start;
+  const status = study ? (LANG==="ja"?'締切日時は未確認・Teamsで確認':'Deadlines unconfirmed; check Teams') : live ? fill(t("timeLeft"),{n:durationText(w.end-now.min)})
     : item.date===now.date ? fill(t("startsIn"),{n:durationText(w.start-now.min)}) : countdown(item.date,now.date);
-  return '<p class="course-live'+(live?' is-live':'')+'"><span class="now-tag">'+t(live?"liveNow":"nextClass")+'</span>'
+  return '<p class="course-live'+(live?' is-live':'')+'"><span class="now-tag">'+(study?L(MODES.ondemand):t(live?"liveNow":"nextClass"))+'</span>'
     + '<b>'+esc(fmtDate(item.date)+' '+sessionTime(item))+'</b>'
     + '<span>'+esc(sessionPlace(item))+'</span>'
     + '<span>'+esc(fill(t("session"),{n:item.n})+(item.session?' '+L(item.session):''))+'</span>'
@@ -1287,6 +1295,7 @@ function applyLive(){
 function sessionExtras(item){
   const sess = item.session;
   return (sess && sess.showcase ? '<p class="extra">'+esc(fill(t("showcase"),{who:L(sess.showcase)}))+'</p>' : '')
+    + (sess && sess.notice ? '<p class="extra memo-line">'+esc(L(sess.notice))+'</p>' : '')
     + memosOn(item).map(m=>'<p class="extra memo-line"><b>'+t("memoLabel")+'</b> '+esc(L(m))+'</p>').join('');
 }
 
@@ -1359,7 +1368,7 @@ function renderExams(){
     if(group==="notice") items.forEach(item=>notices.push({item, html:noticeRow(item,markBadge(m),m.note,today)}));
     else (group==="check" ? checks : main).push({recurring:items.length>1, date:items[0].date, html:examCard(c,m,today)});
   }));
-  formatChanges().forEach(item=>notices.push({item, html:noticeRow(item,modeBadge(item.session.mode,true),null,today)}));
+  formatChanges().forEach(item=>notices.push({item, html:noticeRow(item,modeBadge(item.session.mode,true),item.session.notice,today)}));
   if(!main.length && !checks.length && !notices.length && !homework.length) return '';
   /* 1回きりの試験を日付順に先に、毎週の小テストはその後。 */
   main.sort((a,b)=>a.recurring-b.recurring || a.date.localeCompare(b.date));
@@ -1414,13 +1423,14 @@ function renderHome(){
       if(cell && cell.start){
         const c = cell.c;
         /* 班別の科目は、今日以降で一番近い回の班の時間・場所・機械を出す。 */
-        const up = c.groupName && OCCURRENCES.find(item=>item.c===c && item.s.day===d && item.date>=today), g = groupOf(up);
+        const up = (c.groupName || c.schedule.some(s=>s.studySlot)) && OCCURRENCES.find(item=>item.c===c && item.s.day===d && item.date>=today), g = groupOf(up), study = isStudySlot(up);
         h += '<button class="blk'+(d===DAY?'':' day-hidden')+'" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-day="'+d+'" data-slot="'+d+'-'+p+'" data-course="'+c.id+'">'
            + '<span class="nm">'+courseName(c)+'</span>'
-           + '<span class="location">'+esc(g ? L(g.place) : locationText(c))+'</span>'
+           + '<span class="location">'+esc(g ? L(g.place) : study ? sessionPlace(up) : locationText(c))+'</span>'
+           + (study ? '<span class="grp">'+esc(fmtDate(up.date)+' '+sessionTime(up))+'</span>' : '')
            + (g ? '<span class="grp"><b>'+esc(c.groupName)+'</b> '+esc(fmtDate(up.date)+' '+groupTime(g))+'<br>'+esc(L(g.equip))+'</span>' : '')
            + '<span class="mt">'+esc(L(c.teachers))+'</span>'
-           + '<span class="cr"><span>'+c.credits+(LANG==="ja"?"単位":" cr")+'</span>'+modeBadge(mainMode(c),true)
+           + '<span class="cr"><span>'+c.credits+(LANG==="ja"?"単位":" cr")+'</span>'+modeBadge(study?up.session.mode:mainMode(c),true)
            + (c.firstWeek>1 ? ' <span class="badge tagopt">'+t("eceShort")+'</span>' : '')
            + '</span></button>';
       } else {
@@ -1441,7 +1451,7 @@ function renderHome(){
       + '<td><span class="swatch" style="background:'+cc(c)+'"></span>'
       +   '<button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button>'
       +   '<div style="font-size:11.5px;color:var(--ink-3)">'+esc(L(c.teachers))+'</div></td>'
-      + '<td>'+slotText(c)+'<div class="location">'+esc(locationText(c))+'</div></td>'
+      + '<td>'+slotText(c)+'<div class="location">'+(c.schedule.some(s=>s.studySlot)?(LANG==="ja"?'通常：':'Usually: '):'')+esc(locationText(c))+'</div></td>'
       + '<td class="num">'+c.credits+'</td>'
       + '<td>'+courseModeLabel(c)+'</td>'
       + '<td style="white-space:nowrap;font-size:12.5px">'+termText(c)+'</td>'
@@ -1555,7 +1565,7 @@ function renderCourse(){
     + fact(t("credh"), c.credits+(LANG==="ja"?" 単位":" credits"))
     + fact(t("langh"), L(c.lang))
     + fact(t("colSlot"), slotText(c))
-    + fact(t("colLocation"), esc(locationText(c))+(c.classMode==="f2f"?"　"+t("campus"):""))
+    + fact(t("colLocation"), (c.schedule.some(s=>s.studySlot)?(LANG==="ja"?'通常：':'Usually: '):'')+esc(locationText(c))+(c.classMode==="f2f"?"　"+t("campus"):""))
     + (c.groupName ? fact(t("grouph"), esc(c.groupName)) : '')
     + fact(t("colMode"), courseModeLabel(c))
     + fact(t("sessh"), totalPeriods(c)+(LANG==="ja"?" コマ":" periods"))
