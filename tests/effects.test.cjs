@@ -7,7 +7,7 @@ const source=fs.readFileSync(path.join(__dirname,'../effects.js'),'utf8');
 const frameHTML=fs.readFileSync(path.join(__dirname,'../rain.html'),'utf8');
 const frameSource=frameHTML.match(/<script>([\s\S]*?)<\/script>/)[1];
 
-function setup({motion=true}={}){
+function setup({motion=true,photoReady=true,rain=true}={}){
   const handlers=new Map(),frames=new Map(),timers=new Map(),preferences=new Map(),created=[];
   let id=0;
   const listen=(name,fn)=>{if(!handlers.has(name)) handlers.set(name,[]);handlers.get(name).push(fn);};
@@ -15,16 +15,16 @@ function setup({motion=true}={}){
   const layer={hidden:true,clientWidth:375,clientHeight:812,children:[],replaceChildren(child){this.children=[child];}};
   const photo={naturalWidth:3840,naturalHeight:2160,src:'https://images.unsplash.com/photo-test?w=3840'};
   const document={hidden:false,documentElement:{dataset:{}},addEventListener:listen,
-    getElementById:id=>id==='rain'?layer:{setAttribute(){}},querySelector:()=>photo,
+    getElementById:id=>id==='rain'?layer:{setAttribute(){}},querySelector:()=>photoReady?photo:null,
     createElement(tag){
       if(tag==='canvas') return {getContext:()=>drawing,toDataURL:()=> 'data:image/png;base64,test'};
       const messages=[],attributes={};
-      const frame={contentWindow:{postMessage:message=>messages.push(message)},messages,attributes,
+      const frame={contentWindow:{postMessage:message=>messages.push(message)},messages,attributes,style:{},
         setAttribute:(key,value)=>attributes[key]=value,remove(){layer.children=layer.children.filter(child=>child!==frame);}};
       created.push(frame);return frame;
     }
   };
-  const context=vm.createContext({document,window:{addEventListener:listen,innerWidth:375,innerHeight:812,devicePixelRatio:2},RAIN:true,motion,motionEnabled:()=>context.motion,
+  const context=vm.createContext({document,window:{addEventListener:listen,innerWidth:375,innerHeight:812,devicePixelRatio:2},RAIN:rain,motion,motionEnabled:()=>context.motion,
     requestAnimationFrame:fn=>{frames.set(++id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),
     setTimeout:fn=>{timers.set(++id,fn);return id;},clearTimeout:id=>timers.delete(id),
     matchMedia:query=>{const pref={matches:query.includes('pointer: fine'),addEventListener:(name,fn)=>listen(query,fn)};preferences.set(query,pref);return pref;}
@@ -33,13 +33,13 @@ function setup({motion=true}={}){
   const emit=(name,event={})=>handlers.get(name)?.forEach(fn=>fn(event));
   const flushTimers=()=>{for(const [id,fn] of timers){timers.delete(id);fn();}};
   const resize=()=>{emit('resize');flushTimers();};
-  return {context,document,layer,created,preferences,emit,resize,flushTimers};
+  return {context,document,layer,created,photo,preferences,emit,resize,flushTimers};
 }
 
 test('the reference renderer gets one isolated background frame and the current photograph',()=>{
   const state=setup(),frame=state.created[0];
   assert.equal(state.layer.hidden,false);
-  assert.equal(frame.src,'rain.html');
+  assert.equal(frame.src,'rain.html?v=photo-ready');
   assert.equal(frame.attributes.sandbox,'allow-scripts');
   assert.equal(frame.tabIndex,-1);
   state.emit('message',{source:frame.contentWindow,data:{type:'rain-ready'}});
@@ -67,17 +67,102 @@ test('pause, hidden tabs and printing suspend the existing frame and resume it o
   assert.equal(setup({motion:false}).created[0].messages.at(-1).running,false);
 });
 
-test('rain off and unavailable photographs remove the rendering document',()=>{
+test('rain off removes the document while a temporary photo gap keeps its preloaded frame paused',()=>{
   const state=setup();
   state.context.RAIN=false;state.emit('ambiencechange');
   assert.equal(state.layer.children.length,0);assert.equal(state.layer.hidden,true);
   state.context.RAIN=true;state.emit('ambiencechange');
   assert.equal(state.layer.children.length,1);
+  const frame=state.layer.children[0];
   state.emit('wallpaperchange',{detail:null});
-  assert.equal(state.layer.children.length,0);
+  assert.equal(state.layer.children[0],frame);
+  assert.equal(frame.style.visibility,'hidden');
+  assert.equal(frame.messages.at(-1).running,false);
   state.emit('wallpaperchange',{detail:{naturalWidth:1920,src:'https://images.unsplash.com/photo-next'}});
   assert.equal(state.layer.children.length,1);
   assert.equal(state.layer.children[0].messages.at(-1).image,'https://images.unsplash.com/photo-next');
+});
+
+test('the permitted rain document starts before asynchronous scenery arrives and retains its layout',()=>{
+  const state=setup({photoReady:false}),frame=state.created[0];
+  assert.equal(state.created.length,1,'Create the child while effects.js initializes, before wallpaper decoding finishes');
+  assert.equal(state.layer.children[0],frame);
+  assert.equal(state.layer.hidden,false,'Retain a full viewport layout instead of display:none');
+  assert.deepEqual([state.layer.clientWidth,state.layer.clientHeight],[375,812]);
+  assert.equal(frame.style.visibility,'hidden');
+  assert.equal(frame.messages.at(-1).running,false);
+  assert.equal(frame.messages.at(-1).image,undefined);
+  assert.equal(setup({photoReady:false,rain:false}).created.length,0,'Respect a stored rain-off preference');
+});
+
+test('photo readiness works whether the chosen scenery arrives before or after the child handshake',()=>{
+  for(const order of [['child','photo'],['photo','child']]){
+    const state=setup({photoReady:false}),frame=state.created[0];
+    for(const event of order){
+      if(event==='child') state.emit('message',{source:frame.contentWindow,data:{type:'rain-ready'}});
+      else state.emit('wallpaperchange',{detail:state.photo});
+      assert.equal(state.layer.children[0],frame);
+      assert.equal(frame.style.visibility,'hidden','Keep the child concealed until it confirms the selected photograph');
+    }
+    assert.equal(state.created.length,1);
+    assert.equal(frame.messages.at(-1).image,state.photo.src,'The handshake resends the latest selected image');
+    assert.equal(frame.messages.at(-1).running,true);
+    state.emit('message',{source:frame.contentWindow,data:{type:'rain-photo-ready',image:state.photo.src}});
+    assert.equal(frame.style.visibility,'');
+    state.emit('message',{source:frame.contentWindow,data:{type:'rain-ready'}});
+    assert.equal(frame.messages.at(-1).image,state.photo.src);
+    assert.equal(state.layer.children[0],frame);
+  }
+});
+
+test('photo changes reject stale and detached-frame confirmations and permit selecting the same image again',()=>{
+  const state=setup(),frame=state.created[0],first=state.photo;
+  const ready=(from,image)=>state.emit('message',{source:from,data:{type:'rain-photo-ready',image}});
+  ready(frame.contentWindow,first.src);
+  assert.equal(frame.style.visibility,'');
+  state.emit('wallpaperchange',{detail:null});
+  assert.equal(frame.style.visibility,'hidden');
+  assert.equal(frame.messages.at(-1).running,false);
+  const next={naturalWidth:1920,src:'https://images.unsplash.com/photo-next'};
+  state.emit('wallpaperchange',{detail:next});
+  ready(frame.contentWindow,first.src);
+  ready({},next.src);
+  assert.equal(frame.style.visibility,'hidden');
+  ready(frame.contentWindow,next.src);
+  assert.equal(frame.style.visibility,'');
+  state.emit('wallpaperchange',{detail:null});
+  state.emit('wallpaperchange',{detail:next});
+  ready(frame.contentWindow,next.src);
+  assert.equal(frame.style.visibility,'');
+  assert.equal(state.created.length,1,'A missing photo and same-image reselection never recreate the rain document');
+  state.context.RAIN=false;state.emit('ambiencechange');
+  state.context.RAIN=true;state.emit('ambiencechange');
+  const replacement=state.layer.children[0];
+  assert.notEqual(replacement,frame);
+  ready(frame.contentWindow,next.src);
+  assert.equal(replacement.style.visibility,'hidden','An old document cannot reveal its replacement');
+  ready(replacement.contentWindow,next.src);
+  assert.equal(replacement.style.visibility,'');
+});
+
+test('reselecting an earlier photograph waits for a fresh confirmation after another image starts loading',()=>{
+  const state=setup(),frame=state.created[0],first=state.photo;
+  const second={naturalWidth:1920,src:'https://images.unsplash.com/photo-second'};
+  const ready=image=>state.emit('message',{source:frame.contentWindow,data:{type:'rain-photo-ready',image}});
+  ready(first.src);
+  assert.equal(frame.style.visibility,'');
+  state.emit('wallpaperchange',{detail:null});
+  state.emit('wallpaperchange',{detail:second});
+  // The child may already display B while its confirmation is still queued.
+  // Selecting A again must not reuse A's confirmation from before that change.
+  state.emit('wallpaperchange',{detail:first});
+  assert.equal(frame.style.visibility,'hidden');
+  ready(second.src);
+  assert.equal(frame.style.visibility,'hidden','The delayed B confirmation cannot reveal the frame selected for A');
+  assert.equal(frame.messages.at(-1).image,first.src);
+  ready(first.src);
+  assert.equal(frame.style.visibility,'');
+  assert.equal(state.created.length,1);
 });
 
 test('resize rebuilds dimensions, contrast hides rain, and only the active frame can report failure',()=>{
@@ -126,12 +211,13 @@ test('a resize burst creates only one frame and returning to the original size c
   assert.equal(state.created.length,2);
 });
 
-function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true}={}){
+function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true,standalone=false}={}){
   const handlers=new Map(),photoHandlers=new Map(),nativeFrames=new Map(),scripts=[],messages=[],shaders=[];
   const uploads=[],uniforms=[],draws=[],painted=[],bindings=new Map();
   let id=0;
   const listen=(name,fn)=>{if(!handlers.has(name)) handlers.set(name,[]);handlers.get(name).push(fn);};
   const photo={complete:photoComplete,naturalWidth:photoComplete?2400:0,naturalHeight:photoComplete?1600:0,
+    dataset:{defaultSrc:'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80'},
     currentSrc:'https://images.unsplash.com/photo-forest',
     get src(){return this.currentSrc;},
     set src(value){this.currentSrc=value;this.complete=false;this.naturalWidth=0;this.naturalHeight=0;},
@@ -160,9 +246,10 @@ function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true}=
   const canvas={hidden:true,addEventListener:listen,getContext(type,options){
     this.viewport=[this.width,this.height];this.options=options;return webgl?gl:null;
   }};
-  const parent={postMessage:message=>messages.push(message)};
   const window={addEventListener:listen,innerWidth:width,innerHeight:height,devicePixelRatio:dpr,
+    postMessage:message=>messages.push(message),
     requestAnimationFrame:fn=>{nativeFrames.set(++id,fn);return id;},cancelAnimationFrame:id=>nativeFrames.delete(id)};
+  const parent=standalone?window:{postMessage:message=>messages.push(message)};
   const document={getElementById:id=>id==='bg-canvas'?canvas:photo,addEventListener:listen,
     createElement(tag){
       if(tag!=='canvas') return {};
@@ -173,7 +260,7 @@ function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true}=
       painted.push(image);return image;
     },head:{appendChild:script=>scripts.push(script)},dispatchEvent(){}};
   vm.runInNewContext(frameSource,{window,document,parent,URL,console,MouseEvent:class{}});
-  const message=data=>handlers.get('message').forEach(fn=>fn({source:parent,data}));
+  const message=(data,from=parent)=>handlers.get('message').forEach(fn=>fn({source:from,data}));
   const tick=()=>{for(const [id,fn] of [...nativeFrames]){nativeFrames.delete(id);fn(100);}};
   const boot=()=>handlers.get('DOMContentLoaded').forEach(fn=>fn());
   const texture=(unit,image,bound={unit})=>{
@@ -187,6 +274,7 @@ function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true}=
 
 test('both external animation loops freeze, resume without duplication, and support cancellation',()=>{
   const state=setupFrame();let calls=0;
+  state.message({type:'rain-state',running:true});
   const loop=()=>{calls++;state.window.requestAnimationFrame(loop);};
   state.window.requestAnimationFrame(loop);state.window.requestAnimationFrame(loop);
   state.tick();assert.equal(calls,2);assert.equal(state.nativeFrames.size,2);
@@ -354,4 +442,74 @@ test('the selected photograph is CORS enabled and the complete rain frame uses n
   const canvasStyle=frameHTML.match(/#bg-canvas\{[^]*?\}/)[0];
   assert.match(canvasStyle,/opacity:\.95/);
   assert.equal(canvasStyle.match(/mix-blend-mode\s*:\s*([^;}\s]+)/)?.[1]||'normal','normal');
+});
+
+test('an embedded child waits without advancing animation until its parent supplies state',()=>{
+  const state=setupFrame({photoComplete:false});
+  state.photo.currentSrc='';
+  let calls=0;
+  state.window.requestAnimationFrame(()=>calls++);
+  state.boot();state.tick();
+  assert.equal(state.nativeFrames.size,0);
+  assert.equal(calls,0);
+  assert.equal(state.photo.src,'','Embedded mode does not request its standalone fallback photograph');
+  assert.equal(state.messages.at(-1).type,'rain-ready');
+  const image='https://images.unsplash.com/photo-selected';
+  state.message({type:'rain-state',running:false,image});
+  assert.equal(state.photo.src,image);
+  assert.equal(state.messages.filter(message=>message.type==='rain-photo-ready').length,0);
+  state.photo.load();
+  assert.equal(state.messages.at(-1).type,'rain-photo-ready');
+  assert.equal(state.messages.at(-1).image,image);
+  state.tick();assert.equal(calls,0);
+  state.message({type:'rain-state',running:true,image});
+  assert.equal(state.nativeFrames.size,1);
+  state.tick();assert.equal(calls,1);
+});
+
+test('photo loading on either side of the child boot reports the chosen image and repeats same-src confirmation',()=>{
+  for(const order of [['boot','select','load'],['select','load','boot']]){
+    const state=setupFrame({photoComplete:false}),image='https://images.unsplash.com/photo-selected';
+    state.photo.currentSrc='';
+    for(const event of order){
+      if(event==='boot') state.boot();
+      if(event==='select') state.message({type:'rain-state',running:false,image});
+      if(event==='load') state.photo.load();
+    }
+    const acknowledgements=()=>state.messages.filter(message=>message.type==='rain-photo-ready');
+    assert.equal(acknowledgements().length,1,order.join(' -> '));
+    assert.equal(acknowledgements()[0].image,image);
+    assert.ok(state.messages.some(message=>message.type==='rain-ready'));
+    state.message({type:'rain-state',running:false,image});
+    assert.equal(state.photo.complete,true,'Same-src confirmation does not restart the image request');
+    assert.equal(acknowledgements().length,2,'A parent that hides and reselects a cached image receives another confirmation');
+    assert.equal(acknowledgements()[1].image,image);
+    assert.equal(state.nativeFrames.size,0);
+  }
+});
+
+test('unrelated senders and unsupported photo origins cannot replace or start the embedded scenery',()=>{
+  const state=setupFrame({photoComplete:false});
+  state.photo.currentSrc='';
+  state.window.requestAnimationFrame(()=>assert.fail('An untrusted message resumed the animation'));
+  state.message({type:'rain-state',running:true,image:'https://images.unsplash.com/photo-untrusted'},{});
+  assert.equal(state.photo.src,'');
+  assert.equal(state.nativeFrames.size,0);
+  for(const image of ['http://images.unsplash.com/photo-insecure','https://images.unsplash.com.evil.example/photo','https://example.com/unrelated']){
+    state.message({type:'rain-state',running:false,image});
+    assert.equal(state.photo.src,'');
+  }
+  assert.equal(state.messages.filter(message=>message.type==='rain-photo-ready').length,0);
+});
+
+test('standalone rain selects its default photograph and can animate without a parent handshake',()=>{
+  const state=setupFrame({photoComplete:false,standalone:true});
+  assert.equal(state.photo.src,state.photo.dataset.defaultSrc);
+  let calls=0;
+  state.window.requestAnimationFrame(()=>calls++);
+  assert.equal(state.nativeFrames.size,1);
+  state.tick();assert.equal(calls,1);
+  const imageTag=frameHTML.match(/<img\b[^>]*id="custom-bg"[^>]*>/)[0];
+  assert.doesNotMatch(imageTag,/\ssrc\s*=/,'The HTML itself must not start a fallback request in embedded mode');
+  assert.match(imageTag,/data-default-src=/);
 });
