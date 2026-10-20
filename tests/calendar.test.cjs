@@ -321,7 +321,7 @@ test('the live class and the next class follow the real Japan time, including TA
   assert.deepEqual(at('2026-10-08','14:20'),[null,'bds-3@2026-10-08']);
   assert.deepEqual(at('2026-11-19','14:00'),[null,'shop-9@2026-11-19']);
   assert.deepEqual(at('2026-11-19','16:30'),['shop-9','bds-9@2026-11-19']);
-  assert.deepEqual(at('2026-10-23','10:00'),[null,'calc-9@2026-10-26']);
+  assert.deepEqual(at('2026-10-23','10:00'),[null,'ec-5@2026-10-27']);
   assert.deepEqual(at('2027-01-18','18:00'),[null,null]);
   assert.equal(periodAt(13*60),3);
   assert.equal(periodAt(12*60+30),null);
@@ -362,4 +362,105 @@ test('the course tab opens the class in progress, or the next one, unless a cour
   const html=render('COURSE_AUTO=false;COURSE_PICKED_AT=focusKey(focusItem());RENDERED_DATE=todayISO();'
     +'nowJST=()=>({date:"2026-10-02",min:16*60+30});tick();VIEW="home";COURSE="mom";setView("course");','2026-10-02','13:30');
   assert.match(html('view-course'),/<h2>キャリアデザイン<\/h2>/);
+});
+
+test('AC1 sessions 9 and 10 become on-demand without changing dates, topics or January sessions',()=>{
+  const calc=course('calc');
+  const items=OCCURRENCES.filter(item=>item.c===calc);
+  assert.equal(items.length,30);
+  assert.deepEqual(Array.from(items.filter(item=>[9,10].includes(item.n)),item=>[
+    item.date,item.n,item.s.period,item.session.en,item.session.mode,hwDue(item)
+  ]),[
+    ['2026-10-26',9,2,'Linear ODE of second order','ondemand',null],
+    ['2026-10-27',10,5,'Homogeneous linear ODE of 2nd order','ondemand',null]
+  ]);
+  for(const item of items){
+    assert.equal(item.session.mode,[9,10,29,30].includes(item.n)?'ondemand':'f2f',String(item.n));
+    assert.equal(item.date,DATES[item.n%2?'mon':'tue'][Math.floor((item.n-1)/2)]);
+    assert.equal(item.s.period,item.n%2?2:5);
+  }
+  assert.deepEqual(Array.from(OCCURRENCES.filter(item=>item.date>='2027-01-01'),item=>[
+    item.date,item.c.id,item.n,item.s.period,item.s.span||1,item.session.mode
+  ]),[
+    ['2027-01-04','calc',27,2,1,'f2f'],['2027-01-04','ece',7,3,2,'f2f'],
+    ['2027-01-05','ec',14,1,1,'f2f'],['2027-01-05','mom',27,2,1,'f2f'],
+    ['2027-01-05','emt',27,3,1,'f2f'],['2027-01-05','calc',28,5,1,'f2f'],
+    ['2027-01-06','qol',14,1,1,'ondemand'],['2027-01-07','shop',15,3,3,'f2f'],
+    ['2027-01-07','bds',15,6,1,'live'],['2027-01-08','mom',28,1,1,'f2f'],
+    ['2027-01-08','emt',28,3,1,'f2f'],['2027-01-08','career',14,5,1,'f2f'],
+    ['2027-01-12','ec',15,1,1,'f2f'],['2027-01-12','mom',29,2,1,'f2f'],
+    ['2027-01-12','emt',29,3,1,'f2f'],['2027-01-12','calc',30,5,1,'ondemand'],
+    ['2027-01-13','qol',15,1,1,'ondemand'],['2027-01-15','mom',30,1,1,'f2f'],
+    ['2027-01-15','emt',30,3,1,'f2f'],['2027-01-15','career',15,5,1,'f2f'],
+    ['2027-01-18','calc',29,2,1,'ondemand'],['2027-01-18','ece',8,3,2,'f2f']
+  ]);
+});
+
+test('AC1 video notices, calendar cards and course rows explain attendance and unknown deadlines in both languages',()=>{
+  const requirements={
+    ja:[/オンデマンド動画/,/Teamsのクイズで出席判定/,/解答時間制限あり/,/中断後も再提出不可/,/期限後の回答不可/,/動画・クイズの具体的な締切日時は未確認/],
+    en:[/on-demand videos/,/Attendance is checked through Teams quizzes/,/Answers are timed/,/resubmission is not allowed, even after interruption/,/answers after the deadline are not accepted/,/Specific video and quiz deadlines are unconfirmed/]
+  };
+  for(const lang of ['ja','en']){
+    const html=render('LANG="'+lang+'";WEEK=calendarWeekFor("2026-10-26");COURSE="calc";renderHome();renderWeek();renderCourse();','2026-10-26');
+    const notices=[...html('view-home').matchAll(/<li style="--c:[^]*?<\/li>/g)].map(match=>match[0]);
+    for(const n of [9,10]){
+      const date=n===9?'10/26':'10/27';
+      const card=html('view-week').match(new RegExp('<article[^>]*data-session="calc-'+n+'"[^]*?</article>'));
+      const row=html('view-course').match(new RegExp('<tr[^>]*data-session="calc-'+n+'"[^]*?</tr>'));
+      const notice=notices.find(text=>text.includes('data-course="calc"') && text.includes(date));
+      assert.ok(card,'calendar '+lang+' '+n);
+      assert.ok(row,'course '+lang+' '+n);
+      assert.ok(notice,'notice '+lang+' '+n);
+      for(const text of [card[0],row[0],notice]){
+        assert.match(text,/b-ondemand/);
+        assert.doesNotMatch(text,/S306|23:59|b-f2f/);
+        for(const requirement of requirements[lang]) assert.match(text,requirement);
+      }
+      assert.match(card[0],lang==='ja'?/視聴・学習の目安[^]*ライブ開始・締切ではありません/:/Study guide:[^]*not a live start or deadline/);
+      assert.match(notice,lang==='ja'?/視聴・学習の目安[^]*ライブ開始・締切ではありません/:/Study guide:[^]*not a live start or deadline/);
+      assert.match(card[0],n===9?/10:40[–-]12:10/:/16:20[–-]17:50/);
+    }
+    assert.match(html('view-course'),lang==='ja'?/通常：S306/:/Usually: Room S306/);
+  }
+});
+
+test('home timetable shows the upcoming AC1 video slots without a physical room',()=>{
+  for(const lang of ['ja','en']){
+    const home=render('LANG="'+lang+'";renderHome();','2026-10-26','11:00')('view-home');
+    for(const slot of ['0-2','1-5']){
+      const block=home.match(new RegExp('<button class="blk[^>]*data-slot="'+slot+'"[^>]*data-course="calc"[^]*?</button>'));
+      assert.ok(block,lang+' '+slot);
+      assert.match(block[0],/b-ondemand/);
+      assert.doesNotMatch(block[0],/S306|b-f2f/);
+      assert.match(block[0],lang==='ja'?/視聴・学習の目安[^]*ライブ開始・締切ではありません/:/Study guide:[^]*not a live start or deadline/);
+    }
+    const after=render('LANG="'+lang+'";renderHome();','2026-10-28')('view-home');
+    for(const slot of ['0-2','1-5']){
+      const block=after.match(new RegExp('<button class="blk[^>]*data-slot="'+slot+'"[^>]*data-course="calc"[^]*?</button>'));
+      assert.match(block[0],/S306[^]*b-f2f/);
+    }
+  }
+});
+
+test('AC1 videos never become live or acquire a start countdown at their guide times',()=>{
+  const calc=course('calc');
+  for(const [date,time,n] of [
+    ['2026-10-26','8:00',9],['2026-10-26','11:00',9],['2026-10-26','23:59',9],
+    ['2026-10-27','8:00',10],['2026-10-27','16:30',10],['2026-10-27','23:59',10]
+  ]){
+    const [hour,minute]=time.split(':').map(Number),now={date,min:hour*60+minute};
+    const state=liveState(now);
+    for(const item of [state.current,state.next]){
+      assert.ok(!item || item.c!==calc || ![9,10].includes(item.n),date+' '+time);
+    }
+    assert.equal(courseFocus(calc,now).n,n,date+' '+time);
+    for(const lang of ['ja','en']){
+      const html=render('LANG="'+lang+'";$("test-banner").innerHTML=courseLiveHTML(byId("calc"),nowJST());',date,time)('test-banner');
+      assert.match(html,lang==='ja'?/オンデマンド/:/On-demand/);
+      assert.match(html,lang==='ja'?/締切日時は未確認・Teamsで確認/:/Deadlines unconfirmed; check Teams/);
+      assert.doesNotMatch(html,/S306|is-live|Starts in|time left|授業中|開始まで|残り/);
+    }
+  }
+  assert.equal(courseFocus(calc,{date:'2026-10-28',min:0}).n,11);
 });
