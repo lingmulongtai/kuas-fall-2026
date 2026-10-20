@@ -6,7 +6,7 @@
   const lessTransparency = matchMedia('(prefers-reduced-transparency: reduce)');
   const moreContrast = matchMedia('(prefers-contrast: more)');
   let photo = document.querySelector('#wallpaper img');
-  let rainFrame=null, rainDimensions='', resizeTimer=0, suspended=false, rainFailed=false;
+  let rainFrame=null, rainDimensions='', rainPhoto='', resizeTimer=0, suspended=false, rainFailed=false;
 
   /* A neutral centre and curved edge normals refract only the lens perimeter. */
   function createLens(){
@@ -106,7 +106,7 @@
   window.addEventListener('scroll',resetSprings,{passive:true});
 
   function sendRainState(){
-    rainFrame?.contentWindow.postMessage({type:'rain-state',running:canMove(),image:photo?.src},'*');
+    rainFrame?.contentWindow.postMessage({type:'rain-state',running:canMove() && !!photo?.naturalWidth,image:photo?.src},'*');
   }
   function rainSize(){
     const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
@@ -116,11 +116,12 @@
     rainFrame?.remove();
     rainFrame=null;
     rainDimensions='';
+    rainPhoto='';
     rainLayer.hidden=true;
   }
   function refresh(){
     if(!canMove()) resetSprings();
-    const show=RAIN && photo?.naturalWidth && !lessTransparency.matches && !moreContrast.matches && !rainFailed;
+    const show=RAIN && !lessTransparency.matches && !moreContrast.matches && !rainFailed;
     if(!show){ removeRain(); return; }
     rainLayer.hidden=false;
     if(!rainFrame){
@@ -129,18 +130,26 @@
       rainFrame.tabIndex=-1;
       rainFrame.setAttribute('sandbox','allow-scripts');
       rainFrame.setAttribute('aria-hidden','true');
-      rainFrame.src='rain.html';
+      // Start navigation during page setup, before the asynchronous photo decode.
+      // Keep layout dimensions while the child waits for its selected photograph.
+      rainFrame.style.visibility='hidden';
+      rainFrame.src='rain.html?v=photo-ready';
       rainLayer.replaceChildren(rainFrame);
       rainDimensions=rainSize();
     }
+    rainFrame.style.visibility=photo?.naturalWidth && rainPhoto===photo.src?'':'hidden';
     sendRainState();
   }
   window.addEventListener('message',event=>{
     if(!rainFrame || event.source!==rainFrame.contentWindow) return;
     if(event.data?.type==='rain-ready') sendRainState();
+    if(event.data?.type==='rain-photo-ready' && photo?.naturalWidth && event.data.image===photo.src){
+      rainPhoto=event.data.image;
+      rainFrame.style.visibility='';
+    }
     if(event.data?.type==='rain-error'){ rainFailed=true; removeRain(); }
   });
-  window.addEventListener('wallpaperchange',event=>{ photo=event.detail; rainFailed=false; refresh(); });
+  window.addEventListener('wallpaperchange',event=>{ photo=event.detail; rainPhoto=''; rainFailed=false; refresh(); });
   window.addEventListener('ambiencechange',()=>{ rainFailed=false; refresh(); });
   document.addEventListener('pointermove',event=>{
     if(rainFrame && canMove() && event.pointerType!=='touch'){
