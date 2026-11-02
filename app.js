@@ -86,6 +86,25 @@ const TA = (practice, start, end, place, ja, en, together) =>
   ["実習"+practice+"："+ja, "Practice "+practice+": "+en, "f2f",
    {group:{practice, start, end, together:!!together, place:PLACES[place], equip:{ja, en}}}];
 
+/* 学生出欠状況表（2026/11/02 17:54発行）の転記。
+   marks は基準日までのコマ順。null は原票の空欄で、欠席とは区別する。
+   原票の個人情報・PDF本体は公開しない。実績は現在日時から推定しない。 */
+const ATTENDANCE = {
+  asOf:"2026-11-02", issuedAt:"17:54",
+  ruleUrl:"https://www.kuas.ac.jp/wp-content/uploads/2025/06/8668ad7f581ee93ea448a3555ea69d5e.pdf",
+  courses:{
+    calc:{total:30, rate:45, marks:["present","present","absent","present","present","absent","absent","present",null,null,"absent"]},
+    ec:{total:15, rate:20, marks:["present","late","absent","absent",null]},
+    mom:{total:30, rate:50, marks:["late","present","present","present","present","absent","absent","present","absent","absent"]},
+    emt:{total:30, rate:70, marks:["present","present","present","present","present","absent","absent","present","present","absent"]},
+    qol:{total:15, rate:80, marks:["present","present","present","present",null]},
+    shop:{total:45, rate:100, marks:Array(18).fill("present")},
+    bds:{total:15, rate:50, marks:["present","present",null,null,null,"present"]},
+    career:{total:15, rate:80, marks:["present","present","absent","present","present"]},
+    ece:{total:16, rate:null, marks:[]}
+  }
+};
+
 /* ---------- 科目 ---------- */
 const COURSES = [
 {
@@ -699,12 +718,23 @@ const T = {
   colCredit:{ja:"単位", en:"Cr."},
   colMode:{ja:"形態", en:"Format"},
   colEval:{ja:"成績評価の内訳", en:"Grade breakdown"},
-  colAbs:{ja:"欠席の目安", en:"Absence guide"},
+  colAbs:{ja:"学期全体の欠席目安", en:"Whole-term absence guide"},
   colTotal:{ja:"回数", en:"Sessions"},
   colTerm:{ja:"開講期間", en:"Runs"},
-  absTitle:{ja:"休める回数の目安", en:"How many classes you can miss"},
-  absLead:{ja:"授業回数の2/3以上の出席という一般的な基準で計算した目安です。9科目のシラバスには出席回数の規定が書かれていないため、正式なルールは学生便覧と各担当教員の指示を確認してください。",
-           en:"Calculated on the common rule of attending at least two thirds of classes. None of the nine syllabi states an attendance rule, so confirm the official one in the student handbook and with each instructor."},
+  absTitle:{ja:"学期全体の欠席目安（2/3基準）", en:"Whole-term absence guide (two-thirds rule)"},
+  absLead:{ja:"工学部履修要項の一般基準は授業回数の3分の2以上の出席です。出席だけで単位修得が決まるわけではありません。科目独自の条件や遅刻の扱いは担当教員に確認してください。",
+           en:"The Faculty of Engineering handbook generally requires attendance at two thirds or more of classes. Attendance alone does not guarantee credit. Confirm course-specific requirements and the treatment of lateness with each instructor."},
+  attendanceTitle:{ja:"出欠状況（記録時点）", en:"Attendance snapshot"},
+  attendanceRate:{ja:"原票の出席率", en:"Reported attendance"},
+  attendanceRecord:{ja:"基準日までの記録", en:"Records through the snapshot"},
+  attendanceNeeded:{ja:"今後必要（2/3試算）", en:"Needed from now (two-thirds estimate)"},
+  attendanceAllowance:{ja:"計算上の余裕", en:"Calculated margin"},
+  attendancePending:{ja:"未開始", en:"Not started"},
+  attendanceBlank:{ja:"空欄", en:"blank"},
+  attendanceNote:{ja:"○は出席、△は遅刻、×は欠席。今後必要な出席は、○のみを出席として最終3分の2に達するための試算です。遅刻△と過去の空欄は別記し、出席数に加えていません。空欄は欠席の確定ではありません。掲載予定どおりに授業が実施される前提で、表示は基準日時点のままです。",
+                  en:"○ means present, △ late, and × absent. Future attendance is estimated toward the final two-thirds threshold, counting only ○. Late marks (△) and past blank cells are kept separately and are not added to the attendance count. A blank does not establish absence. The estimate assumes the published timetable is completed; this snapshot does not advance with the current date."},
+  attendanceQol:{ja:"QOLのシラバスには全回出席・各回課題の条件があります。2/3の試算だけで判断せず、担当教員に確認してください。",
+                 en:"The QOL syllabus requires attendance at every lecture and completion of each assignment. Confirm the requirement with the instructor rather than relying on the two-thirds estimate."},
   absUnitP:{ja:"コマ", en:"periods"},
   absUnitW:{ja:"週", en:"weeks"},
   examsTitle:{ja:"試験・予定", en:"Exams & key dates"},
@@ -1136,6 +1166,56 @@ function totalPeriods(c){ return c.unit==="week" ? c.total*weeklyPeriods(c) : c.
 function allowedAbsence(c){ return Math.floor(totalPeriods(c)/3); }
 function allowedWeeks(c){ return Math.floor(courseWeeks(c)/3); }
 
+function attendanceStats(c){
+  const record = ATTENDANCE.courses[c.id];
+  if(!record) return null;
+  const count = status=>record.marks.filter(mark=>mark===status).length;
+  const total = record.total, elapsed = record.marks.length;
+  const present = count("present"), remaining = total-elapsed;
+  const required = Math.ceil(total*2/3), needed = Math.max(0,required-present);
+  return {total, elapsed, present, late:count("late"), absent:count("absent"), unmarked:count(null),
+    remaining, required, needed, allowance:remaining-needed, rate:record.rate};
+}
+
+function renderAttendance(c){
+  const stamp = ATTENDANCE.asOf.replace(/-/g,"/")+" "+ATTENDANCE.issuedAt;
+  const dateLabel = LANG==="ja" ? stamp+"発行の学生出欠状況表" : "Student attendance report issued "+stamp+" JST";
+  const recordLabel = s=>"○ "+s.present+" ／ △ "+s.late+" ／ × "+s.absent+" ／ "+t("attendanceBlank")+" "+s.unmarked;
+  const neededLabel = s=>LANG==="ja" ? "残り"+s.remaining+"コマ中 "+s.needed+"コマ" : s.needed+" of "+s.remaining+" remaining periods";
+  const marginLabel = s=>LANG==="ja" ? s.allowance+"コマ" : s.allowance+" periods";
+  const rateLabel = s=>s.rate===null ? t("attendancePending") : s.rate+"%";
+  const qolNote = '<p class="notice">'+t("attendanceQol")+'</p>';
+  let h = '<section class="'+(c?'box':'sec')+' attendance-snapshot"'+(!c?' id="attendance"':'')+'>'
+    + (c ? '<h3>'+t("attendanceTitle")+'</h3><p>'+dateLabel+'</p>'
+      : '<div class="sec-head"><h2>'+t("attendanceTitle")+'</h2><span>'+dateLabel+'</span></div>');
+  if(c){
+    const s = attendanceStats(c);
+    if(!s) return "";
+    h += '<p><b>'+t("attendanceRate")+'：'+rateLabel(s)+'</b><br>'+recordLabel(s)+'</p>'
+      + '<p>'+t("attendanceNeeded")+'：<b>'+neededLabel(s)+'</b><br>'
+      + t("attendanceAllowance")+'：'+(c.id==="qol" ? (LANG==="ja"?'独自条件を要確認':'Confirm course requirements') : marginLabel(s))+'</p>';
+  } else {
+    h += '<div style="overflow-x:auto"><table class="grid"><thead><tr>'
+      + [t("colCourse"),t("attendanceRate"),t("attendanceRecord"),t("attendanceNeeded"),t("attendanceAllowance")]
+        .map(label=>'<th scope="col">'+label+'</th>').join("")+'</tr></thead><tbody>';
+    const ordered = ["ec","bds","calc","mom","emt","qol","career","shop","ece"];
+    ordered.forEach(id=>{
+      const course = COURSES.find(item=>item.id===id), s = attendanceStats(course);
+      h += '<tr><th scope="row">'+esc(L(course))+'<span class="attendance-mobile">'+neededLabel(s)+'</span></th><td class="num">'+rateLabel(s)+'</td>'
+        + '<td style="white-space:nowrap">'+recordLabel(s)+'</td>'
+        + '<td style="white-space:nowrap"><b>'+neededLabel(s)+'</b></td><td style="white-space:nowrap">'
+        + (id==="qol" ? (LANG==="ja"?'独自条件を要確認':'Confirm course requirements') : marginLabel(s))+'</td></tr>';
+    });
+    h += '</tbody></table></div><p class="attendance-scroll-hint">'
+      + (LANG==="ja"?'表は左右にスクロールできます。':'Scroll the table sideways to see every column.')+'</p>';
+  }
+  h += '<p>'+t("attendanceNote")+'</p>';
+  if(!c || c.id==="qol") h += qolNote;
+  h += '<p>'+t("absLead")+' <a href="'+ATTENDANCE.ruleUrl+'" target="_blank" rel="noopener">'
+    + (LANG==="ja"?'2025年度 工学部履修要項 p.6・14':'2025 Faculty of Engineering handbook, pp.6 and 14')+'</a></p></section>';
+  return h;
+}
+
 function modeBadge(m,fillIt){
   const d = MODES[m]; if(!d) return "";
   return '<span class="badge '+d.cls+(fillIt?" fill":"")+'">'+d[LANG]+'</span>';
@@ -1438,7 +1518,7 @@ function renderHome(){
       }
     }
   }
-  h += '</div></div></div>'+renderExams()+summary;
+  h += '</div></div></div>'+renderExams()+renderAttendance()+summary;
 
   /* 科目一覧 */
   h += '<div class="sec"><div class="sec-head"><h2>'+t("courses")+'</h2><span>'+(LANG==="ja"?"成績評価の割合・開講期間・欠席の目安":"grade weights, term and absence guide")+'</span></div>';
@@ -1458,7 +1538,7 @@ function renderHome(){
       + '<td style="min-width:190px">'+evalBar(c)+'<div class="evlist">'
       +   c.evals.map(e=>L(e)+" "+e.pct+"%").join(LANG==="ja"?" ／ ":" / ")+'</div></td>'
       + '<td class="num">'+totalPeriods(c)+'</td>'
-      + '<td class="num"><b>'+allowedAbsence(c)+'</b> '+t("absUnitP")+'<div style="font-size:11px;color:var(--ink-3)">≒ '+allowedWeeks(c)+' '+t("absUnitW")+'</div></td>'
+      + '<td class="num">'+(c.id==="qol" ? (LANG==="ja"?'全回出席の条件あり':'All lectures required') : '<b>'+allowedAbsence(c)+'</b> '+t("absUnitP")+'<div style="font-size:11px;color:var(--ink-3)">≒ '+allowedWeeks(c)+' '+t("absUnitW")+'</div>')+'</td>'
       + '</tr>';
   });
   h += '</tbody></table></div></div>';
@@ -1468,24 +1548,6 @@ function renderHome(){
   h += '<div style="overflow-x:auto"><table class="grid"><tbody>';
   BREAKS.forEach(b=>{ h += '<tr><td style="white-space:nowrap;width:130px">'+fmtDate(b.d)+'</td><td>'+L(b)+'</td></tr>'; });
   h += '</tbody></table></div></div>';
-
-  /* 欠席の目安 */
-  h += '<div class="sec"><div class="sec-head"><h2>'+t("absTitle")+'</h2></div>'
-     + '<div class="notice"><b>'+(LANG==="ja"?"目安であって規定ではありません":"A guide, not a rule")+'</b><br>'+t("absLead")+'</div>';
-  h += '<div class="cards" style="margin-top:14px">';
-  COURSES.forEach(c=>{
-    h += '<div class="panel" style="padding:13px 15px;border-left:4px solid '+cc(c)+'">'
-      + '<div style="font-family:var(--mincho);font-size:14px">'+esc(L(c))+'</div>'
-      + '<div class="ratio">'+allowedAbsence(c)+' <small>/ '+totalPeriods(c)+' '+t("absUnitP")+'</small></div>'
-      + '<div style="font-size:12px;color:var(--ink-2)">'
-      + (LANG==="ja"
-          ? (weeklyPeriods(c)>1 ? "週"+weeklyPeriods(c)+"コマなので、丸ごと休めるのは"+allowedWeeks(c)+"週まで" : "週1コマなので "+allowedWeeks(c)+"回まで")
-          : (weeklyPeriods(c)>1 ? weeklyPeriods(c)+" periods a week, so at most "+allowedWeeks(c)+" full weeks" : "one period a week, so up to "+allowedWeeks(c)+" classes"))
-      + '</div>'
-      + (c.alert ? '<div style="margin-top:7px;font-size:12px;color:var(--vermilion)">'+esc(L(c.alert))+'</div>' : '')
-      + '</div>';
-  });
-  h += '</div></div>';
 
   $("view-home").innerHTML = h;
 }
@@ -1576,6 +1638,7 @@ function renderCourse(){
     + '</dl><div id="course-live" class="course-live-wrap">'+courseLiveHTML(c,nowJST())+'</div></div>';
 
   h += '<div class="cbody"><div>';
+  h += renderAttendance(c);
   if(c.memos && c.memos.length){
     h += '<div class="box memo-box"><h3>'+t("memoTitle")+'</h3><ul class="goals">'
        + c.memos.map(m=>'<li>'+(m.date?'<b>'+fmtDate(m.date)+'</b> ':'')+esc(L(m))+'</li>').join('')+'</ul></div>';
@@ -1614,9 +1677,10 @@ function renderCourse(){
        + (m?'<span class="note when">'+esc(markWhen(c,m))+'</span>':'')+'</span></div>';
   });
   if(c.alert) h += '<div class="notice" style="margin-top:12px"><b>'+t("watch")+'</b><br>'+esc(L(c.alert))+'</div>';
-  h += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12.5px;color:var(--ink-2)">'
+  if(c.id!=="qol") h += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12.5px;color:var(--ink-2)">'
      + t("absTitle")+'：<b style="font-family:var(--mincho);font-size:16px">'+allowedAbsence(c)+'</b> '+t("absUnitP")
-     + ' / '+totalPeriods(c)+'（≒ '+allowedWeeks(c)+' '+t("absUnitW")+'）</div></div>';
+     + ' / '+totalPeriods(c)+'（≒ '+allowedWeeks(c)+' '+t("absUnitW")+'）</div>';
+  h += '</div>';
 
   if(c.hw){
     const given = OCCURRENCES.filter(item=>item.c===c && tasksOn(item).length);
