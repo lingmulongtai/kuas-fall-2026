@@ -724,15 +724,30 @@ const T = {
   absTitle:{ja:"学期全体の欠席目安（2/3基準）", en:"Whole-term absence guide (two-thirds rule)"},
   absLead:{ja:"工学部履修要項の一般基準は授業回数の3分の2以上の出席です。出席だけで単位修得が決まるわけではありません。科目独自の条件や遅刻の扱いは担当教員に確認してください。",
            en:"The Faculty of Engineering handbook generally requires attendance at two thirds or more of classes. Attendance alone does not guarantee credit. Confirm course-specific requirements and the treatment of lateness with each instructor."},
-  attendanceTitle:{ja:"出欠状況（記録時点）", en:"Attendance snapshot"},
-  attendanceRate:{ja:"原票の出席率", en:"Reported attendance"},
-  attendanceRecord:{ja:"基準日までの記録", en:"Records through the snapshot"},
+  attendanceTitle:{ja:"出欠・必要な出席回数", en:"Attendance and remaining requirements"},
+  attendanceRate:{ja:"出席率（○のみ）", en:"Attendance (○ only)"},
+  attendanceRecord:{ja:"入力済みの記録", en:"Attendance records"},
   attendanceNeeded:{ja:"今後必要（2/3試算）", en:"Needed from now (two-thirds estimate)"},
   attendanceAllowance:{ja:"計算上の余裕", en:"Calculated margin"},
   attendancePending:{ja:"未開始", en:"Not started"},
-  attendanceBlank:{ja:"空欄", en:"blank"},
-  attendanceNote:{ja:"○は出席、△は遅刻、×は欠席。今後必要な出席は、○のみを出席として最終3分の2に達するための試算です。遅刻△と過去の空欄は別記し、出席数に加えていません。空欄は欠席の確定ではありません。掲載予定どおりに授業が実施される前提で、表示は基準日時点のままです。",
-                  en:"○ means present, △ late, and × absent. Future attendance is estimated toward the final two-thirds threshold, counting only ○. Late marks (△) and past blank cells are kept separately and are not added to the attendance count. A blank does not establish absence. The estimate assumes the published timetable is completed; this snapshot does not advance with the current date."},
+  attendanceBlank:{ja:"未入力", en:"blank"},
+  attendanceNote:{ja:"○は出席、△は遅刻、×は欠席。○のみを出席として最終3分の2に達するための試算です。原票の空欄は未入力として残します。遅刻△・未入力は出席数に加えず、欠席とも断定しません。残り回数は、初期記録または最後に入力した授業までを経過分として計算します。日付が進んでも未入力を自動で欠席にはしません。掲載予定どおりの実施を前提とし、科目独自の条件は要確認です。",
+                  en:"○ means present, △ late, and × absent. The estimate counts only ○ toward the final two-thirds threshold. Late and blank records are neither added to attendance nor assumed absent. Remaining periods start after the initial report or the latest edited class. A new date never automatically marks blank classes absent. The estimate assumes the published timetable is completed; confirm course-specific requirements."},
+  attendanceEdit:{ja:"出欠を入力・修正", en:"Enter or correct attendance"},
+  attendanceLocal:{ja:"入力はこのブラウザーに自動保存されます。別の端末・ブラウザーには自動同期されないので、移すときは書き出し・読み込みを使ってください。",
+                   en:"Entries are saved automatically in this browser. They do not sync across devices or browsers; use export and import to move them."},
+  attendanceSaved:{ja:"このブラウザーに保存済み", en:"Saved in this browser"},
+  attendanceInitial:{ja:"11月2日時点の初期記録を表示中", en:"Showing the initial November 2 report"},
+  attendanceMemory:{ja:"このブラウザーに保存できません。今回の画面には反映されています。閉じる前に書き出してください。", en:"This browser could not save your entries. Changes are reflected here; export them before closing the page."},
+  attendanceInvalid:{ja:"保存された入力を読み込めませんでした。元の出欠表を表示しています。保存データは上書きしていません。", en:"Saved entries could not be read. The original report is shown; the stored data has not been overwritten."},
+  attendanceExport:{ja:"入力を書き出す", en:"Export entries"},
+  attendanceImport:{ja:"入力を読み込む", en:"Import entries"},
+  attendanceImportNote:{ja:"読み込むと、このブラウザーの入力をファイルの内容に置き換えます。", en:"Import replaces this browser's entries with the file contents."},
+  attendanceImportError:{ja:"読み込めませんでした。正しい出欠データのファイルを選んでください。現在の入力は保持しています。", en:"Import failed. Select a valid attendance export. Your current entries have been kept."},
+  attendanceImported:{ja:"入力を読み込みました。", en:"Entries imported."},
+  attendanceExported:{ja:"入力を書き出しました。", en:"Entries exported."},
+  attendanceExportError:{ja:"書き出せませんでした。ブラウザーのダウンロード設定を確認してください。", en:"Export failed. Check this browser's download settings."},
+  attendanceFuture:{ja:"未来の授業は当日から入力できます。実習・演習は1コマずつ記録してください。", en:"Future classes can be entered from their scheduled date. Record each period separately for practicals and exercises."},
   attendanceQol:{ja:"QOLのシラバスには全回出席・各回課題の条件があります。2/3の試算だけで判断せず、担当教員に確認してください。",
                  en:"The QOL syllabus requires attendance at every lecture and completion of each assignment. Confirm the requirement with the instructor rather than relying on the two-thirds estimate."},
   absUnitP:{ja:"コマ", en:"periods"},
@@ -1166,24 +1181,187 @@ function totalPeriods(c){ return c.unit==="week" ? c.total*weeklyPeriods(c) : c.
 function allowedAbsence(c){ return Math.floor(totalPeriods(c)/3); }
 function allowedWeeks(c){ return Math.floor(courseWeeks(c)/3); }
 
+/* 原票は保持し、手入力は日付・時限をキーにした差分としてこのブラウザーに保存する。 */
+const ATTENDANCE_STORAGE_KEY = "kuas-fall-2026-attendance-v1";
+let attendanceEdits = {};
+let attendanceStorageState = "saved";
+let attendanceUpdatedAt = null;
+let attendanceStorageBlocked = false;
+let attendancePendingEdits = {};
+let attendancePendingReplacement = false;
+
+function attendancePeriods(c){
+  const record = c && ATTENDANCE.courses[c.id];
+  if(!record) return [];
+  const edits = attendanceEdits[c.id] || {};
+  return OCCURRENCES.filter(item=>item.c.id===c.id)
+    .flatMap(item=>Array.from({length:item.s.span||1},(_,offset)=>({date:item.date,period:item.s.period+offset})))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.period-b.period)
+    .map((item,index)=>{
+      const key = item.date+":"+item.period;
+      const sourceStatus = index<record.marks.length ? record.marks[index] : null;
+      return {...item,key,sourceStatus,status:Object.prototype.hasOwnProperty.call(edits,key) ? edits[key] : sourceStatus};
+    });
+}
+
+function attendancePayload(){
+  return {version:1,term:"2026-fall",sourceAsOf:ATTENDANCE.asOf,updatedAt:attendanceUpdatedAt,edits:attendanceEdits};
+}
+function exportAttendanceData(){ return JSON.stringify(attendancePayload(),null,2); }
+
+/* すべて検査してから反映する。未知の科目・日付・時限や他学期のデータは取り込まない。 */
+function validateAttendanceData(value){
+  const object = input=>input!==null && typeof input==="object" && !Array.isArray(input);
+  const fail = ()=>{ throw new Error("Invalid attendance backup data"); };
+  const keys = ["version","term","sourceAsOf","updatedAt","edits"];
+  if(!object(value) || Object.keys(value).length!==keys.length || !keys.every(key=>Object.prototype.hasOwnProperty.call(value,key))) fail();
+  if(value.version!==1 || value.term!=="2026-fall" || value.sourceAsOf!==ATTENDANCE.asOf || !object(value.edits)) fail();
+  if(value.updatedAt!==null && (typeof value.updatedAt!=="string" || !Number.isFinite(Date.parse(value.updatedAt)) || new Date(value.updatedAt).toISOString()!==value.updatedAt)) fail();
+  const edits = {};
+  for(const [id,courseEdits] of Object.entries(value.edits)){
+    const c = COURSES.find(course=>course.id===id);
+    if(!c || !Object.prototype.hasOwnProperty.call(ATTENDANCE.courses,id) || !object(courseEdits)) fail();
+    const validKeys = new Set(attendancePeriods(c).map(item=>item.key));
+    const copy = {};
+    for(const [key,status] of Object.entries(courseEdits)){
+      if(!validKeys.has(key) || ![null,"present","late","absent"].includes(status)) fail();
+      copy[key] = status;
+    }
+    if(Object.keys(copy).length) edits[id] = copy;
+  }
+  return {edits,updatedAt:value.updatedAt};
+}
+function mergeAttendanceEdits(base,changes){
+  const merged = {...base};
+  for(const [id,edits] of Object.entries(changes)) merged[id] = {...(merged[id]||{}),...edits};
+  return merged;
+}
+function refreshAttendanceData(){
+  if(attendanceStorageBlocked) return false;
+  /* 保存に失敗した明示的な取り込みは、差分ではなく置換する意図を保持する。 */
+  if(attendancePendingReplacement) return true;
+  let stored;
+  try{ stored = localStorage.getItem(ATTENDANCE_STORAGE_KEY); }
+  catch(error){ attendanceStorageState = "memory"; return false; }
+  let data;
+  try{ data = stored===null ? {edits:{},updatedAt:null} : validateAttendanceData(JSON.parse(stored)); }
+  catch(error){ attendanceStorageBlocked = true; attendanceStorageState = "memory"; return false; }
+  /* 別タブの保存済み入力に、このタブの未保存セルだけを重ねる。 */
+  attendanceEdits = mergeAttendanceEdits(data.edits,attendancePendingEdits);
+  return true;
+}
+function saveAttendanceData(){
+  /* 壊れた保存データはセル編集だけでは置換しない。明示的な取り込みでのみ解除する。 */
+  if(attendanceStorageBlocked){ attendanceStorageState = "memory"; return false; }
+  try{
+    localStorage.setItem(ATTENDANCE_STORAGE_KEY,exportAttendanceData());
+    attendanceStorageState = "saved";
+    attendancePendingEdits = {};
+    attendancePendingReplacement = false;
+    return true;
+  }catch(error){
+    attendanceStorageState = "memory";
+    return false;
+  }
+}
+function loadAttendanceData(){
+  let stored;
+  try{ stored = localStorage.getItem(ATTENDANCE_STORAGE_KEY); }
+  catch(error){ attendanceStorageState = "memory"; return; }
+  if(stored===null) return;
+  try{
+    const data = validateAttendanceData(JSON.parse(stored));
+    attendanceEdits = data.edits;
+    attendanceUpdatedAt = data.updatedAt;
+  }catch(error){ attendanceStorageBlocked = true; attendanceStorageState = "invalid"; }
+}
+function setAttendanceStatus(courseId,key,status){
+  if(typeof courseId!=="string" || typeof key!=="string" || ![null,"present","late","absent"].includes(status)) return false;
+  const c = COURSES.find(course=>course.id===courseId);
+  if(!c || !attendancePeriods(c).some(item=>item.key===key)) return false;
+  const canSave = refreshAttendanceData();
+  const change = {[courseId]:{[key]:status}};
+  attendancePendingEdits = mergeAttendanceEdits(attendancePendingEdits,change);
+  attendanceEdits = mergeAttendanceEdits(attendanceEdits,change);
+  attendanceUpdatedAt = new Date().toISOString();
+  if(canSave) saveAttendanceData();
+  else attendanceStorageState = "memory";
+  return true;
+}
+function importAttendanceData(text){
+  if(typeof text!=="string") throw new Error("Invalid attendance backup data");
+  const data = validateAttendanceData(JSON.parse(text));
+  attendanceEdits = data.edits;
+  attendanceUpdatedAt = data.updatedAt;
+  attendanceStorageBlocked = false;
+  attendancePendingEdits = {};
+  attendancePendingReplacement = true;
+  saveAttendanceData();
+  return true;
+}
+loadAttendanceData();
+
 function attendanceStats(c){
   const record = ATTENDANCE.courses[c.id];
   if(!record) return null;
-  const count = status=>record.marks.filter(mark=>mark===status).length;
-  const total = record.total, elapsed = record.marks.length;
+  const periods = attendancePeriods(c), edits = attendanceEdits[c.id] || {};
+  const edited = Object.keys(edits).length>0;
+  const lastEdited = periods.reduce((last,item,index)=>Object.prototype.hasOwnProperty.call(edits,item.key) ? index+1 : last,0);
+  const total = record.total, elapsed = Math.max(record.marks.length,lastEdited);
+  const statuses = periods.slice(0,elapsed).map(item=>item.status);
+  const count = status=>statuses.filter(mark=>mark===status).length;
   const present = count("present"), remaining = total-elapsed;
   const required = Math.ceil(total*2/3), needed = Math.max(0,required-present);
-  return {total, elapsed, present, late:count("late"), absent:count("absent"), unmarked:count(null),
-    remaining, required, needed, allowance:remaining-needed, rate:record.rate};
+  const rate = edited ? (elapsed ? present/elapsed*100 : null) : record.rate;
+  return {total,elapsed,present,late:count("late"),absent:count("absent"),unmarked:count(null),
+    remaining,required,needed,allowance:remaining-needed,rate,sourceRate:record.rate,edited};
+}
+
+function attendanceStorageHTML(c){
+  const inputId = "attendance-import-"+(c?c.id:"home");
+  const stateKey = attendanceStorageState==="memory" ? "attendanceMemory" : attendanceStorageState==="invalid" ? "attendanceInvalid" : attendanceUpdatedAt ? "attendanceSaved" : "attendanceInitial";
+  return '<div class="attendance-storage"><p>'+t("attendanceLocal")+'</p>'
+    + '<p class="attendance-save-state" role="status">'+t(stateKey)+'</p><div class="attendance-actions">'
+    + '<button type="button" class="iconbtn" data-attendance-export>'+t("attendanceExport")+'</button>'
+    + '<label class="iconbtn attendance-import-label" for="'+inputId+'">'+t("attendanceImport")
+    + '<input id="'+inputId+'" type="file" accept=".json,application/json" data-attendance-import></label></div>'
+    + '<p class="attendance-small">'+t("attendanceImportNote")+'</p>'
+    + '<p role="status" aria-live="polite" data-attendance-feedback></p></div>';
+}
+
+function attendanceEditorHTML(c){
+  const labels = LANG==="ja" ? {empty:"未入力",present:"○ 出席",late:"△ 遅刻",absent:"× 欠席"}
+    : {empty:"Not entered",present:"○ Present",late:"△ Late",absent:"× Absent"};
+  let h = '<details class="attendance-editor"><summary>'+t("attendanceEdit")+'</summary><p>'+t("attendanceFuture")+'</p>'
+    + '<div class="attendance-editor-scroll"><table class="grid"><thead><tr><th scope="col">'+(LANG==="ja"?'日付':'Date')+'</th>'
+    + '<th scope="col">'+(LANG==="ja"?'時限':'Period')+'</th><th scope="col">'+(LANG==="ja"?'出欠':'Attendance')+'</th></tr></thead><tbody>';
+  attendancePeriods(c).forEach(item=>{
+    const future = item.date>todayISO();
+    const label = L(c)+' '+item.date+' '+(LANG==="ja"?item.period+'限':'period '+item.period);
+    h += '<tr'+(future?' class="attendance-future"':'')+'><td>'+fmtDate(item.date)+'</td>'
+      + '<td>'+(LANG==="ja"?item.period+'限':item.period)+'</td><td><select aria-label="'+esc(label)+'"'
+      + ' data-attendance-course="'+c.id+'" data-attendance-key="'+item.key+'"'+(future?' disabled':'')+'>'
+      + [["",labels.empty],["present",labels.present],["late",labels.late],["absent",labels.absent]]
+        .map(([value,text])=>'<option value="'+value+'"'+((item.status||"")===value?' selected':'')+'>'+text+'</option>').join("")
+      + '</select></td></tr>';
+  });
+  return h+'</tbody></table></div></details>';
+}
+
+function attendanceProgressHTML(s){
+  if(s.needed===0) return '<p class="notice">'+(LANG==="ja"?'一般の出席回数基準に到達しています。課題・試験・科目独自の条件も確認してください。':'The general attendance count has been reached. Check assignments, exams and course-specific requirements too.')+'</p>';
+  if(s.allowance<0) return '<p class="notice">'+(LANG==="ja"?'今後すべて出席しても、現在の入力では'+(-s.allowance)+'コマ不足します。過去の未入力・遅刻の扱いも確認してください。':'Even attending every remaining period leaves a shortfall of '+(-s.allowance)+' under the current records. Confirm past blank and late records too.')+'</p>';
+  return "";
 }
 
 function renderAttendance(c){
   const stamp = ATTENDANCE.asOf.replace(/-/g,"/")+" "+ATTENDANCE.issuedAt;
-  const dateLabel = LANG==="ja" ? stamp+"発行の学生出欠状況表" : "Student attendance report issued "+stamp+" JST";
+  let dateLabel = LANG==="ja" ? "初期記録："+stamp+"発行の学生出欠状況表" : "Initial student attendance report: "+stamp+" JST";
+  if(attendanceUpdatedAt) dateLabel += (LANG==="ja"?" ／ 入力更新：":" / Entries updated: ")+new Date(attendanceUpdatedAt).toLocaleString(LANG==="ja"?"ja-JP":"en-GB",{timeZone:"Asia/Tokyo"});
   const recordLabel = s=>"○ "+s.present+" ／ △ "+s.late+" ／ × "+s.absent+" ／ "+t("attendanceBlank")+" "+s.unmarked;
   const neededLabel = s=>LANG==="ja" ? "残り"+s.remaining+"コマ中 "+s.needed+"コマ" : s.needed+" of "+s.remaining+" remaining periods";
-  const marginLabel = s=>LANG==="ja" ? s.allowance+"コマ" : s.allowance+" periods";
-  const rateLabel = s=>s.rate===null ? t("attendancePending") : s.rate+"%";
+  const marginLabel = s=>s.allowance<0 ? (LANG==="ja"?(-s.allowance)+"コマ不足":(-s.allowance)+" periods short") : (LANG==="ja" ? s.allowance+"コマ" : s.allowance+" periods");
+  const rateLabel = s=>s.rate===null ? t("attendancePending") : Math.floor(s.rate)+"%";
   const qolNote = '<p class="notice">'+t("attendanceQol")+'</p>';
   let h = '<section class="'+(c?'box':'sec')+' attendance-snapshot"'+(!c?' id="attendance"':'')+'>'
     + (c ? '<h3>'+t("attendanceTitle")+'</h3><p>'+dateLabel+'</p>'
@@ -1193,7 +1371,9 @@ function renderAttendance(c){
     if(!s) return "";
     h += '<p><b>'+t("attendanceRate")+'：'+rateLabel(s)+'</b><br>'+recordLabel(s)+'</p>'
       + '<p>'+t("attendanceNeeded")+'：<b>'+neededLabel(s)+'</b><br>'
-      + t("attendanceAllowance")+'：'+(c.id==="qol" ? (LANG==="ja"?'独自条件を要確認':'Confirm course requirements') : marginLabel(s))+'</p>';
+      + t("attendanceAllowance")+'：'+(c.id==="qol" ? (LANG==="ja"?'独自条件を要確認':'Confirm course requirements') : marginLabel(s))+'</p>'
+      + (s.edited?'<p class="attendance-small">'+(LANG==="ja"?'初期記録の出席率：':'Original reported rate: ')+(s.sourceRate===null?t("attendancePending"):s.sourceRate+'%')+'</p>':'')
+      + attendanceProgressHTML(s)+attendanceEditorHTML(c);
   } else {
     h += '<div style="overflow-x:auto"><table class="grid"><thead><tr>'
       + [t("colCourse"),t("attendanceRate"),t("attendanceRecord"),t("attendanceNeeded"),t("attendanceAllowance")]
@@ -1201,18 +1381,21 @@ function renderAttendance(c){
     const ordered = ["ec","bds","calc","mom","emt","qol","career","shop","ece"];
     ordered.forEach(id=>{
       const course = COURSES.find(item=>item.id===id), s = attendanceStats(course);
-      h += '<tr><th scope="row">'+esc(L(course))+'<span class="attendance-mobile">'+neededLabel(s)+'</span></th><td class="num">'+rateLabel(s)+'</td>'
+      h += '<tr><th scope="row"><button type="button" class="linkbtn" data-attendance-open="'+id+'">'+esc(L(course))+'</button>'
+        + '<span class="attendance-mobile">'+neededLabel(s)+'</span></th><td class="num">'+rateLabel(s)+'</td>'
         + '<td style="white-space:nowrap">'+recordLabel(s)+'</td>'
         + '<td style="white-space:nowrap"><b>'+neededLabel(s)+'</b></td><td style="white-space:nowrap">'
         + (id==="qol" ? (LANG==="ja"?'独自条件を要確認':'Confirm course requirements') : marginLabel(s))+'</td></tr>';
     });
     h += '</tbody></table></div><p class="attendance-scroll-hint">'
-      + (LANG==="ja"?'表は左右にスクロールできます。':'Scroll the table sideways to see every column.')+'</p>';
+      + (LANG==="ja"?'科目名から出欠を入力できます。表は左右にスクロールできます。':'Select a course name to enter attendance. Scroll sideways to see every column.')+'</p>';
+    h += '<p>'+(LANG==="ja"?'科目名を押すと、日付ごとの出欠を入力できます。':'Select a course name to enter attendance for each class.')+'</p>';
   }
   h += '<p>'+t("attendanceNote")+'</p>';
   if(!c || c.id==="qol") h += qolNote;
   h += '<p>'+t("absLead")+' <a href="'+ATTENDANCE.ruleUrl+'" target="_blank" rel="noopener">'
-    + (LANG==="ja"?'2025年度 工学部履修要項 p.6・14':'2025 Faculty of Engineering handbook, pp.6 and 14')+'</a></p></section>';
+    + (LANG==="ja"?'2025年度 工学部履修要項 p.6・14':'2025 Faculty of Engineering handbook, pp.6 and 14')+'</a></p>'
+    + attendanceStorageHTML(c)+'</section>';
   return h;
 }
 
@@ -1896,8 +2079,47 @@ function tick(){
   applyLive();
 }
 
+/* 出欠だけを更新し、入力欄の開閉・スクロール・フォーカスを保つ。 */
+function refreshAttendanceViews(focus){
+  const editor = document.querySelector('#view-course .attendance-editor');
+  const scroller = document.querySelector('#view-course .attendance-editor-scroll');
+  const wasOpen = editor && editor.open, scrollTop = scroller ? scroller.scrollTop : 0;
+  renderHome(); renderCourse(); applyLive();
+  const nextEditor = document.querySelector('#view-course .attendance-editor');
+  const nextScroller = document.querySelector('#view-course .attendance-editor-scroll');
+  if(nextEditor) nextEditor.open = !!wasOpen;
+  if(nextScroller) nextScroller.scrollTop = scrollTop;
+  if(focus){
+    const target = Array.from(document.querySelectorAll('[data-attendance-key]'))
+      .find(el=>el.dataset.attendanceCourse===focus.courseId && el.dataset.attendanceKey===focus.key);
+    if(target) target.focus({preventScroll:true});
+  }
+}
+function attendanceFeedback(key){
+  document.querySelectorAll('[data-attendance-feedback]').forEach(el=>{ el.textContent = t(key); });
+}
+function downloadAttendance(){
+  let url;
+  try{
+    url = URL.createObjectURL(new Blob([exportAttendanceData()],{type:'application/json'}));
+    const link = document.createElement('a');
+    link.href = url; link.download = 'kuas-fall-2026-attendance-'+todayISO()+'.json';
+    document.body.appendChild(link); link.click(); link.remove();
+    attendanceFeedback('attendanceExported');
+  }catch(e){ attendanceFeedback('attendanceExportError'); }
+  finally{ if(url) setTimeout(()=>URL.revokeObjectURL(url),1000); }
+}
+
 /* イベント委譲：再描画してもハンドラを付け直さなくていい */
 document.addEventListener("click", e=>{
+  const attendanceButton = e.target.closest('[data-attendance-open]');
+  if(attendanceButton){
+    openCourse(attendanceButton.dataset.attendanceOpen);
+    const editor = document.querySelector('#view-course .attendance-editor');
+    if(editor){ editor.open = true; editor.scrollIntoView({block:'start'}); }
+    return;
+  }
+  if(e.target.closest('[data-attendance-export]')){ downloadAttendance(); return; }
   const db = e.target.closest("[data-day-select]");
   if(db){
     const direction = Math.sign(Number(db.dataset.daySelect)-DAY);
@@ -1917,7 +2139,23 @@ document.addEventListener("click", e=>{
   if(e.target.closest("#w-prev")) return setWeek(WEEK-1);
   if(e.target.closest("#w-next")) return setWeek(WEEK+1);
 });
-document.addEventListener('change',e=>{
+document.addEventListener('change',async e=>{
+  if(e.target.matches('[data-attendance-key]')){
+    const courseId = e.target.dataset.attendanceCourse, key = e.target.dataset.attendanceKey;
+    if(setAttendanceStatus(courseId,key,e.target.value||null)) refreshAttendanceViews({courseId,key});
+    return;
+  }
+  if(e.target.matches('[data-attendance-import]')){
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    try{
+      if(file.size>1024*1024) throw new Error('File too large');
+      importAttendanceData(await file.text());
+      refreshAttendanceViews(); attendanceFeedback('attendanceImported');
+    }catch(error){ attendanceFeedback('attendanceImportError'); }
+    e.target.value = '';
+    return;
+  }
   if(e.target.id==='w-select') setWeek(Number(e.target.value));
   if(e.target.id==='calendar-date' && e.target.validity.valid && e.target.value) setWeek(calendarWeekFor(e.target.value));
 });
