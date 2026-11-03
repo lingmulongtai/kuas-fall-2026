@@ -307,7 +307,8 @@
     touch.x=event.clientX-left;touch.y=event.clientY-top;touch.strength=1;
     invalidate();
   }
-  function clearPointer(){
+  function clearPointer(event){
+    if(event?.isPrimary===false)return;
     touch.x=-1e4;touch.y=-1e4;touch.strength=0;
     invalidate();
   }
@@ -320,7 +321,7 @@
   document.addEventListener('pointermove',trackPointer,{passive:true});
   document.addEventListener('pointerdown',trackPointer,{passive:true});
   document.addEventListener('pointerup',releasePointer,{passive:true});
-  document.addEventListener('pointercancel',event=>{if(event.isPrimary!==false)clearPointer();},{passive:true});
+  document.addEventListener('pointercancel',clearPointer,{passive:true});
   document.documentElement.addEventListener('pointerleave',clearPointer,{passive:true});
   window.addEventListener('blur',clearPointer);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)clearPointer();invalidate();requestRainBitmap();});

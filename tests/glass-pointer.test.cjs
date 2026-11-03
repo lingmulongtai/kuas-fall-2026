@@ -35,6 +35,7 @@ test('touch starts at the actual contact and clears on release or cancellation',
 test('secondary contacts cannot move or clear the primary highlight',()=>{
   const s=setup();s.emit('pointermove');
   for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])s.emit(type,{isPrimary:false,pointerType:'touch',clientX:999});
+  s.emit('pointerleave',{isPrimary:false,pointerType:'touch'},'root');
   assert.deepEqual(s.touch,{x:85,y:100,strength:1});
 });
 test('leaving the page, losing focus and hiding the document clear stale highlights',()=>{
