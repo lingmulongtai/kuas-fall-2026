@@ -211,7 +211,7 @@ test('a resize burst creates only one frame and returning to the original size c
   assert.equal(state.created.length,2);
 });
 
-function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true,standalone=false}={}){
+function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true,standalone=false,createBitmap}={}){
   const handlers=new Map(),photoHandlers=new Map(),nativeFrames=new Map(),scripts=[],messages=[],shaders=[];
   const uploads=[],uniforms=[],draws=[],painted=[],bindings=new Map();
   let id=0;
@@ -259,7 +259,7 @@ function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true,s
       const image={width:0,height:0,drawing,getContext(type){assert.equal(type,'2d');return drawing;}};
       painted.push(image);return image;
     },head:{appendChild:script=>scripts.push(script)},dispatchEvent(){}};
-  vm.runInNewContext(frameSource,{window,document,parent,URL,console,MouseEvent:class{}});
+  vm.runInNewContext(frameSource,{window,document,parent,URL,console,MouseEvent:class{},...(createBitmap?{createImageBitmap:createBitmap}:{})});
   const message=(data,from=parent)=>handlers.get('message').forEach(fn=>fn({source:from,data}));
   const tick=()=>{for(const [id,fn] of [...nativeFrames]){nativeFrames.delete(id);fn(100);}};
   const boot=()=>handlers.get('DOMContentLoaded').forEach(fn=>fn());
@@ -526,4 +526,33 @@ test('a single rain toggle ignores the obsolete pause preference and preserves U
  context.RAIN=true;context.motionPreference.matches=true;
  assert.equal(context.rainMotionEnabled(),false,'Respect OS reduced motion');
  assert.equal(context.motionEnabled(),false);
+});
+
+const flushBitmap=()=>new Promise(resolve=>setImmediate(resolve));
+test('a temporary bitmap capture failure retries automatically',async()=>{
+ let attempts=0;const bitmap={name:'recovered frame'};
+ const state=setupFrame({createBitmap:()=>++attempts===1?Promise.reject(Error('temporary')):Promise.resolve(bitmap)});
+ state.boot();state.gl.drawArrays(state.gl.TRIANGLES,0,6);await flushBitmap();
+ assert.equal(attempts,1);
+ state.tick();await flushBitmap();
+ assert.equal(attempts,2);
+ const replies=state.messages.filter(m=>m.type==='rain-bitmap');
+ assert.equal(replies.length,1);assert.equal(replies[0].image,bitmap);
+ state.tick();await flushBitmap();assert.equal(attempts,2);
+});
+test('a changed photograph transfers a fresh bitmap without restarting paused simulation',async()=>{
+ let state;state=setupFrame({createBitmap:()=>Promise.resolve({photo:state.photo.src})});
+ state.boot();state.texture(state.gl.TEXTURE2,{width:192,height:128});state.texture(state.gl.TEXTURE3,{width:384,height:256});
+ state.gl.drawArrays(state.gl.TRIANGLES,0,6);await flushBitmap();
+ const image='https://images.unsplash.com/photo-night';
+ state.message({type:'rain-state',running:false,image});state.photo.load();await flushBitmap();
+ const replies=state.messages.filter(m=>m.type==='rain-bitmap');
+ assert.equal(replies.length,2);assert.equal(replies[1].photo,image);assert.equal(state.nativeFrames.size,0);
+});
+test('permanent capture failure stops after three attempts and reports fallback',async()=>{
+ let attempts=0;const state=setupFrame({createBitmap:()=>{attempts++;return Promise.reject(Error('failed'));}});
+ state.boot();state.gl.drawArrays(state.gl.TRIANGLES,0,6);await flushBitmap();
+ for(let i=0;i<4;i++){state.tick();await flushBitmap();}
+ assert.equal(attempts,3);assert.ok(state.messages.some(m=>m.type==='rain-error'));
+ assert.equal(state.nativeFrames.size,0);
 });
