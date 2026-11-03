@@ -633,6 +633,15 @@ ul.goals li{margin-bottom:8px}
 .settings-view .switches,.settings-view .ambience{justify-content:flex-start;flex-wrap:wrap;margin:0}
 .settings-note{color:var(--ink-2);font-size:12px;margin:-4px 0 18px}
 #settings-open{margin-left:auto}
+.masthead-in{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px}
+.masthead-in>.spacer{display:none}
+.header-tools{display:grid;grid-template-columns:repeat(3,max-content);align-items:center;gap:24px}
+.header-tools .ambience{display:contents}
+.header-tools .iconbtn{justify-content:center;min-height:44px}
+.header-tools #background-status{grid-column:1/-1;grid-row:2;max-width:320px}
+#background-status:empty{display:none}
+.settings-columns{grid-template-columns:1fr}
+@media screen and (max-width:1050px){.masthead-in{grid-template-columns:1fr}.header-tools{justify-content:end}}
 @media screen and (max-width:700px){
   .settings-heading{padding:24px 20px}
   .preset-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
@@ -643,13 +652,79 @@ ul.goals li{margin-bottom:8px}
   .preset-card{padding:9px 10px 14px;border-radius:18px}
   .settings-columns{grid-template-columns:1fr;gap:0}
   .tabs button{min-width:0;padding-inline:8px}
-  #settings-open span{display:none}
+  .header-tools{grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;width:100%}
+  .header-tools .iconbtn{flex-direction:column;gap:6px;min-width:0;min-height:62px;padding:8px 4px;font-size:11px}
+  #settings-open{margin-left:0}
+  #settings-open span{display:inline}
 }
 @media print{#view-settings{display:none!important}}
 
+/* Space between independent glass surfaces; compact views keep separate lenses. */
+@media screen{
+  main{padding-top:32px}
+  .sec{padding:28px;margin-bottom:32px}
+  .sec-head{margin-bottom:24px;gap:12px 24px}
+  .tabs{margin-top:28px;padding:10px;gap:24px}
+  .tt{gap:24px}
+  .tt .blk{padding:16px 16px 14px 20px}
+  .now-panel{padding:24px;gap:24px;margin-bottom:28px}
+  .now-items,.cards,.notice-list,.picker,.preset-grid,.calendar-arrows,.attendance-actions{gap:28px}
+  .now-item{padding:18px 18px 18px 20px}
+  .weekbar{padding:20px;gap:28px;margin-bottom:32px}
+  .calendar-scroll{padding:8px 3px 24px;margin:0 -3px -24px}
+  .week-board{gap:28px;min-width:1060px}
+  .dayrow{overflow:visible}
+  .daycells{padding:16px 14px;display:grid;gap:28px}
+  .week-board .wk{margin:0;padding:16px 14px;border-radius:16px}
+  .week-board .daylab{border-radius:20px 20px 0 0}
+  .is-today .daylab{background:transparent;border-top:2px solid var(--indigo)}
+  .study-details>summary{border-radius:12px}
+  .picker button{padding:12px 16px;border-radius:18px}
+  .cbody{gap:32px}
+  .box{padding:24px}
+  .attendance-storage{padding-top:24px;margin-top:24px}
+  .attendance-actions .iconbtn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border-radius:22px;line-height:1.6}
+  .switches{gap:28px}
+  .langswitch{padding:8px;gap:24px}
+  .preset-card{padding:18px 20px 22px;gap:14px;border-radius:24px}
+  .preset-art{height:144px}
+  .preset-note{line-height:1.8;font-size:13px}
+  .foot p+p{margin-top:28px}
+  [data-theme="dark"] :is(.now-tag,.live-tag){color:var(--ink);background:rgba(16,46,70,.9);border-color:rgba(235,246,255,.75)}
+}
+@media screen and (max-width:700px){
+  .masthead-in{padding:22px 20px;gap:24px}
+  .header-tools{align-items:stretch}
+  .header-tools .iconbtn{display:grid;grid-template-rows:20px auto;justify-items:center;align-items:start;align-content:start;white-space:normal;line-height:1.5}
+  .header-tools .iconbtn span{max-width:100%;overflow-wrap:anywhere}
+  main{padding-top:24px}
+  .sec{padding:24px 16px;margin-bottom:28px}
+  .sec-head{gap:8px 16px;margin-bottom:24px}
+  .tabs{padding:8px;gap:14px;margin-top:0}
+  .tabs button{padding:6px 0;min-height:58px;gap:5px;font-size:9px}
+  .day-switch,.timetable-switch{padding:8px;gap:14px;margin-bottom:24px}
+  .tt{gap:20px}
+  .timetable-section[data-timetable-view="week"] .tt{gap:12px;grid-template-columns:24px repeat(5,minmax(0,1fr))}
+  .timetable-section[data-timetable-view="week"] .blk{padding:7px 3px 7px 7px}
+  .now-panel{padding:18px;gap:18px;margin-bottom:28px}
+  .now-item{padding:16px}
+  .week-board{min-width:0;gap:28px}
+  .daycells{padding:16px;gap:24px}
+  .week-board .wk{margin:0;padding:16px 14px}
+  .calendar-arrows{gap:24px}
+  .calendar-control{gap:12px}
+  .picker{gap:24px}
+  .picker button{padding:12px;border-radius:16px}
+  .preset-grid{gap:24px}
+  .preset-card{padding:12px 10px 18px;gap:12px;border-radius:20px}
+  .preset-art{height:106px}
+  .preset-note{font-size:12px}
+  .settings-heading{padding:26px 20px}
+}
+
 /* The WebGL material replaces the former CSS approximation. Text stays native. */
-#glass-canvas{position:fixed;inset:0;z-index:-1;width:100%;height:100vh;height:100lvh;pointer-events:none;display:none}
-[data-optics="ready"] #glass-canvas{display:block}
+#glass-canvas{position:fixed;inset:0;z-index:-1;width:100%;height:100vh;height:100lvh;pointer-events:none;visibility:hidden}
+[data-optics="ready"] #glass-canvas{visibility:visible}
 @media screen{
   [data-optics="ready"]{--frost:transparent;--glass:transparent;--cell:transparent;--inlay:transparent}
   [data-optics="ready"] [data-glass-surface]{background:transparent!important;box-shadow:none!important;border-color:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;color:var(--ink)}
@@ -660,6 +735,12 @@ ul.goals li{margin-bottom:8px}
   [data-optics="ready"] .preset-art::before{display:none}
   [data-optics="ready"] [data-glass-ink="dark"]{--ink:#172C3A;--ink-2:#263b48;--ink-3:#344652;--indigo:#164e78;--rule:rgba(20,40,60,.4);--rule-2:rgba(20,40,60,.17)}
   [data-optics="ready"] [data-glass-ink="light"]{--ink:#f2f7fa;--ink-2:#e4edf3;--ink-3:#d8e6ee;--indigo:#c3e3fa;--rule:rgba(230,244,255,.42);--rule-2:rgba(230,244,255,.2)}
+  [data-optics="ready"] [data-glass-ink="dark"]{text-shadow:0 1px 2px rgba(255,255,255,.65)}
+  [data-optics="ready"] [data-glass-ink="light"]{text-shadow:0 1px 2px rgba(0,0,0,.8)}
+  [data-theme="dark"],[data-optics="ready"][data-theme="dark"] [data-glass-ink]{
+    --ink:#f7fafc;--ink-2:#f7fafc;--ink-3:#f7fafc;--indigo:#f7fafc;
+    --notice-ink:#f7fafc;--vermilion:#f7fafc;--f2f:#f7fafc;--live:#f7fafc;--ondemand:#f7fafc;--exam:#f7fafc;--quiz:#f7fafc;
+  }
   [data-optics="ready"] .tabs button[aria-selected="true"],
   [data-optics="ready"] .day-switch button[aria-pressed="true"],
   [data-optics="ready"] .timetable-switch button[aria-pressed="true"]{color:var(--ink);font-weight:750}
