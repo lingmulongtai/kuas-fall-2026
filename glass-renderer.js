@@ -54,6 +54,8 @@
   // Reference pyramid: full resolution cache, 17-tap passes, 3px base sigma,
   // 12px pickup sigma, and at most ten pyramid levels. Never lower quality on motion.
   const SIGMA0=3,PICK_SIGMA=12,PYR_MAX=10;
+  function materialNeedsPyramid(material){return material.blur>0 || material.frost>0 || material.pickup>0;}
+  function materialNeedsStatistics(material){return material.appearance==='auto' || material.dim>0;}
   function buildPyramid(){
     const cw=canvas.width,ch=canvas.height,bw=Math.max(1,Math.ceil(cw/2)),bh=Math.max(1,Math.ceil(ch/2));
     const levels=Math.min(PYR_MAX,mipLevels(bw,bh)),P=rtex('pyr',bw,bh,levels),T=rtex('pyrTmp',bw,bh,levels);
@@ -65,9 +67,17 @@
   }
   const source=document.createElement('canvas'),cx=source.getContext('2d',{willReadFrequently:true});
   const imageTex=gl.createTexture();
-  let meanLum=.6,pixels=null;
+  let meanLum=.6,pixels=null,sourceStatisticsCurrent=false,imageWidth=0,imageHeight=0;
+  function sourceLuminanceNeeded(){
+    const presets=window.GlassMaterials.presets;
+    const selected=presets.find(p=>p.id===root.dataset.material)?.p||presets[5].p;
+    if(materialNeedsStatistics(selected))return true;
+    return targets.some(el=>el.dataset.materialPreview && el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}) &&
+      materialNeedsStatistics(presets.find(p=>p.id===el.dataset.materialPreview)?.p||presets[5].p));
+  }
   function uploadSource(){
-    source.width=canvas.width;source.height=canvas.height;
+    if(source.width!==canvas.width)source.width=canvas.width;
+    if(source.height!==canvas.height)source.height=canvas.height;
     cx.fillStyle=root.dataset.theme==='dark'?'#171f2b':'#dce6eb';cx.fillRect(0,0,source.width,source.height);
     const image=RAIN && rainImage ? rainImage : photo;
     if(image && (image.width || image.naturalWidth)){
@@ -76,18 +86,24 @@
       cx.drawImage(image,(source.width-iw*scale)/2,(source.height-ih*scale)/2,iw*scale,ih*scale);
     }
     bindTex(0,imageTex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
-    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,source);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.MIRRORED_REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.MIRRORED_REPEAT);
+    if(imageWidth!==source.width || imageHeight!==source.height){
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,source);
+      imageWidth=source.width;imageHeight=source.height;
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.MIRRORED_REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.MIRRORED_REPEAT);
+    }else gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,gl.RGBA,gl.UNSIGNED_BYTE,source);
     gl.generateMipmap(gl.TEXTURE_2D);
+    sourceStatisticsCurrent=false;sourceDirty=false;
+  }
+  function updateSourceStatistics(){
     pixels=cx.getImageData(0,0,source.width,source.height).data;
     let sum=0;
     for(let y=0;y<24;y++)for(let x=0;x<24;x++){
       const i=(Math.floor((y+.5)*source.height/24)*source.width+Math.floor((x+.5)*source.width/24))*4;
       sum+=luminance(pixels.subarray(i,i+3));
     }
-    meanLum=sum/(24*24);sourceDirty=false;
+    meanLum=sum/(24*24);sourceStatisticsCurrent=true;
   }
   const lin=c=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;};
   const luminance=c=>.2126*lin(c[0])+.7152*lin(c[1])+.0722*lin(c[2]);
@@ -137,7 +153,7 @@
       if(el.closest('.tabs'))depth+=30;
       if(!layers.has(depth))layers.set(depth,[]);
       const style=getComputedStyle(el),m=window.GlassMaterials.presets.find(p=>p.id===(el.dataset.materialPreview||root.dataset.material))?.p||window.GlassMaterials.presets[5].p;
-      const L=measure(rect),old=toneMemory.get(el)||0;
+      const L=m.appearance==='auto'?measure(rect):0,old=toneMemory.get(el)||0;
       const tone=m.appearance==='light'?0:m.appearance==='dark'?1:Math.min(rect.width,rect.height)<=96?(old>.5?(L<.22?1:0):(L<.14?1:0)):0;
       toneMemory.set(el,tone);
       layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone,clip});
@@ -154,7 +170,7 @@
     return [...layers].sort((a,b)=>a[0]-b[0]).map(entry=>entry[1]);
   }
   const touch={x:-1e4,y:-1e4,strength:0};
-  let inkPixels=null,labels=[],labelLayout=[],labelLayoutDirty=true,inkHistory=new WeakMap(),contrastUrgent=true,lastContrast=-Infinity,contrastTimer=0;
+  let inkPixels=null,labels=[],labelLayout=[],labelLayoutDirty=true,inkHistory=new WeakMap(),inkCandidates=new WeakMap(),contrastUrgent=true,lastContrast=-Infinity,contrastTimer=0;
   const colorCache=new Map(),colorCanvas=document.createElement('canvas');
   colorCanvas.width=colorCanvas.height=1;
   const colorContext=colorCanvas.getContext('2d',{willReadFrequently:true});
@@ -167,6 +183,11 @@
     }
     const best=scores.dark>=scores.light?'dark':'light';
     return previous && previous!==best && scores[previous]>=3 && scores[best]<scores[previous]*1.15?previous:best;
+  }
+  function stabiliseLabelInk(candidate,previous,pending,now){
+    if(!previous || candidate===previous)return {color:candidate,pending:null};
+    if(pending?.color!==candidate)pending={color:candidate,since:now};
+    return now-pending.since>=500?{color:candidate,pending:null}:{color:previous,pending};
   }
   function labelBackdrop(el,styles){
     // The GPU image excludes native DOM fills, such as status badges and rows.
@@ -193,6 +214,7 @@
   }
   function measureLabels(){
     const range=document.createRange(),styles=new Map();
+    const previousBackdrops=new Map(labelLayout.map(label=>[label.el,label.backdrop]));
     labelLayout=[];
     for(const label of labels){
       const {el,nodes}=label;
@@ -204,7 +226,11 @@
       const clip=scroller?scroller.getBoundingClientRect():{left,top,right:left+width,bottom:top+height};
       const visible=rects.map(rect=>({left:Math.max(rect.left,left,clip.left),top:Math.max(rect.top,top,clip.top),right:Math.min(rect.right,left+width,clip.right),bottom:Math.min(rect.bottom,top+height,clip.bottom)}))
         .filter(rect=>rect.right>rect.left && rect.bottom>rect.top);
-      if(visible.length)labelLayout.push({el,rects:visible,backdrop:labelBackdrop(el,styles)});
+      if(visible.length){
+        const backdrop=labelBackdrop(el,styles),previous=previousBackdrops.get(el);
+        if(previous && backdrop.some((value,i)=>value!==previous[i])){inkHistory.delete(el);inkCandidates.delete(el);}
+        labelLayout.push({el,rects:visible,backdrop});
+      }
     }
     labelLayoutDirty=false;
   }
@@ -222,7 +248,7 @@
     return samples;
   }
   function resetLabelContrast(){
-    labelLayoutDirty=true;contrastUrgent=true;inkHistory=new WeakMap();
+    labelLayoutDirty=true;contrastUrgent=true;inkHistory=new WeakMap();inkCandidates=new WeakMap();
   }
   function updateLabelContrast(){
     if(['white','black'].includes(root.dataset.textColor)){clearTimeout(contrastTimer);contrastTimer=0;return;}
@@ -242,12 +268,17 @@
     if(!inkPixels || inkPixels.length!==w*h*4)inkPixels=new Uint8Array(w*h*4);
     gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,inkPixels);
     if(labelLayoutDirty || moving)measureLabels();
+    let waiting=false;
+    const now=performance.now();
     for(const {el,rects,backdrop} of labelLayout){
-      const color=chooseLabelInk(sampleLabel(rects,backdrop,w,h),inkHistory.get(el));
+      const previous=inkHistory.get(el),candidate=chooseLabelInk(sampleLabel(rects,backdrop,w,h),previous);
+      const {color,pending}=stabiliseLabelInk(candidate,previous,inkCandidates.get(el),now);
+      if(pending){inkCandidates.set(el,pending);waiting=true;}else inkCandidates.delete(el);
       inkHistory.set(el,color);
       if(el.dataset.autoInk!==color)el.dataset.autoInk=color;
     }
     contrastUrgent=false;lastContrast=performance.now();
+    if(waiting)contrastTimer=setTimeout(()=>{contrastTimer=0;invalidate();},120);
   }
   function drawLayer(shapes){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
@@ -271,7 +302,7 @@
       m2.set([...rgb,m.tintAmount],o);m3.set([m.pickup,m.specular,m.rimWidth,m.shadow],o);
     }
     drawTo(programs.glass,fb.output.fbo,canvas.width,canvas.height,L=>{
-      bindTex(0,fb.scene.tex);gl.uniform1i(L.u_scene,0);bindTex(1,fb.pyr.tex);gl.uniform1i(L.u_blur,1);
+      bindTex(0,fb.scene.tex);gl.uniform1i(L.u_scene,0);bindTex(1,materialNeedsPyramid(material)?fb.pyr.tex:fb.scene.tex);gl.uniform1i(L.u_blur,1);
       gl.uniform2f(L.u_res,canvas.width,canvas.height);gl.uniform2f(L.u_dpr,canvas.width/width,canvas.height/height);
       gl.uniform2f(L.u_texel,1/canvas.width,1/canvas.height);gl.uniform4f(L.u_map,1/width,-1/height,0,1);gl.uniform1f(L.u_sceneLod,0);
       gl.uniform1i(L.u_n,shapes.length);
@@ -299,6 +330,7 @@
       const ratio=Math.min(devicePixelRatio||1,2);
       if(w!==width || h!==height || ratio!==dpr){width=w;height=h;dpr=ratio;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);sourceDirty=true;}
       if(sourceDirty)uploadSource();
+      if(!sourceStatisticsCurrent && sourceLuminanceNeeded())updateSourceStatistics();
       rtex('scene',canvas.width,canvas.height,mipLevels(canvas.width,canvas.height));rtex('output',canvas.width,canvas.height);
       drawTo(programs.cover,fb.scene.fbo,canvas.width,canvas.height,L=>{
         bindTex(0,imageTex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,1,0,0);gl.uniform4f(L.u_rect,0,0,1,1);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
@@ -308,7 +340,10 @@
       for(const shapes of layers){
         // Each independent control has its own optical container. Preserve the
         // reference merge value without fusing adjacent buttons or cards.
-        for(const batch of batchSurfaces(shapes,capacity)){buildPyramid();drawLayer(batch);}
+        for(const batch of batchSurfaces(shapes,capacity)){
+          if(materialNeedsPyramid(batch[0].m))buildPyramid();
+          drawLayer(batch);
+        }
       }
       root.dataset.optics='ready';
       updateLabelContrast();
@@ -347,6 +382,7 @@
   new MutationObserver(records=>{
     if(records.every(r=>r.type==='attributes' && ['data-auto-ink','data-glass-surface','data-optics'].includes(r.attributeName)))return;
     if(records.some(r=>r.type==='childList'))refreshTargets();
+    else if(records.some(r=>['class','hidden','open'].includes(r.attributeName)))resetLabelContrast();
     labelLayoutDirty=true;contrastUrgent=true;
     invalidate();
   }).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class','hidden','open','data-auto-ink','data-glass-surface']});
@@ -368,16 +404,18 @@
     if(event.data?.type==='rain-ready' || (event.data?.type==='rain-photo-ready' && event.data.image===photo?.src))requestRainBitmap(true);
     if(event.data?.type!=='rain-bitmap')return;
     if(event.data.photo && event.data.photo!==photo?.src){event.data.image.close();return;}
+    if(!rainImage)resetLabelContrast();
     rainImage?.close();rainImage=event.data.image;sourceDirty=true;invalidate();
     requestAnimationFrame(()=>requestRainBitmap());
   });
-  function layoutChanged(){labelLayoutDirty=true;contrastUrgent=true;invalidate();}
+  function layoutChanged(){resetLabelContrast();invalidate();}
+  function hoveredLabelChanged(){labelLayoutDirty=true;contrastUrgent=true;invalidate();}
   window.addEventListener('resize',layoutChanged);
   new ResizeObserver(layoutChanged).observe(canvas);
   window.addEventListener('scroll',layoutChanged,{passive:true});
   document.addEventListener('scroll',layoutChanged,{passive:true,capture:true});
-  document.addEventListener('pointerover',layoutChanged,{passive:true});
-  document.addEventListener('pointerout',layoutChanged,{passive:true});
+  document.addEventListener('pointerover',hoveredLabelChanged,{passive:true});
+  document.addEventListener('pointerout',hoveredLabelChanged,{passive:true});
   document.addEventListener('click',()=>invalidate(true));
   function trackPointer(event){
     if(event.isPrimary===false)return;
