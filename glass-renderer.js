@@ -140,7 +140,8 @@
       const L=measure(rect),old=toneMemory.get(el)||0;
       const tone=m.appearance==='light'?0:m.appearance==='dark'?1:Math.min(rect.width,rect.height)<=96?(old>.5?(L<.22?1:0):(L<.14?1:0)):0;
       toneMemory.set(el,tone);
-      if(root.dataset.theme==='dark' && el.dataset.glassInk!=='light')el.dataset.glassInk='light';
+      const forcedInk=root.dataset.textColor==='white'?'light':root.dataset.textColor==='black'?'dark':root.dataset.theme==='dark'?'light':null;
+      if(forcedInk && el.dataset.glassInk!==forcedInk)el.dataset.glassInk=forcedInk;
       layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone,clip});
       if(el.classList.contains('segmented')){
         const selected=el.querySelector('[aria-selected="true"],[aria-pressed="true"]');
@@ -157,7 +158,7 @@
   const touch={x:-1e4,y:-1e4,strength:0};
   let inkPixels=null;
   function updateLabelContrast(){
-    if(root.dataset.theme==='dark')return;
+    if(root.dataset.theme==='dark' || ['white','black'].includes(root.dataset.textColor))return;
     // Inspect the finished glass, including neighbouring lenses and dimming,
     // rather than predicting text contrast from the unprocessed photograph.
     const w=Math.min(320,canvas.width),h=Math.max(1,Math.round(canvas.height*w/canvas.width));
@@ -278,6 +279,7 @@
   window.addEventListener('wallpaperchange',event=>{photo=event.detail;rainImage?.close();rainImage=null;sourceDirty=true;invalidate();});
   window.addEventListener('rainreset',()=>{rainImage?.close();rainImage=null;sourceDirty=true;invalidate();});
   window.addEventListener('glasschange',()=>invalidate(true));
+  window.addEventListener('textcolorchange',()=>invalidate());
   function requestRainBitmap(once=false){
     const frame=document.querySelector('#rain iframe');
     if(RAIN && (once || rainMotionEnabled()) && !document.hidden && !suspended && photo?.naturalWidth && frame?.style.visibility!=='hidden')
