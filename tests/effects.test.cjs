@@ -354,7 +354,7 @@ test('water and shine textures pass through exactly while both photo samplers us
     assert.ok(Math.abs(left-(2400-cropWidth)/2)<1e-10);
     assert.ok(Math.abs(top-(1600-cropHeight)/2)<1e-10);
     assert.ok(Math.abs(cropWidth-2400/1.05)<1e-10,'Keep the background\'s 1.05 zoom');
-    assert.equal(drawing.filter,unit===state.gl.TEXTURE2?'brightness(.45)':'brightness(.45) blur('+(4*width/1440)+'px)');
+    assert.equal(drawing.filter,unit===state.gl.TEXTURE2?'none':'blur('+(4*width/1440)+'px)','Rain preserves the photograph\'s brightness in both samplers');
   }
   const allocation=[state.gl.TEXTURE_2D,0,state.gl.RGBA,16,16,0,state.gl.RGBA,state.gl.UNSIGNED_BYTE,null];
   state.gl.texImage2D(...allocation);
@@ -442,6 +442,8 @@ test('the selected photograph is CORS enabled and the complete rain frame uses n
   const canvasStyle=frameHTML.match(/#bg-canvas\{[^]*?\}/)[0];
   assert.match(canvasStyle,/opacity:\.95/);
   assert.equal(canvasStyle.match(/mix-blend-mode\s*:\s*([^;}\s]+)/)?.[1]||'normal','normal');
+  const photoStyle=frameHTML.match(/#custom-bg\{[^]*?\}/)[0];
+  assert.match(photoStyle,/filter:blur\(4px\);/,'The loading backdrop retains its blur without dimming the photo');
 });
 
 test('an embedded child waits without advancing animation until its parent supplies state',()=>{
