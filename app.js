@@ -691,7 +691,7 @@ const T = {
   tabMats:{ja:"教材", en:"Materials"},
   tabSettings:{ja:"設定", en:"Settings"},
   settingsTitle:{ja:"自分の見やすさに合わせる", en:"Make yourself at home"},
-  settingsIntro:{ja:"ガラスの表情、テーマ、背景をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass, theme and scenery. Your preferences are saved in this browser."},
+  settingsIntro:{ja:"ガラスの表情、テーマ、言語をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass, theme and language. Your preferences are saved in this browser."},
   glassTitle:{ja:"ガラスのプリセット", en:"Glass material"},
   glassHint:{ja:"タップすると、すべての画面に適用されます。", en:"Choose a material to apply it across every view."},
   appearanceTitle:{ja:"テーマと言語", en:"Appearance & language"},
@@ -722,6 +722,7 @@ const T = {
   backgroundFailed:{ja:"背景を読み込めませんでした。もう一度お試しください。", en:"Scenery could not load. Try again."},
   backgroundSettings:{ja:"背景と動き", en:"Scenery and motion"},
   rainOn:{ja:"雨：オン", en:"Rain: on"},
+  rainReduced:{ja:"雨：静止（OS設定）", en:"Rain: Still (OS setting)"},
   rainOff:{ja:"雨：オフ", en:"Rain: off"},
   motionOn:{ja:"雨を一時停止", en:"Pause rain"},
   motionOff:{ja:"雨を再開", en:"Resume rain"},
@@ -1086,7 +1087,7 @@ function motionEnabled(){ return !(motionPreference && motionPreference.matches)
 function rainMotionEnabled(){ return RAIN && motionEnabled(); }
 function renderAmbience(){
   document.documentElement.dataset.motion = motionEnabled()?'on':'off';
-  $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?'rainOn':'rainOff')+'</span>';
+  $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?(motionEnabled()?'rainOn':'rainReduced'):'rainOff')+'</span>';
   $('rain-btn').setAttribute('aria-pressed',RAIN);
   window.dispatchEvent(new Event('ambiencechange'));
 }
