@@ -747,6 +747,20 @@ ul.goals li{margin-bottom:8px}
   [data-optics="ready"] .langswitch button[aria-pressed="true"]{background:transparent;box-shadow:none;text-decoration:underline;text-underline-offset:5px}
   [data-optics="ready"] .preset-card[aria-pressed="true"]{outline-color:var(--indigo)}
   [data-optics="ready"] :is(main,.foot,.masthead-in){clip-path:inset(-10000px -10000px var(--dock-cut,0px) -10000px)}
+  /* Explicit text preferences take priority over every material and theme. */
+  :root[data-text-color="white"],:root[data-text-color="white"] [data-glass-surface]{
+    --ink:#fff;--ink-2:#fff;--ink-3:#fff;--indigo:#fff;
+    --notice-ink:#fff;--vermilion:#fff;--f2f:#fff;--live:#fff;--ondemand:#fff;--exam:#fff;--quiz:#fff;
+    text-shadow:0 1px 2px rgba(0,0,0,.8);
+  }
+  :root[data-text-color="black"],:root[data-text-color="black"] [data-glass-surface]{
+    --ink:#111;--ink-2:#111;--ink-3:#111;--indigo:#111;
+    --notice-ink:#111;--vermilion:#111;--f2f:#111;--live:#111;--ondemand:#111;--exam:#111;--quiz:#111;
+    text-shadow:0 1px 2px rgba(255,255,255,.65);
+  }
+  :root:is([data-text-color="white"],[data-text-color="black"]) :is(.now-tag,.live-tag){color:var(--ink)}
+  :root[data-text-color="white"] :is(.now-tag,.live-tag){background:rgba(16,46,70,.9)}
+  :root[data-text-color="black"] :is(.now-tag,.live-tag){background:rgba(245,250,255,.9)}
 }
 @media(prefers-reduced-transparency:reduce),(prefers-contrast:more){#glass-canvas{display:none!important}}
 @media print{#glass-canvas{display:none!important}}
