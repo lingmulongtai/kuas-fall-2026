@@ -106,7 +106,7 @@
   window.addEventListener('scroll',resetSprings,{passive:true});
 
   function sendRainState(){
-    rainFrame?.contentWindow.postMessage({type:'rain-state',running:canMove() && !!photo?.naturalWidth,image:photo?.src},'*');
+    rainFrame?.contentWindow.postMessage({type:'rain-state',running:canMove() && rainMotionEnabled() && !!photo?.naturalWidth,image:photo?.src},'*');
   }
   function rainSize(){
     const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
