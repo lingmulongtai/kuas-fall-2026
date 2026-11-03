@@ -271,11 +271,11 @@ test('the 9/25 homework and the next deadlines appear on the home page, calendar
   const home=html('view-home');
   assert.match(home,/次の提出期限・宿題[^]*?9\/28\(月\)[^]*?電磁気学[^]*?EX1-1[^]*?HEIC/);
   assert.match(home,/9\/29\(火\)[^]*?材料力学[^]*?Ex1\.1〜Ex1\.4[^]*?RY9X_O8is-k/);
-  assert.match(home,/10\/1\(木\)[^]*?キャリアデザイン[^]*?この回の課題/);
+  assert.match(home,/10\/1\(木\)[^]*?キャリアデザイン[^]*?履歴書を書く/);
   assert.match(home,/class="exam-card is-quiz"[^]*?毎回（火・金） 3限 13:00–14:30[^]*?電磁気学|電磁気学[^]*?毎回（火・金） 3限 13:00–14:30/);
   const week=html('view-week');
   assert.match(week,/data-session="emt-1"[^]*?提出<\/b> Lecture 1の演習[^]*?9\/28\(月\) 23:59まで/);
-  assert.match(week,/data-session="career-1"[^]*?この回の課題[^]*?10\/1\(木\) 23:59まで/);
+  assert.match(week,/data-session="career-1"[^]*?履歴書を書く[^]*?10\/1\(木\) 23:59まで/);
   assert.match(html('view-course'),/class="box hw-box"[^]*?HEIC[^]*?互換性優先/);
 });
 
