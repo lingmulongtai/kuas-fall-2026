@@ -230,6 +230,7 @@
       // CSS percentages exclude a reserved scrollbar gutter; innerWidth does not.
       // Use the actual painted box for both coordinates and texture resolution.
       const box=canvas.getBoundingClientRect(),w=box.width,h=box.height;
+      if(!w || !h){root.dataset.optics='fallback';return;}
       left=box.left;top=box.top;
       const ratio=Math.min(devicePixelRatio||1,2);
       if(w!==width || h!==height || ratio!==dpr){width=w;height=h;dpr=ratio;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);sourceDirty=true;}
