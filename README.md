@@ -1,16 +1,19 @@
 # 2026年度 秋学期 履修ダッシュボード
 
 工学部 機械電気システム工学科 2年 4セメスタの履修科目・時間割・週ごとの授業内容・成績評価・教材をまとめた静的ページ。
-ビルド不要。ファイルを置くだけで動く。背景写真はUnsplash、雨の描画は指定の外部 `raindrops.js` から読み込む。
+ローカルではビルド不要。公開時は配信用ファイルを `dist/` にまとめ、Vercelから配信する。背景写真はUnsplash、雨の描画は指定の外部 `raindrops.js` から読み込む。
 
 ## ファイル
 
 | ファイル | 中身 |
 |---|---|
-| `index.html` | 骨組みだけ。ヘッダー、タブ、4つの空のセクション |
+| `index.html` | 骨組みだけ。ヘッダー、5つのタブ、各画面の骨組み |
 | `style.css` | 配色トークン（ライト／ダーク）とレイアウト |
 | `app.js` | 科目データ、日本語/英語の文言、描画処理 |
-| `effects.js` | ガラスの屈折、カーソルに反応するバネの動き、雨の背景との接続 |
+| `effects.js` | カーソルに反応するバネの動き、雨の背景との接続 |
+| `glass-materials.js` | Good Machinesの6プリセットと元の光学シェーダー |
+| `glass-renderer.js` | DOMの形状とWebGL2を接続し、各画面のガラスを描く |
+| `scripts/build.mjs` / `vercel.json` | 配信ファイルの生成とVercelのビルド設定 |
 | `rain.html` | 参考コードの画像・Canvas・CSSと、外部 `raindrops.js` の読み込み |
 | `handouts/` | 授業で配布された資料の画像と、機械製作実習の班別Timetable（PDF）。科目詳細から開く |
 
@@ -21,21 +24,16 @@
 授業で聞いたことは `memos`（`date` を付けるとその日の授業にも表示）、範囲ごとの担当教員は `phases`、配布資料の画像は `handouts`（PDFは `pdf:true`）に書く。各回のゲストや進め方は `schedule` の4番目の要素（`showcase`・`format`）に入れる。
 機械製作実習の班別の回は `schedule` の中の `TA(実習番号, 開始, 終了の目安, 場所, 機械の日本語, 英語, 全班同時か)` で書く。班の名前は `SHOP_GROUP`、場所の表記は `PLACES`。
 
-## GitHub Pages で公開する
+## Vercelで公開する
 
-1. GitHub で新しいリポジトリを作る（Public）
-2. `index.html`・`style.css`・`app.js`・`effects.js`・`rain.html`・`handouts/`（＋この README）をリポジトリ直下にアップロード
-3. リポジトリの **Settings → Pages** を開く
-4. **Source** を `Deploy from a branch`、**Branch** を `main` / `(root)` にして Save
-5. 1〜2分待つと `https://<ユーザー名>.github.io/<リポジトリ名>/` で開ける
+公開先：<https://kuas-fall-2026.vercel.app/>
 
-`index.html` が直下にあれば追加の設定はいらない。
+- Vercelプロジェクト：`kuas-fall-2026`（`lingmulongtais-projects`）
+- GitHubの `lingmulongtai/kuas-fall-2026` と接続。`main` を本番へ自動デプロイする
+- Framework：Other、Node.js：22.x、Build Command：`node scripts/build.mjs`、Output Directory：`dist`
+- 外部パッケージのインストールは不要。`dist/` にはアプリ本体と配布資料だけを生成し、README・テスト・ローカル添付ファイルは配信しない
 
-### 非公開にしたい場合
-
-Public リポジトリの Pages は誰でも閲覧できる。個人情報（学籍番号・氏名）は入れていないが、
-URL を知られたくない場合は Private リポジトリ＋GitHub Pages（有料プランが必要）か、
-Cloudflare Pages / Netlify のアクセス制限を使う。
+公開元が変わるとブラウザーの保存領域も変わる。旧サイトで入力した出欠は、科目詳細から書き出して新サイトで読み込む。テーマ・言語・ガラスなどの設定は新サイトで選び直す。
 
 ## 機能
 
@@ -52,10 +50,11 @@ Cloudflare Pages / Netlify のアクセス制限を使う。
 - 中間試験・小テスト・PC持参・要確認の中間の節目を、ホーム・カレンダー・科目詳細の授業計画と成績評価に表示する。授業メモ・キャリアショーケースのゲスト・宿題と提出期限は、その日のカレンダーと授業計画にも出す
 - 教室・配信情報を時間割、科目一覧、週別、科目詳細に表示。週別では各回の授業形態を優先し、オンデマンド回や対面科目の遠隔回には教室を表示しない
 - 日本語 / English 切り替え
+- **設定** — Apple Liquid Glass / Apple clear / Thick lens / Frosted / Plain lens / Prism の6種類を全画面へ適用。初期値は参照URLのPrism。テーマ・言語・背景・雨の操作をまとめ、ガラスの選択もlocalStorageへ保存する
 - テーマ：自動（OS 設定に追従）／ライト／ダーク。選択は localStorage に保存される
 - スマートフォンの時間割は今日の曜日（土日は月曜）を最初に表示する
 - 背景写真：ライト用の明るい風景とダーク用の夜景・星空から、ページの再読み込みごとにランダムな順番で選ぶ。同じ写真の連続表示を避け、テーマごとの残り順序をlocalStorageに保存する
-- 「背景を変える」で次の写真へ。「雨：オン／オフ」「動きを止める／再開」の選択も保存される
+- 「背景を変える」で次の写真へ。「雨：オン／オフ」「雨を一時停止／再開」の選択も保存される
 - 休講日は12/28・12/29・12/30・12/31・1/1を含め、1日ずつ表示する
 
 ## 背景写真
@@ -77,20 +76,25 @@ Unsplash全体を毎回検索する方式ではなく、選定した写真の候
 
 ## ガラスと動き
 
-ガラスの暗い側面、上下の反射、カーソルを追う光、バネで戻るボタン、移動する選択レンズを組み合わせている。対応ブラウザーではSVG変位マップでレンズの縁に屈折を加える。文字自体には変位フィルターを適用しない。
+[Good Machines Liquid Glass Lab](https://goodmachines.ai/lab/liquid-glass)の6プリセットを使用する。取得日：2026/11/03。数値、屈折・分散・frost・照明のGLSL、17タップのGaussian blurを保持し、画面サイズやUI形状に接続する部分を実装している。描画中も解像度を下げず、参照と同じ最大DPR 2で描く。元サイトが許可する形状数を超えるUIには、端末のuniform上限に応じた形状配列と階層別の描画passを使用する。
 
-OSの「視差効果を減らす／動きを減らす」を尊重し、その場合は雨も静止する。利用者の停止操作、非表示タブ、印刷中には継続描画を止める。透明度を抑える設定や高コントラスト設定では写真・雨を隠して不透明な面を使う。屈折の描画はブラウザーにより異なり、未対応環境ではCSSの反射とぼかしが基本の表示になる。
+1つのWebGL2 contextが背景とガラスを描き、文字・入力・ボタンはネイティブDOMに残す。親カードと子の操作面は別passにして両方の縁を保つ。設定のサンプルも、素材ごとのdim・mergeを含む同じ値で描く。雨は隔離したiframeから描画済みbitmapを受け取り、ガラスの入力に使う。水滴のシミュレーションや雨の品質値は変更しない。
 
-見た目の参考：[Liquid Aqua](https://thathtml.blog/2026/07/liquid-glass-in-css-liquid-aqua/)、[窓に流れる雨の表現](https://kumonosu.net/css/610/)。雨は後者で指定されている外部スクリプトを使用する。
+雨の表示・一時停止とUIのアニメーションは独立している。雨を止めても画面切替やボタンの動きは続く。OSの「動きを減らす」は尊重し、その場合はUIの動きを抑えて雨も静止する。非表示タブ・印刷中には継続描画を止める。透明度を抑える設定・高コントラスト設定・WebGL2非対応時はCSSの表示を使う。スマートフォン実機とSafariでの見た目・GPU負荷は別途確認が必要。
+
+雨の参考：[窓に流れる雨の表現](https://kumonosu.net/css/610/)。指定の外部スクリプトを使用する。
 
 ## 開発時の確認
 
-ビルド・パッケージインストールは不要。Node.jsは検証時だけ使用する。
+パッケージインストールは不要。ローカル表示にはHTTPサーバー、検証と配信用ビルドにはNode.js 22を使用する。
 
 ```sh
 node --check app.js
 node --check effects.js
-node --test tests/background.test.cjs tests/calendar.test.cjs tests/effects.test.cjs tests/attendance.test.cjs tests/attendance-input.test.cjs
+node --check glass-materials.js
+node --check glass-renderer.js
+node --test tests/*.test.cjs
+node scripts/build.mjs tests/attendance.test.cjs tests/attendance-input.test.cjs
 python -m http.server 4186 --bind 127.0.0.1
 ```
 
