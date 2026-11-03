@@ -265,6 +265,8 @@ const COURSES = [
   location:{ja:"S306教室", en:"Room S306"},
   slots:[{day:0,period:2,span:1,pick:w=>[2*w-1]},{day:1,period:5,span:1,pick:w=>[2*w]}],
   total:30, perWeek:2, firstWeek:1, lastWeek:15,
+  memos:[
+    {date:"2026-09-28", ja:"10/26・10/27・1/12はオンデマンド授業。1月のもう1回は日付要確認（当初メモは1/25、後の補足では1/15の可能性あり）。", en:"Oct 26, Oct 27 and Jan 12 are on-demand. The other January date needs confirmation: the original note says Jan 25, with a later clarification suggesting Jan 15."}],
   outline:{
     ja:"微分積分学・線形代数1と2で学んだ内容を土台に、機械工学・電気工学で広く使われる常微分方程式(ODE)とベクトル解析を扱う。工学に関わるODEとベクトル解析を理解するための知識と実践的な計算技術の両方を身につけ、1階・2階のODEとベクトル解析の基礎に関する新しい技能を養う。",
     en:"Building on Calculus and Linear Algebra 1 and 2, this course introduces ordinary differential equations (ODE) and vector calculus widely used in mechanical and electrical engineering, developing both knowledge and practical calculation techniques."},
@@ -417,6 +419,7 @@ const COURSES = [
   handouts:[
     {src:SHOP_PDF, pdf:true, ja:"班別Timetable（全班・2026/9/18現在・PDF）", en:"Group timetable (all groups, as of 2026/9/18, PDF)"}],
   memos:[
+    {date:"2026-09-24", ja:"土曜日に練習できるか担当者に確認する。練習の可否・日時は未確定。", en:"Ask the workshop staff whether Saturday practice is possible. Availability and dates are not confirmed."},
     {ja:"第3週（10/8）からは班別。"+SHOP_GROUP+"は回によって開始時刻・場所・機械が変わるので、毎週ここで確認する。", en:"From week 3 (Oct 8) the class splits into groups. "+SHOP_GROUP+"'s start time, room and machine change every week, so check here each week."}],
   outline:{
     ja:"旋盤・フライス盤・ボール盤などの工作機械を実際に使うハンズオン実習。機械加工の基礎、加工プロセス、工作機械、加工精度について知識と技能を身につける。さらに3Dプリンタによる積層造形を学び、加工プロセスと安全に関する一般知識を完成させる。",
@@ -472,6 +475,8 @@ const COURSES = [
     {from:14, to:15, teacher:{ja:"西先生（講座は外部講師）", en:"Nishi (workshops by an external lecturer)"}}],
   hw:{due:"dayBefore", submit:true, what:{ja:"課題", en:"assignments"},
     rule:{ja:"課題の提出期限は木曜の深夜23:59（次の授業の前日）。", en:"Assignments are due Thursday 23:59, the night before the next class."}},
+  tasks:[
+    {date:"2026-09-25", ja:"履歴書を書く", en:"Write a resume"}],
   outline:{
     ja:"人生設計のなかで働くことの意味と、キャリアをどう位置づけるかを考える。将来の自分のキャリア像を形づくり、就職活動に必要な基礎知識とスキルを身につける。あわせて、3年次から始まるプレキャップストーン・プログラムに向けて、学生としてのKUAS行動規範を修得する。",
     en:"Students think about the meaning of working within their life planning, form their own future career image, and acquire basic knowledge and skills for job hunting, plus the KUAS Code of Conduct."},
@@ -684,11 +689,28 @@ const T = {
   tabWeek:{ja:"カレンダー", en:"Calendar"},
   tabCourse:{ja:"科目詳細", en:"Courses"},
   tabMats:{ja:"教材", en:"Materials"},
+  tabSettings:{ja:"設定", en:"Settings"},
+  settingsTitle:{ja:"自分の見やすさに合わせる", en:"Make yourself at home"},
+  settingsIntro:{ja:"ガラスの表情、テーマ、背景をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass, theme and scenery. Your preferences are saved in this browser."},
+  glassTitle:{ja:"ガラスのプリセット", en:"Glass material"},
+  glassHint:{ja:"タップすると、すべての画面に適用されます。", en:"Choose a material to apply it across every view."},
+  appearanceTitle:{ja:"テーマと言語", en:"Appearance & language"},
+  sceneryTitle:{ja:"背景と雨", en:"Scenery & rain"},
+  sceneryHint:{ja:"雨を止めても、ボタンや画面のアニメーションは変わりません。", en:"Pausing rain keeps all interface animations running."},
+  presetApple:{ja:"やわらかな屈折と、背景になじむガラス。", en:"A gentle lens that adapts to its surroundings."},
+  presetAppleClear:{ja:"薄い霞と、明るい背景を抑える透明感。", en:"Clear glass with a subtle haze and a dimmed backdrop."},
+  presetThick:{ja:"厚みのある縁と、大きく映り込むレンズ。", en:"A deep edge with a magnifying lens."},
+  presetFrosted:{ja:"背景の色がやわらかく溶ける、すりガラス。", en:"Soft frost that picks up the colours behind it."},
+  presetClear:{ja:"ぼかしや色味を加えない、澄んだレンズ。", en:"A crisp lens without blur, haze or tint."},
+  presetPrism:{ja:"縁に光が分かれる、プリズムの透明感。", en:"A clear prism with colour breaking at the rim."},
   themeAuto:{ja:"テーマ：自動", en:"Theme: Auto"},
   themeLight:{ja:"テーマ：ライト", en:"Theme: Light"},
   themeDark:{ja:"テーマ：ダーク", en:"Theme: Dark"},
   timetable:{ja:"時間割", en:"Timetable"},
   ttHint:{ja:"科目をタップすると詳細へ", en:"Tap a course for details"},
+  chooseTimetableView:{ja:"時間割の表示を選択", en:"Choose a timetable view"},
+  timetableDay:{ja:"1日", en:"Day"},
+  timetableWeek:{ja:"1週間", en:"Week"},
   chooseDay:{ja:"時間割の曜日を選択", en:"Choose a timetable day"},
   emptyPeriod:{ja:"空き時間", en:"Free period"},
   studyDetails:{ja:"教員・授業外学修", en:"Instructors & preparation"},
@@ -701,8 +723,8 @@ const T = {
   backgroundSettings:{ja:"背景と動き", en:"Scenery and motion"},
   rainOn:{ja:"雨：オン", en:"Rain: on"},
   rainOff:{ja:"雨：オフ", en:"Rain: off"},
-  motionOn:{ja:"動きを止める", en:"Pause motion"},
-  motionOff:{ja:"動きを再開", en:"Resume motion"},
+  motionOn:{ja:"雨を一時停止", en:"Pause rain"},
+  motionOff:{ja:"雨を再開", en:"Resume rain"},
   motionReduced:{ja:"動き：控えめ", en:"Reduced motion"},
   lunch:{ja:"昼休み 12:10–13:00", en:"Lunch break 12:10-13:00"},
   courses:{ja:"科目一覧", en:"Course list"},
@@ -884,6 +906,8 @@ let COURSE = liveCourseId();
 /* スマホの時間割は今日の曜日（土日は月曜）から。 */
 let DAY = (d=>d<5?d:0)(weekdayOf(todayISO()));
 let RENDERED_DATE = null;
+let TIMETABLE_VIEW = "day";
+let GLASS_PRESET = "prism";
 
 const $ = id => document.getElementById(id);
 const byId = id => COURSES.find(c=>c.id===id);
@@ -967,6 +991,7 @@ function wallpaperSize(){
 function loadWallpaperImage(photo){
   return new Promise((resolve,reject)=>{
     const image = new Image();
+    image.crossOrigin = 'anonymous';
     image.alt = '';
     image.decoding = 'async';
     image.fetchPriority = 'low';
@@ -1058,13 +1083,14 @@ let MOTION = store.get('motion')!=='off';
 let RAIN = store.get('rain')!=='off';
 const runningMotion = new Map();
 let printing = false;
-function motionEnabled(){ return MOTION && !(motionPreference && motionPreference.matches); }
+function motionEnabled(){ return !(motionPreference && motionPreference.matches); }
+function rainMotionEnabled(){ return MOTION && motionEnabled(); }
 function renderAmbience(){
   document.documentElement.dataset.motion = motionEnabled()?'on':'off';
   $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?'rainOn':'rainOff')+'</span>';
   $('rain-btn').setAttribute('aria-pressed',RAIN);
-  $('motion-btn').innerHTML = uiIcon(motionEnabled()?'pause':'play')+'<span>'+t(motionPreference && motionPreference.matches?'motionReduced':MOTION?'motionOn':'motionOff')+'</span>';
-  $('motion-btn').setAttribute('aria-pressed',motionEnabled());
+  $('motion-btn').innerHTML = uiIcon(rainMotionEnabled()?'pause':'play')+'<span>'+t(motionPreference && motionPreference.matches?'motionReduced':MOTION?'motionOn':'motionOff')+'</span>';
+  $('motion-btn').setAttribute('aria-pressed',rainMotionEnabled());
   $('motion-btn').disabled = !!(motionPreference && motionPreference.matches);
   window.dispatchEvent(new Event('ambiencechange'));
 }
@@ -1088,7 +1114,7 @@ function revealView(){
   Array.from(view.children).forEach((element,i)=>moveIn(element,0,Math.min(i,3)*40));
 }
 function syncSelections(){
-  document.querySelectorAll('.tabs,.day-switch').forEach(group=>{
+  document.querySelectorAll('.tabs,.day-switch,.timetable-switch').forEach(group=>{
     if(!group.offsetWidth) return;
     const selected = group.querySelector('[aria-selected="true"],[aria-pressed="true"]');
     if(!selected) return;
@@ -1129,6 +1155,7 @@ const cc = c => isDark() ? c.colorD : c.color;
 /* Small inline symbols keep the interface independent of icon fonts and CDNs. */
 function uiIcon(name){
   const paths = {
+    settings:'<path d="M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1Z"/><circle cx="12" cy="12" r="3"/>',
     home:'<rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4m10-4v4M3 11h18M8 15h2m4 0h2m-8 3h2"/>',
     week:'<rect x="4" y="3" width="16" height="18" rx="4"/><path d="M8 8h8m-8 4h8m-8 4h5"/>',
     course:'<path d="M12 6c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v15"/>',
@@ -1659,14 +1686,17 @@ function renderHome(){
     + '</div></div>';
 
   const summary = h;
-  /* 同じ時間割を、PCでは5列、スマホでは選択曜日の1列で表示する。 */
-  h = '<div class="sec timetable-section"><div class="sec-head"><h2>'+t("timetable")+'</h2><span>'+t("ttHint")+'</span></div>';
+  /* 同じ時間割を、PCでは5列、スマホでは1日／1週間に切り替えて表示する。 */
+  h = '<div class="sec timetable-section" data-timetable-view="'+TIMETABLE_VIEW+'"><div class="sec-head"><h2>'+t("timetable")+'</h2><span>'+t("ttHint")+'</span></div>';
+  h += '<div class="timetable-switch" role="group" aria-label="'+t("chooseTimetableView")+'">';
+  ["day","week"].forEach(mode=>{ h += '<button type="button" data-timetable-select="'+mode+'" aria-controls="timetable-grid" aria-pressed="'+(mode===TIMETABLE_VIEW)+'">'+t(mode==="day"?"timetableDay":"timetableWeek")+'</button>'; });
+  h += '</div>';
   const now = nowJST();
   h += '<section class="now-panel" id="now-panel" aria-label="'+t("nowLabel")+'">'+nowPanelHTML(now,liveState(now))+'</section>';
   h += '<div class="day-switch" role="group" aria-label="'+t("chooseDay")+'">';
   DAYS.forEach((d,i)=>{ h += '<button type="button" data-day-select="'+i+'" aria-pressed="'+(i===DAY)+'">'+d.s[LANG]+'</button>'; });
-  h += '</div><div class="ttwrap"><div class="tt"><div class="tt-corner">'+t("colSlot")+'</div>';
-  DAYS.forEach((d,i)=>{ h += '<div class="hd'+(i===DAY?'':' day-hidden')+'" data-day="'+i+'">'+d[LANG]+'</div>'; });
+  h += '</div><div class="ttwrap"><div class="tt" id="timetable-grid"><div class="tt-corner">'+t("colSlot")+'</div>';
+  DAYS.forEach((d,i)=>{ h += '<div class="hd'+(i===DAY?'':' day-hidden')+'" data-day="'+i+'"><span class="tt-day-full">'+d[LANG]+'</span><span class="tt-day-short">'+d.s[LANG]+'</span></div>'; });
 
   const occ = {}, today = todayISO();
   COURSES.forEach(c=>c.slots.forEach(s=>{
@@ -1980,6 +2010,15 @@ function renderMats(){
 }
 
 /* ---------- 操作 ---------- */
+function setTimetableView(mode){
+  if((mode!=="day" && mode!=="week") || mode===TIMETABLE_VIEW) return;
+  TIMETABLE_VIEW = mode;
+  store.set("timetable-view", mode);
+  stopMotion();
+  document.querySelector('.timetable-section').dataset.timetableView = mode;
+  document.querySelectorAll('[data-timetable-select]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.timetableSelect===mode));
+  syncSelections();
+}
 function setLang(l){
   LANG = l;
   document.documentElement.lang = l;
@@ -1996,12 +2035,36 @@ function followLiveCourse(){
   const id = liveCourseId();
   if(id!==COURSE){ COURSE = id; renderCourse(); applyLive(); }
 }
+function renderSettings(){
+  if(!$('glass-presets')) return;
+  $('settings-title').textContent=t('settingsTitle');
+  $('settings-intro').textContent=t('settingsIntro');
+  $('glass-title').textContent=t('glassTitle');
+  $('glass-hint').textContent=t('glassHint');
+  $('appearance-title').textContent=t('appearanceTitle');
+  $('scenery-title').textContent=t('sceneryTitle');
+  $('scenery-hint').textContent=t('sceneryHint');
+  $('settings-open').innerHTML=uiIcon('settings')+'<span>'+t('tabSettings')+'</span>';
+  const descriptions=['presetApple','presetAppleClear','presetThick','presetFrosted','presetClear','presetPrism'];
+  $('glass-presets').innerHTML=(window.GlassMaterials?.presets||[]).map((preset,i)=>
+    '<button type="button" class="preset-card" data-preset="'+preset.id+'" aria-pressed="'+(GLASS_PRESET===preset.id)+'">'
+    +'<span class="preset-art" aria-hidden="true"><span class="preset-lens" data-material-preview="'+preset.id+'">'+uiIcon('home')+uiIcon('week')+uiIcon('course')+'</span></span>'
+    +'<span class="preset-caption"><strong>'+esc(preset.name)+'</strong><span class="preset-check" aria-hidden="true">✓</span></span>'
+    +'<span class="preset-note">'+t(descriptions[i])+'</span></button>').join('');
+}
+function setGlassPreset(id){
+  if(!window.GlassMaterials?.presets.some(p=>p.id===id)) return;
+  GLASS_PRESET=id;store.set('glass-preset',id);document.documentElement.dataset.material=id;
+  document.querySelectorAll('[data-preset]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.preset===id));
+  window.dispatchEvent(new Event('glasschange'));
+}
+
 function setView(v){
   const changed = VIEW!==v;
   stopMotion();
   if(v==="course" && changed) followLiveCourse();
   VIEW = v;
-  ["home","week","course","mats"].forEach(k=>{
+  ["home","week","course","mats","settings"].forEach(k=>{
     $("view-"+k).hidden = (k!==v);
     $("tab-"+k).setAttribute("aria-selected", k===v);
     $("tab-"+k).tabIndex = k===v ? 0 : -1;
@@ -2050,8 +2113,8 @@ function renderAll(){
   const title = t("title").split(" ");
   $("ttl").innerHTML = '<span>'+esc(title.slice(0,2).join(" "))+'</span> <span>'+esc(title.slice(2).join(" "))+'</span>';
   $("sub").textContent = t("sub");
-  ["home","week","course","mats"].forEach((k,i)=>{
-    $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats"][i])+'</span>';
+  ["home","week","course","mats","settings"].forEach((k,i)=>{
+    $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats","tabSettings"][i])+'</span>';
   });
   $("foot").textContent = t("foot");
   $('shuffle-btn').innerHTML = uiIcon('shuffle')+'<span>'+t('shuffleBackground')+'</span>';
@@ -2059,7 +2122,7 @@ function renderAll(){
   document.querySelector('.ambience').setAttribute('aria-label',t('backgroundSettings'));
   renderAmbience();
   document.querySelector('.tabs').setAttribute('aria-label', t("navigation"));
-  ["home","week","course","mats"].forEach(k=>{
+  ["home","week","course","mats","settings"].forEach(k=>{
     $("tab-"+k).setAttribute('aria-controls', 'view-'+k);
     $("tab-"+k).tabIndex = k===VIEW ? 0 : -1;
     $("view-"+k).setAttribute('role', 'tabpanel');
@@ -2067,7 +2130,7 @@ function renderAll(){
     $("view-"+k).tabIndex = 0;
   });
   RENDERED_DATE = todayISO();
-  renderHome(); renderWeek(); renderCourse(); renderMats();
+  renderHome(); renderWeek(); renderCourse(); renderMats(); renderSettings();
   applyLive();
   syncSelections();
 }
@@ -2112,6 +2175,10 @@ function downloadAttendance(){
 
 /* イベント委譲：再描画してもハンドラを付け直さなくていい */
 document.addEventListener("click", e=>{
+  const preset = e.target.closest('[data-preset]');
+  if(preset){setGlassPreset(preset.dataset.preset);return;}
+  const tv = e.target.closest("[data-timetable-select]");
+  if(tv){ setTimetableView(tv.dataset.timetableSelect); return; }
   const attendanceButton = e.target.closest('[data-attendance-open]');
   if(attendanceButton){
     openCourse(attendanceButton.dataset.attendanceOpen);
@@ -2163,16 +2230,18 @@ $("tab-home").addEventListener("click", ()=>setView("home"));
 $("tab-week").addEventListener("click", ()=>setView("week"));
 $("tab-course").addEventListener("click", ()=>setView("course"));
 $("tab-mats").addEventListener("click", ()=>setView("mats"));
+$("tab-settings").addEventListener("click", ()=>setView("settings"));
+$("settings-open").addEventListener("click", ()=>{setView("settings");$("settings-title").focus({preventScroll:true});});
 $("btn-ja").addEventListener("click", ()=>setLang("ja"));
 $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
 $('shuffle-btn').addEventListener('click',()=>updateWallpaper(true));
 $('rain-btn').addEventListener('click',()=>{ RAIN=!RAIN; store.set('rain',RAIN?'on':'off'); renderAmbience(); });
-$('motion-btn').addEventListener('click',()=>{ MOTION=!MOTION; store.set('motion',MOTION?'on':'off'); stopMotion(); renderAmbience(); });
+$('motion-btn').addEventListener('click',()=>{ MOTION=!MOTION; store.set('motion',MOTION?'on':'off'); renderAmbience(); });
 document.addEventListener("keydown", e=>{
   const tab = e.target.closest('[role="tab"]');
   if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
-    const views = ["home","week","course","mats"];
+    const views = ["home","week","course","mats","settings"];
     const i = views.indexOf(VIEW);
     const next = e.key==="Home" ? 0 : e.key==="End" ? 3 : (i+(e.key==="ArrowRight"?1:3))%4;
     e.preventDefault(); setView(views[next]); $("tab-"+views[next]).focus(); return;
@@ -2204,6 +2273,10 @@ window.addEventListener("afterprint", ()=>{
   if(savedTheme) THEME = savedTheme;
   const savedLang = store.get("lang");
   if(savedLang) LANG = savedLang;
+  TIMETABLE_VIEW = store.get("timetable-view")==="week" ? "week" : "day";
+  const preset=store.get('glass-preset');
+  GLASS_PRESET=window.GlassMaterials?.presets.some(p=>p.id===preset)?preset:'prism';
+  document.documentElement.dataset.material=GLASS_PRESET;
   document.documentElement.lang = LANG;
   $("btn-ja").setAttribute("aria-pressed", LANG==="ja");
   $("btn-en").setAttribute("aria-pressed", LANG==="en");

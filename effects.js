@@ -36,7 +36,7 @@
 
   const springs=new Map();
   let springFrame=0, active=null, illuminated=null;
-  const controls='.blk,.iconbtn,.tabs button,.picker button,.nav-w,.day-switch button';
+  const controls='.blk,.iconbtn,.tabs button,.picker button,.nav-w,.day-switch button,.timetable-switch button,.preset-card';
   const surfaces='.masthead-in,.sec,.chead,.box,.dayrow,.weekbar,.tabs';
   function canMove(){ return motionEnabled() && !document.hidden && !suspended; }
   function resetSprings(){
@@ -106,7 +106,7 @@
   window.addEventListener('scroll',resetSprings,{passive:true});
 
   function sendRainState(){
-    rainFrame?.contentWindow.postMessage({type:'rain-state',running:canMove() && !!photo?.naturalWidth,image:photo?.src},'*');
+    rainFrame?.contentWindow.postMessage({type:'rain-state',running:canMove() && rainMotionEnabled() && !!photo?.naturalWidth,image:photo?.src},'*');
   }
   function rainSize(){
     const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
@@ -118,6 +118,7 @@
     rainDimensions='';
     rainPhoto='';
     rainLayer.hidden=true;
+    window.dispatchEvent?.(new Event('rainreset'));
   }
   function refresh(){
     if(!canMove()) resetSprings();

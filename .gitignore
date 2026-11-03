@@ -1,0 +1,7 @@
+.vercel/
+.playwright-cli/
+output/
+.codex/
+.codex-remote-attachments/
+node_modules/
+dist/
