@@ -54,6 +54,7 @@
   // Reference pyramid: full resolution cache, 17-tap passes, 3px base sigma,
   // 12px pickup sigma, and at most ten pyramid levels. Never lower quality on motion.
   const SIGMA0=3,PICK_SIGMA=12,PYR_MAX=10;
+  function materialNeedsPyramid(material){return material.blur>0 || material.frost>0 || material.pickup>0;}
   function buildPyramid(){
     const cw=canvas.width,ch=canvas.height,bw=Math.max(1,Math.ceil(cw/2)),bh=Math.max(1,Math.ceil(ch/2));
     const levels=Math.min(PYR_MAX,mipLevels(bw,bh)),P=rtex('pyr',bw,bh,levels),T=rtex('pyrTmp',bw,bh,levels);
@@ -271,7 +272,7 @@
       m2.set([...rgb,m.tintAmount],o);m3.set([m.pickup,m.specular,m.rimWidth,m.shadow],o);
     }
     drawTo(programs.glass,fb.output.fbo,canvas.width,canvas.height,L=>{
-      bindTex(0,fb.scene.tex);gl.uniform1i(L.u_scene,0);bindTex(1,fb.pyr.tex);gl.uniform1i(L.u_blur,1);
+      bindTex(0,fb.scene.tex);gl.uniform1i(L.u_scene,0);bindTex(1,materialNeedsPyramid(material)?fb.pyr.tex:fb.scene.tex);gl.uniform1i(L.u_blur,1);
       gl.uniform2f(L.u_res,canvas.width,canvas.height);gl.uniform2f(L.u_dpr,canvas.width/width,canvas.height/height);
       gl.uniform2f(L.u_texel,1/canvas.width,1/canvas.height);gl.uniform4f(L.u_map,1/width,-1/height,0,1);gl.uniform1f(L.u_sceneLod,0);
       gl.uniform1i(L.u_n,shapes.length);
@@ -308,7 +309,10 @@
       for(const shapes of layers){
         // Each independent control has its own optical container. Preserve the
         // reference merge value without fusing adjacent buttons or cards.
-        for(const batch of batchSurfaces(shapes,capacity)){buildPyramid();drawLayer(batch);}
+        for(const batch of batchSurfaces(shapes,capacity)){
+          if(materialNeedsPyramid(batch[0].m))buildPyramid();
+          drawLayer(batch);
+        }
       }
       root.dataset.optics='ready';
       updateLabelContrast();
