@@ -647,6 +647,29 @@ ul.goals li{margin-bottom:8px}
 }
 @media print{#view-settings{display:none!important}}
 
+/* The WebGL material replaces the former CSS approximation. Text stays native. */
+#glass-canvas{position:fixed;inset:0;z-index:-1;width:100%;height:100vh;height:100lvh;pointer-events:none;display:none}
+[data-optics="ready"] #glass-canvas{display:block}
+@media screen{
+  [data-optics="ready"]{--frost:transparent;--glass:transparent;--cell:transparent;--inlay:transparent}
+  [data-optics="ready"] [data-glass-surface]{background:transparent!important;box-shadow:none!important;border-color:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;color:var(--ink)}
+  [data-optics="ready"] :is(.masthead-in,.sec,.weekbar,.dayrow,.chead,.box)::before,
+  [data-optics="ready"] .tabs::after,[data-optics="ready"] .segmented::before,
+  [data-optics="ready"] .blk::after{background:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;border-color:transparent}
+  [data-optics="ready"] .preset-art{background:transparent}
+  [data-optics="ready"] .preset-art::before{display:none}
+  [data-optics="ready"] [data-glass-ink="dark"]{--ink:#172C3A;--ink-2:#263b48;--ink-3:#344652;--indigo:#164e78;--rule:rgba(20,40,60,.4);--rule-2:rgba(20,40,60,.17)}
+  [data-optics="ready"] [data-glass-ink="light"]{--ink:#f2f7fa;--ink-2:#e4edf3;--ink-3:#d8e6ee;--indigo:#c3e3fa;--rule:rgba(230,244,255,.42);--rule-2:rgba(230,244,255,.2)}
+  [data-optics="ready"] .tabs button[aria-selected="true"],
+  [data-optics="ready"] .day-switch button[aria-pressed="true"],
+  [data-optics="ready"] .timetable-switch button[aria-pressed="true"]{color:var(--ink);font-weight:750}
+  [data-optics="ready"] .langswitch button[aria-pressed="true"]{background:transparent;box-shadow:none;text-decoration:underline;text-underline-offset:5px}
+  [data-optics="ready"] .preset-card[aria-pressed="true"]{outline-color:var(--indigo)}
+  [data-optics="ready"] :is(main,.foot,.masthead-in){clip-path:inset(-10000px -10000px var(--dock-cut,0px) -10000px)}
+}
+@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){#glass-canvas{display:none!important}}
+@media print{#glass-canvas{display:none!important}}
+
 /* Always print the full five-day ledger, including from a dark mobile view. */
 @media print{
   .attendance-editor,.attendance-storage,.attendance-scroll-hint{display:none!important}
