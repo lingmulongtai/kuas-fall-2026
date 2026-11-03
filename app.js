@@ -689,6 +689,20 @@ const T = {
   tabWeek:{ja:"カレンダー", en:"Calendar"},
   tabCourse:{ja:"科目詳細", en:"Courses"},
   tabMats:{ja:"教材", en:"Materials"},
+  tabSettings:{ja:"設定", en:"Settings"},
+  settingsTitle:{ja:"自分の見やすさに合わせる", en:"Make yourself at home"},
+  settingsIntro:{ja:"ガラスの表情、テーマ、背景をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass, theme and scenery. Your preferences are saved in this browser."},
+  glassTitle:{ja:"ガラスのプリセット", en:"Glass material"},
+  glassHint:{ja:"タップすると、すべての画面に適用されます。", en:"Choose a material to apply it across every view."},
+  appearanceTitle:{ja:"テーマと言語", en:"Appearance & language"},
+  sceneryTitle:{ja:"背景と雨", en:"Scenery & rain"},
+  sceneryHint:{ja:"雨を止めても、ボタンや画面のアニメーションは変わりません。", en:"Pausing rain keeps all interface animations running."},
+  presetApple:{ja:"やわらかな屈折と、背景になじむガラス。", en:"A gentle lens that adapts to its surroundings."},
+  presetAppleClear:{ja:"薄い霞と、明るい背景を抑える透明感。", en:"Clear glass with a subtle haze and a dimmed backdrop."},
+  presetThick:{ja:"厚みのある縁と、大きく映り込むレンズ。", en:"A deep edge with a magnifying lens."},
+  presetFrosted:{ja:"背景の色がやわらかく溶ける、すりガラス。", en:"Soft frost that picks up the colours behind it."},
+  presetClear:{ja:"ぼかしや色味を加えない、澄んだレンズ。", en:"A crisp lens without blur, haze or tint."},
+  presetPrism:{ja:"縁に光が分かれる、プリズムの透明感。", en:"A clear prism with colour breaking at the rim."},
   themeAuto:{ja:"テーマ：自動", en:"Theme: Auto"},
   themeLight:{ja:"テーマ：ライト", en:"Theme: Light"},
   themeDark:{ja:"テーマ：ダーク", en:"Theme: Dark"},
@@ -893,6 +907,7 @@ let COURSE = liveCourseId();
 let DAY = (d=>d<5?d:0)(weekdayOf(todayISO()));
 let RENDERED_DATE = null;
 let TIMETABLE_VIEW = "day";
+let GLASS_PRESET = "prism";
 
 const $ = id => document.getElementById(id);
 const byId = id => COURSES.find(c=>c.id===id);
@@ -976,6 +991,7 @@ function wallpaperSize(){
 function loadWallpaperImage(photo){
   return new Promise((resolve,reject)=>{
     const image = new Image();
+    image.crossOrigin = 'anonymous';
     image.alt = '';
     image.decoding = 'async';
     image.fetchPriority = 'low';
@@ -1139,6 +1155,7 @@ const cc = c => isDark() ? c.colorD : c.color;
 /* Small inline symbols keep the interface independent of icon fonts and CDNs. */
 function uiIcon(name){
   const paths = {
+    settings:'<path d="M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1Z"/><circle cx="12" cy="12" r="3"/>',
     home:'<rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4m10-4v4M3 11h18M8 15h2m4 0h2m-8 3h2"/>',
     week:'<rect x="4" y="3" width="16" height="18" rx="4"/><path d="M8 8h8m-8 4h8m-8 4h5"/>',
     course:'<path d="M12 6c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v15"/>',
@@ -2018,12 +2035,36 @@ function followLiveCourse(){
   const id = liveCourseId();
   if(id!==COURSE){ COURSE = id; renderCourse(); applyLive(); }
 }
+function renderSettings(){
+  if(!$('glass-presets')) return;
+  $('settings-title').textContent=t('settingsTitle');
+  $('settings-intro').textContent=t('settingsIntro');
+  $('glass-title').textContent=t('glassTitle');
+  $('glass-hint').textContent=t('glassHint');
+  $('appearance-title').textContent=t('appearanceTitle');
+  $('scenery-title').textContent=t('sceneryTitle');
+  $('scenery-hint').textContent=t('sceneryHint');
+  $('settings-open').innerHTML=uiIcon('settings')+'<span>'+t('tabSettings')+'</span>';
+  const descriptions=['presetApple','presetAppleClear','presetThick','presetFrosted','presetClear','presetPrism'];
+  $('glass-presets').innerHTML=(window.GlassMaterials?.presets||[]).map((preset,i)=>
+    '<button type="button" class="preset-card" data-preset="'+preset.id+'" aria-pressed="'+(GLASS_PRESET===preset.id)+'">'
+    +'<span class="preset-art" aria-hidden="true"><span class="preset-lens" data-material-preview="'+preset.id+'">'+uiIcon('home')+uiIcon('week')+uiIcon('course')+'</span></span>'
+    +'<span class="preset-caption"><strong>'+esc(preset.name)+'</strong><span class="preset-check" aria-hidden="true">✓</span></span>'
+    +'<span class="preset-note">'+t(descriptions[i])+'</span></button>').join('');
+}
+function setGlassPreset(id){
+  if(!window.GlassMaterials?.presets.some(p=>p.id===id)) return;
+  GLASS_PRESET=id;store.set('glass-preset',id);document.documentElement.dataset.material=id;
+  document.querySelectorAll('[data-preset]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.preset===id));
+  window.dispatchEvent(new Event('glasschange'));
+}
+
 function setView(v){
   const changed = VIEW!==v;
   stopMotion();
   if(v==="course" && changed) followLiveCourse();
   VIEW = v;
-  ["home","week","course","mats"].forEach(k=>{
+  ["home","week","course","mats","settings"].forEach(k=>{
     $("view-"+k).hidden = (k!==v);
     $("tab-"+k).setAttribute("aria-selected", k===v);
     $("tab-"+k).tabIndex = k===v ? 0 : -1;
@@ -2072,8 +2113,8 @@ function renderAll(){
   const title = t("title").split(" ");
   $("ttl").innerHTML = '<span>'+esc(title.slice(0,2).join(" "))+'</span> <span>'+esc(title.slice(2).join(" "))+'</span>';
   $("sub").textContent = t("sub");
-  ["home","week","course","mats"].forEach((k,i)=>{
-    $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats"][i])+'</span>';
+  ["home","week","course","mats","settings"].forEach((k,i)=>{
+    $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats","tabSettings"][i])+'</span>';
   });
   $("foot").textContent = t("foot");
   $('shuffle-btn').innerHTML = uiIcon('shuffle')+'<span>'+t('shuffleBackground')+'</span>';
@@ -2081,7 +2122,7 @@ function renderAll(){
   document.querySelector('.ambience').setAttribute('aria-label',t('backgroundSettings'));
   renderAmbience();
   document.querySelector('.tabs').setAttribute('aria-label', t("navigation"));
-  ["home","week","course","mats"].forEach(k=>{
+  ["home","week","course","mats","settings"].forEach(k=>{
     $("tab-"+k).setAttribute('aria-controls', 'view-'+k);
     $("tab-"+k).tabIndex = k===VIEW ? 0 : -1;
     $("view-"+k).setAttribute('role', 'tabpanel');
@@ -2089,7 +2130,7 @@ function renderAll(){
     $("view-"+k).tabIndex = 0;
   });
   RENDERED_DATE = todayISO();
-  renderHome(); renderWeek(); renderCourse(); renderMats();
+  renderHome(); renderWeek(); renderCourse(); renderMats(); renderSettings();
   applyLive();
   syncSelections();
 }
@@ -2134,6 +2175,8 @@ function downloadAttendance(){
 
 /* イベント委譲：再描画してもハンドラを付け直さなくていい */
 document.addEventListener("click", e=>{
+  const preset = e.target.closest('[data-preset]');
+  if(preset){setGlassPreset(preset.dataset.preset);return;}
   const tv = e.target.closest("[data-timetable-select]");
   if(tv){ setTimetableView(tv.dataset.timetableSelect); return; }
   const attendanceButton = e.target.closest('[data-attendance-open]');
@@ -2187,6 +2230,8 @@ $("tab-home").addEventListener("click", ()=>setView("home"));
 $("tab-week").addEventListener("click", ()=>setView("week"));
 $("tab-course").addEventListener("click", ()=>setView("course"));
 $("tab-mats").addEventListener("click", ()=>setView("mats"));
+$("tab-settings").addEventListener("click", ()=>setView("settings"));
+$("settings-open").addEventListener("click", ()=>{setView("settings");$("settings-title").focus({preventScroll:true});});
 $("btn-ja").addEventListener("click", ()=>setLang("ja"));
 $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
@@ -2196,7 +2241,7 @@ $('motion-btn').addEventListener('click',()=>{ MOTION=!MOTION; store.set('motion
 document.addEventListener("keydown", e=>{
   const tab = e.target.closest('[role="tab"]');
   if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
-    const views = ["home","week","course","mats"];
+    const views = ["home","week","course","mats","settings"];
     const i = views.indexOf(VIEW);
     const next = e.key==="Home" ? 0 : e.key==="End" ? 3 : (i+(e.key==="ArrowRight"?1:3))%4;
     e.preventDefault(); setView(views[next]); $("tab-"+views[next]).focus(); return;
@@ -2229,6 +2274,9 @@ window.addEventListener("afterprint", ()=>{
   const savedLang = store.get("lang");
   if(savedLang) LANG = savedLang;
   TIMETABLE_VIEW = store.get("timetable-view")==="week" ? "week" : "day";
+  const preset=store.get('glass-preset');
+  GLASS_PRESET=window.GlassMaterials?.presets.some(p=>p.id===preset)?preset:'prism';
+  document.documentElement.dataset.material=GLASS_PRESET;
   document.documentElement.lang = LANG;
   $("btn-ja").setAttribute("aria-pressed", LANG==="ja");
   $("btn-en").setAttribute("aria-pressed", LANG==="en");
