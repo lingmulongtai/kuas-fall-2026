@@ -7,7 +7,7 @@ const source=fs.readFileSync(path.join(__dirname,'../effects.js'),'utf8');
 const frameHTML=fs.readFileSync(path.join(__dirname,'../rain.html'),'utf8');
 const frameSource=frameHTML.match(/<script>([\s\S]*?)<\/script>/)[1];
 
-function setup({motion=true,photoReady=true,rain=true}={}){
+function setup({motion=true,photoReady=true,rain=true,rainMotion=true}={}){
   const handlers=new Map(),frames=new Map(),timers=new Map(),preferences=new Map(),created=[];
   let id=0;
   const listen=(name,fn)=>{if(!handlers.has(name)) handlers.set(name,[]);handlers.get(name).push(fn);};
@@ -24,7 +24,7 @@ function setup({motion=true,photoReady=true,rain=true}={}){
       created.push(frame);return frame;
     }
   };
-  const context=vm.createContext({document,window:{addEventListener:listen,innerWidth:375,innerHeight:812,devicePixelRatio:2},RAIN:rain,motion,motionEnabled:()=>context.motion,
+  const context=vm.createContext({document,window:{addEventListener:listen,innerWidth:375,innerHeight:812,devicePixelRatio:2},RAIN:rain,motion,rainMotion,motionEnabled:()=>context.motion,rainMotionEnabled:()=>context.motion && context.rainMotion,
     requestAnimationFrame:fn=>{frames.set(++id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),
     setTimeout:fn=>{timers.set(++id,fn);return id;},clearTimeout:id=>timers.delete(id),
     matchMedia:query=>{const pref={matches:query.includes('pointer: fine'),addEventListener:(name,fn)=>listen(query,fn)};preferences.set(query,pref);return pref;}
@@ -513,3 +513,19 @@ test('standalone rain selects its default photograph and can animate without a p
   assert.doesNotMatch(imageTag,/\ssrc\s*=/,'The HTML itself must not start a fallback request in embedded mode');
   assert.match(imageTag,/data-default-src=/);
 });
+
+ test('pausing rain leaves UI motion enabled and only suspends the rain renderer',()=>{
+ const state=setup({rainMotion:false});
+ assert.equal(state.context.motionEnabled(),true);
+ assert.equal(state.created[0].messages.at(-1).running,false);
+ state.context.rainMotion=true;state.emit('ambiencechange');
+ assert.equal(state.created[0].messages.at(-1).running,true);
+ assert.equal(state.context.motionEnabled(),true);
+ const app=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
+ const motion=app.match(/function motionEnabled\(\)\{[^}]*\}/)[0];
+ const context=vm.createContext({MOTION:false,motionPreference:{matches:false}});
+ vm.runInContext(motion,context);
+ assert.equal(context.motionEnabled(),true);
+ context.motionPreference.matches=true;
+ assert.equal(context.motionEnabled(),false);
+ });

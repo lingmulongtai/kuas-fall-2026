@@ -709,8 +709,8 @@ const T = {
   backgroundSettings:{ja:"背景と動き", en:"Scenery and motion"},
   rainOn:{ja:"雨：オン", en:"Rain: on"},
   rainOff:{ja:"雨：オフ", en:"Rain: off"},
-  motionOn:{ja:"動きを止める", en:"Pause motion"},
-  motionOff:{ja:"動きを再開", en:"Resume motion"},
+  motionOn:{ja:"雨を一時停止", en:"Pause rain"},
+  motionOff:{ja:"雨を再開", en:"Resume rain"},
   motionReduced:{ja:"動き：控えめ", en:"Reduced motion"},
   lunch:{ja:"昼休み 12:10–13:00", en:"Lunch break 12:10-13:00"},
   courses:{ja:"科目一覧", en:"Course list"},
@@ -1067,13 +1067,14 @@ let MOTION = store.get('motion')!=='off';
 let RAIN = store.get('rain')!=='off';
 const runningMotion = new Map();
 let printing = false;
-function motionEnabled(){ return MOTION && !(motionPreference && motionPreference.matches); }
+function motionEnabled(){ return !(motionPreference && motionPreference.matches); }
+function rainMotionEnabled(){ return MOTION && motionEnabled(); }
 function renderAmbience(){
   document.documentElement.dataset.motion = motionEnabled()?'on':'off';
   $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?'rainOn':'rainOff')+'</span>';
   $('rain-btn').setAttribute('aria-pressed',RAIN);
-  $('motion-btn').innerHTML = uiIcon(motionEnabled()?'pause':'play')+'<span>'+t(motionPreference && motionPreference.matches?'motionReduced':MOTION?'motionOn':'motionOff')+'</span>';
-  $('motion-btn').setAttribute('aria-pressed',motionEnabled());
+  $('motion-btn').innerHTML = uiIcon(rainMotionEnabled()?'pause':'play')+'<span>'+t(motionPreference && motionPreference.matches?'motionReduced':MOTION?'motionOn':'motionOff')+'</span>';
+  $('motion-btn').setAttribute('aria-pressed',rainMotionEnabled());
   $('motion-btn').disabled = !!(motionPreference && motionPreference.matches);
   window.dispatchEvent(new Event('ambiencechange'));
 }
@@ -2191,7 +2192,7 @@ $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
 $('shuffle-btn').addEventListener('click',()=>updateWallpaper(true));
 $('rain-btn').addEventListener('click',()=>{ RAIN=!RAIN; store.set('rain',RAIN?'on':'off'); renderAmbience(); });
-$('motion-btn').addEventListener('click',()=>{ MOTION=!MOTION; store.set('motion',MOTION?'on':'off'); stopMotion(); renderAmbience(); });
+$('motion-btn').addEventListener('click',()=>{ MOTION=!MOTION; store.set('motion',MOTION?'on':'off'); renderAmbience(); });
 document.addEventListener("keydown", e=>{
   const tab = e.target.closest('[role="tab"]');
   if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
