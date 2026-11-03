@@ -28,7 +28,14 @@
       <p id="sub"></p>
     </div>
     <div class="spacer"></div>
-    <button id="settings-open" class="iconbtn" type="button"></button>
+    <div class="header-tools">
+  <div class="ambience" role="group" aria-label="背景">
+    <button id="shuffle-btn" class="iconbtn" type="button"></button>
+    <button id="rain-btn" class="iconbtn" type="button" aria-pressed="true" aria-controls="rain"></button>
+    <span id="background-status" role="status"></span>
+  </div>
+      <button id="settings-open" class="iconbtn" type="button"></button>
+    </div>
   </div>
   <nav class="tabs" role="tablist">
     <button role="tab" id="tab-home"   type="button" aria-selected="true"></button>
@@ -57,14 +64,6 @@
         <button id="btn-en" type="button" aria-pressed="false">English</button>
       </div>
     </div>
-      </div>
-      <div class="sec"><div class="sec-head"><h2 id="scenery-title"></h2></div><p class="settings-note" id="scenery-hint"></p>
-  <div class="ambience" role="group" aria-label="背景">
-    <button id="shuffle-btn" class="iconbtn" type="button"></button>
-    <button id="rain-btn" class="iconbtn" type="button" aria-pressed="true" aria-controls="rain"></button>
-    <button id="motion-btn" class="iconbtn" type="button" aria-pressed="true"></button>
-    <span id="background-status" role="status"></span>
-  </div>
       </div>
     </div>
   </section>

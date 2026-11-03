@@ -691,7 +691,7 @@ const T = {
   tabMats:{ja:"教材", en:"Materials"},
   tabSettings:{ja:"設定", en:"Settings"},
   settingsTitle:{ja:"自分の見やすさに合わせる", en:"Make yourself at home"},
-  settingsIntro:{ja:"ガラスの表情、テーマ、背景をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass, theme and scenery. Your preferences are saved in this browser."},
+  settingsIntro:{ja:"ガラスの表情、テーマ、言語をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass, theme and language. Your preferences are saved in this browser."},
   glassTitle:{ja:"ガラスのプリセット", en:"Glass material"},
   glassHint:{ja:"タップすると、すべての画面に適用されます。", en:"Choose a material to apply it across every view."},
   appearanceTitle:{ja:"テーマと言語", en:"Appearance & language"},
@@ -722,6 +722,7 @@ const T = {
   backgroundFailed:{ja:"背景を読み込めませんでした。もう一度お試しください。", en:"Scenery could not load. Try again."},
   backgroundSettings:{ja:"背景と動き", en:"Scenery and motion"},
   rainOn:{ja:"雨：オン", en:"Rain: on"},
+  rainReduced:{ja:"雨：静止（OS設定）", en:"Rain: Still (OS setting)"},
   rainOff:{ja:"雨：オフ", en:"Rain: off"},
   motionOn:{ja:"雨を一時停止", en:"Pause rain"},
   motionOff:{ja:"雨を再開", en:"Resume rain"},
@@ -1079,19 +1080,15 @@ window.addEventListener('resize',()=>{
 
 /* Motion never delays state changes, focus, or interaction. */
 const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-let MOTION = store.get('motion')!=='off';
 let RAIN = store.get('rain')!=='off';
 const runningMotion = new Map();
 let printing = false;
 function motionEnabled(){ return !(motionPreference && motionPreference.matches); }
-function rainMotionEnabled(){ return MOTION && motionEnabled(); }
+function rainMotionEnabled(){ return RAIN && motionEnabled(); }
 function renderAmbience(){
   document.documentElement.dataset.motion = motionEnabled()?'on':'off';
-  $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?'rainOn':'rainOff')+'</span>';
+  $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?(motionEnabled()?'rainOn':'rainReduced'):'rainOff')+'</span>';
   $('rain-btn').setAttribute('aria-pressed',RAIN);
-  $('motion-btn').innerHTML = uiIcon(rainMotionEnabled()?'pause':'play')+'<span>'+t(motionPreference && motionPreference.matches?'motionReduced':MOTION?'motionOn':'motionOff')+'</span>';
-  $('motion-btn').setAttribute('aria-pressed',rainMotionEnabled());
-  $('motion-btn').disabled = !!(motionPreference && motionPreference.matches);
   window.dispatchEvent(new Event('ambiencechange'));
 }
 function stopMotion(){
@@ -2042,8 +2039,6 @@ function renderSettings(){
   $('glass-title').textContent=t('glassTitle');
   $('glass-hint').textContent=t('glassHint');
   $('appearance-title').textContent=t('appearanceTitle');
-  $('scenery-title').textContent=t('sceneryTitle');
-  $('scenery-hint').textContent=t('sceneryHint');
   $('settings-open').innerHTML=uiIcon('settings')+'<span>'+t('tabSettings')+'</span>';
   const descriptions=['presetApple','presetAppleClear','presetThick','presetFrosted','presetClear','presetPrism'];
   $('glass-presets').innerHTML=(window.GlassMaterials?.presets||[]).map((preset,i)=>
@@ -2237,13 +2232,12 @@ $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
 $('shuffle-btn').addEventListener('click',()=>updateWallpaper(true));
 $('rain-btn').addEventListener('click',()=>{ RAIN=!RAIN; store.set('rain',RAIN?'on':'off'); renderAmbience(); });
-$('motion-btn').addEventListener('click',()=>{ MOTION=!MOTION; store.set('motion',MOTION?'on':'off'); renderAmbience(); });
 document.addEventListener("keydown", e=>{
   const tab = e.target.closest('[role="tab"]');
   if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
     const views = ["home","week","course","mats","settings"];
     const i = views.indexOf(VIEW);
-    const next = e.key==="Home" ? 0 : e.key==="End" ? 3 : (i+(e.key==="ArrowRight"?1:3))%4;
+    const next = e.key==="Home" ? 0 : e.key==="End" ? views.length-1 : (i+(e.key==="ArrowRight"?1:views.length-1))%views.length;
     e.preventDefault(); setView(views[next]); $("tab-"+views[next]).focus(); return;
   }
   if(VIEW!=="week") return;
