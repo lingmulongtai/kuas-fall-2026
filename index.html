@@ -28,26 +28,16 @@
       <p id="sub"></p>
     </div>
     <div class="spacer"></div>
-    <div class="switches">
-      <button id="theme-btn" class="iconbtn" type="button" title="テーマ切り替え"></button>
-      <div class="langswitch" role="group" aria-label="Language">
-        <button id="btn-ja" type="button" aria-pressed="true">日本語</button>
-        <button id="btn-en" type="button" aria-pressed="false">English</button>
-      </div>
-    </div>
+    <button id="settings-open" class="iconbtn" type="button"></button>
   </div>
   <nav class="tabs" role="tablist">
     <button role="tab" id="tab-home"   type="button" aria-selected="true"></button>
     <button role="tab" id="tab-week"   type="button" aria-selected="false"></button>
     <button role="tab" id="tab-course" type="button" aria-selected="false"></button>
     <button role="tab" id="tab-mats"   type="button" aria-selected="false"></button>
+    <button role="tab" id="tab-settings" type="button" aria-selected="false"></button>
   </nav>
-  <div class="ambience" role="group" aria-label="背景">
-    <button id="shuffle-btn" class="iconbtn" type="button"></button>
-    <button id="rain-btn" class="iconbtn" type="button" aria-pressed="true" aria-controls="rain"></button>
-    <button id="motion-btn" class="iconbtn" type="button" aria-pressed="true"></button>
-    <span id="background-status" role="status"></span>
-  </div>
+
 </header>
 
 <main>
@@ -55,10 +45,34 @@
   <section class="view" id="view-week" hidden></section>
   <section class="view" id="view-course" hidden></section>
   <section class="view" id="view-mats" hidden></section>
+  <section class="view settings-view" id="view-settings" hidden>
+    <div class="sec settings-heading"><p class="eyebrow">PERSONALISE YOUR SPACE</p><h2 id="settings-title" tabindex="-1"></h2><p id="settings-intro"></p></div>
+    <div class="sec"><div class="sec-head"><h2 id="glass-title"></h2><span id="glass-hint"></span></div><div id="glass-presets" class="preset-grid" role="group" aria-labelledby="glass-title"></div></div>
+    <div class="settings-columns">
+      <div class="sec"><div class="sec-head"><h2 id="appearance-title"></h2></div>
+    <div class="switches">
+      <button id="theme-btn" class="iconbtn" type="button" title="テーマ切り替え"></button>
+      <div class="langswitch" role="group" aria-label="Language">
+        <button id="btn-ja" type="button" aria-pressed="true">日本語</button>
+        <button id="btn-en" type="button" aria-pressed="false">English</button>
+      </div>
+    </div>
+      </div>
+      <div class="sec"><div class="sec-head"><h2 id="scenery-title"></h2></div><p class="settings-note" id="scenery-hint"></p>
+  <div class="ambience" role="group" aria-label="背景">
+    <button id="shuffle-btn" class="iconbtn" type="button"></button>
+    <button id="rain-btn" class="iconbtn" type="button" aria-pressed="true" aria-controls="rain"></button>
+    <button id="motion-btn" class="iconbtn" type="button" aria-pressed="true"></button>
+    <span id="background-status" role="status"></span>
+  </div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="foot"><p id="foot"></p><p id="photo-credit" class="photo-credit" hidden></p></footer>
 
+<script src="glass-materials.js"></script>
 <script src="app.js"></script>
 <script src="effects.js"></script>
 </body>

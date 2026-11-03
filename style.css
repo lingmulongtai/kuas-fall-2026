@@ -614,6 +614,39 @@ ul.goals li{margin-bottom:8px}
   :root,[data-theme="dark"]{--frost:var(--surface);--glass:var(--surface);--cell:var(--surface);--inlay:var(--surface-2)}
 }
 
+/* Settings use the same native controls and materials as the planner. */
+.settings-heading{padding:32px}
+.settings-heading .eyebrow{font-size:10px;letter-spacing:.2em;color:var(--ink-2)}
+.settings-heading h2{font-size:clamp(24px,3vw,36px);margin:12px 0}
+.settings-heading p{margin:0;color:var(--ink-2)}
+.preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.preset-card{position:relative;display:flex;flex-direction:column;gap:9px;min-width:0;padding:12px 14px 18px;border:1px solid var(--rule-2);border-radius:22px;background:var(--inlay);text-align:left}
+.preset-card[aria-pressed="true"]{outline:2px solid var(--indigo);outline-offset:3px}
+.preset-art{position:relative;display:grid;place-items:center;width:100%;height:130px;border-radius:15px;background:linear-gradient(135deg,#bad1c3,#a3bcc8 40%,#e2bba2 70%,#d5ddd4);overflow:hidden}
+.preset-art::before{content:"";position:absolute;left:18%;top:-20%;height:150%;width:12%;background:rgba(25,71,55,.65);rotate:32deg}
+.preset-lens{position:relative;display:flex;align-items:center;justify-content:space-evenly;gap:18px;width:76%;height:58px;border-radius:30px;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.65)}
+.preset-caption{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:4px;font-size:14px}
+.preset-check{opacity:0;font-size:17px;font-weight:700}
+[aria-pressed="true"]>.preset-caption .preset-check{opacity:1}
+.preset-note{font-size:12px;line-height:1.7;color:var(--ink-2)}
+.settings-columns{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.settings-view .switches,.settings-view .ambience{justify-content:flex-start;flex-wrap:wrap;margin:0}
+.settings-note{color:var(--ink-2);font-size:12px;margin:-4px 0 18px}
+#settings-open{margin-left:auto}
+@media screen and (max-width:700px){
+  .settings-heading{padding:24px 20px}
+  .preset-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+  .preset-art{height:98px}
+  .preset-lens{gap:8px;width:90%;height:48px}
+  .preset-caption{font-size:12px}
+  .preset-note{font-size:11px}
+  .preset-card{padding:9px 10px 14px;border-radius:18px}
+  .settings-columns{grid-template-columns:1fr;gap:0}
+  .tabs button{min-width:0;padding-inline:8px}
+  #settings-open span{display:none}
+}
+@media print{#view-settings{display:none!important}}
+
 /* Always print the full five-day ledger, including from a dark mobile view. */
 @media print{
   .attendance-editor,.attendance-storage,.attendance-scroll-hint{display:none!important}
