@@ -104,12 +104,34 @@
   }
   const toneMemory=new WeakMap();
   const arrays=Array.from({length:7},()=>new Float32Array(capacity*4));
+  function batchSurfaces(shapes,limit){
+    const batches=[];
+    for(const shape of shapes){
+      const batch=batches.find(batch=>batch.length<limit && batch[0].m===shape.m && batch[0].clip.key===shape.clip.key && batch.every(other=>{
+        const a=shape.rect,b=other.rect;
+        const dx=Math.max(a.left-b.left-b.width,b.left-a.left-a.width,0);
+        const dy=Math.max(a.top-b.top-b.height,b.top-a.top-a.height,0);
+        return Math.hypot(dx,dy)>=Math.max(shape.m.merge,other.m.merge);
+      }));
+      if(batch)batch.push(shape);else batches.push([shape]);
+    }
+    return batches;
+  }
   function collect(){
     const layers=new Map();
     for(const el of targets){
       const bounds=el.getBoundingClientRect();
       if(!bounds.width || !bounds.height || bounds.bottom<top-96 || bounds.top>top+height+96 || !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))continue;
       const rect={left:bounds.left-left,top:bounds.top-top,width:bounds.width,height:bounds.height};
+      let clip={left:0,top:0,width,height,key:'viewport'};
+      const scroller=el.parentElement?.closest('.calendar-scroll,.attendance-editor-scroll');
+      if(scroller){
+        const box=scroller.getBoundingClientRect();
+        const x=Math.max(0,box.left-left),y=Math.max(0,box.top-top);
+        clip={left:x,top:y,width:Math.max(0,Math.min(width,box.right-left)-x),height:Math.max(0,Math.min(height,box.bottom-top)-y)};
+        clip.key=[clip.left,clip.top,clip.width,clip.height].join(',');
+        if(!clip.width || !clip.height || rect.left+rect.width<clip.left || rect.left>clip.left+clip.width || rect.top+rect.height<clip.top || rect.top>clip.top+clip.height)continue;
+      }
       let depth=0,parent=el.parentElement;
       while(parent){if(parent.matches(selectors))depth++;parent=parent.parentElement;}
       if(el.closest('.tabs'))depth+=30;
@@ -118,27 +140,62 @@
       const L=measure(rect),old=toneMemory.get(el)||0;
       const tone=m.appearance==='light'?0:m.appearance==='dark'?1:Math.min(rect.width,rect.height)<=96?(old>.5?(L<.22?1:0):(L<.14?1:0)):0;
       toneMemory.set(el,tone);
-      // Text contrast is a UI preference, separate from the optical material.
-      // Avoid assuming extra white haze when deciding light-theme label ink.
-      const f=Math.min(1,m.frost+m.tintAmount*.5),seen=(tone>.5?L*(1-f)+.01*f:L*(1-f)+f)*(1-m.dim*.8);
-      const ink=root.dataset.theme==='dark'?'light':seen>.2?'dark':'light';
-      if(el.dataset.glassInk!==ink)el.dataset.glassInk=ink;
-      layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone});
+      if(root.dataset.theme==='dark' && el.dataset.glassInk!=='light')el.dataset.glassInk='light';
+      layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone,clip});
       if(el.classList.contains('segmented')){
         const selected=el.querySelector('[aria-selected="true"],[aria-pressed="true"]');
         if(selected){
           const level=depth+1;
           if(!layers.has(level))layers.set(level,[]);
           const selectedRect=selected.getBoundingClientRect();
-          layers.get(level).push({rect:{left:selectedRect.left-left,top:selectedRect.top-top,width:selectedRect.width,height:selectedRect.height},r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone});
+          layers.get(level).push({rect:{left:selectedRect.left-left,top:selectedRect.top-top,width:selectedRect.width,height:selectedRect.height},r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone,clip});
         }
       }
     }
     return [...layers].sort((a,b)=>a[0]-b[0]).map(entry=>entry[1]);
   }
   const touch={x:-1e4,y:-1e4,strength:0};
+  let inkPixels=null;
+  function updateLabelContrast(){
+    if(root.dataset.theme==='dark')return;
+    // Inspect the finished glass, including neighbouring lenses and dimming,
+    // rather than predicting text contrast from the unprocessed photograph.
+    const w=Math.min(320,canvas.width),h=Math.max(1,Math.round(canvas.height*w/canvas.width));
+    const ink=rtex('ink',w,h);
+    drawTo(programs.cover,ink.fbo,w,h,L=>{
+      bindTex(0,fb.scene.tex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,-1,0,0);gl.uniform4f(L.u_rect,0,0,1,1);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
+    });
+    if(!inkPixels || inkPixels.length!==w*h*4)inkPixels=new Uint8Array(w*h*4);
+    gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,inkPixels);
+    for(const el of targets){
+      if(!el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))continue;
+      const text=el.querySelector(':scope > .preset-caption,:scope > .sec-head,:scope > .brand,:scope > .daylab,:scope > h2')||el;
+      const rect=text.getBoundingClientRect();
+      if(!rect.width || !rect.height || rect.bottom<top || rect.top>top+height)continue;
+      const samples=[];
+      for(let y=0;y<6;y++)for(let x=0;x<8;x++){
+        const px=clamp(Math.floor((rect.left-left+rect.width*(.2+.6*(x+.5)/8))*w/width),0,w-1);
+        const py=clamp(Math.floor((rect.top-top+rect.height*(.2+.6*(y+.5)/6))*h/height),0,h-1);
+        const i=((h-1-py)*w+px)*4;
+        samples.push(luminance(inkPixels.subarray(i,i+3)));
+      }
+      samples.sort((a,b)=>a-b);
+      const L=samples[Math.floor(samples.length/2)];
+      const color=1.05/(L+.05)>=(L+.05)/.073?'light':'dark';
+      if(el.dataset.glassInk!==color)el.dataset.glassInk=color;
+    }
+  }
   function drawLayer(shapes){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
+    const clip=shapes[0].clip;
+    if(clip.key!=='viewport'){
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER,fb.scene.fbo);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,fb.output.fbo);
+      gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);
+      gl.enable(gl.SCISSOR_TEST);
+      const x=Math.round(clip.left*canvas.width/width),y=Math.round(clip.top*canvas.height/height);
+      const right=Math.round((clip.left+clip.width)*canvas.width/width),bottom=Math.round((clip.top+clip.height)*canvas.height/height);
+      gl.scissor(x,canvas.height-bottom,right-x,bottom-y);
+    }
     for(let i=0;i<shapes.length;i++){
       const {rect:r,m,tone}=shapes[i],o=i*4;
       s0.set([r.left+r.width/2,r.top+r.height/2,r.width/2,r.height/2],o);
@@ -161,6 +218,7 @@
       const q=clamp((meanLum-.12)/.25,0,1);gl.uniform1f(L.u_dimK,material.dim*q*q*(3-2*q));
       gl.uniform1f(L.u_pickLod,Math.max(0,Math.log2(PICK_SIGMA*dpr/SIGMA0)));
     });
+    gl.disable(gl.SCISSOR_TEST);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER,fb.output.fbo);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,fb.scene.fbo);
     gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);
     bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
@@ -183,12 +241,11 @@
       bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
       const layers=collect();
       for(const shapes of layers){
-        // dim and merge are scene-wide uniforms in the reference. Isolate
-        // each preview material so its scene parameters remain exact as well.
-        const groups=new Map();
-        for(const shape of shapes){if(!groups.has(shape.m))groups.set(shape.m,[]);groups.get(shape.m).push(shape);}
-        for(const group of groups.values())for(let i=0;i<group.length;i+=capacity){buildPyramid();drawLayer(group.slice(i,i+capacity));}
+        // Each independent control has its own optical container. Preserve the
+        // reference merge value without fusing adjacent buttons or cards.
+        for(const batch of batchSurfaces(shapes,capacity)){buildPyramid();drawLayer(batch);}
       }
+      updateLabelContrast();
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER,fb.scene.fbo);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,null);
       gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);
       // Keep native text out of the floating mobile dock's reserved space. The
