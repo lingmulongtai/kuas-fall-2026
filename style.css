@@ -694,6 +694,9 @@ ul.goals li{margin-bottom:8px}
 }
 @media screen and (max-width:700px){
   .masthead-in{padding:22px 20px;gap:24px}
+  .header-tools{align-items:stretch}
+  .header-tools .iconbtn{display:grid;grid-template-rows:20px auto;justify-items:center;align-items:start;align-content:start;white-space:normal;line-height:1.5}
+  .header-tools .iconbtn span{max-width:100%;overflow-wrap:anywhere}
   main{padding-top:24px}
   .sec{padding:24px 16px;margin-bottom:28px}
   .sec-head{gap:8px 16px;margin-bottom:24px}
