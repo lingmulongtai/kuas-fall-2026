@@ -170,7 +170,7 @@
     return [...layers].sort((a,b)=>a[0]-b[0]).map(entry=>entry[1]);
   }
   const touch={x:-1e4,y:-1e4,strength:0};
-  let inkPixels=null,labels=[],labelLayout=[],labelLayoutDirty=true,inkHistory=new WeakMap(),contrastUrgent=true,lastContrast=-Infinity,contrastTimer=0;
+  let inkPixels=null,labels=[],labelLayout=[],labelLayoutDirty=true,inkHistory=new WeakMap(),inkCandidates=new WeakMap(),contrastUrgent=true,lastContrast=-Infinity,contrastTimer=0;
   const colorCache=new Map(),colorCanvas=document.createElement('canvas');
   colorCanvas.width=colorCanvas.height=1;
   const colorContext=colorCanvas.getContext('2d',{willReadFrequently:true});
@@ -183,6 +183,11 @@
     }
     const best=scores.dark>=scores.light?'dark':'light';
     return previous && previous!==best && scores[previous]>=3 && scores[best]<scores[previous]*1.15?previous:best;
+  }
+  function stabiliseLabelInk(candidate,previous,pending,now){
+    if(!previous || candidate===previous)return {color:candidate,pending:null};
+    if(pending?.color!==candidate)pending={color:candidate,since:now};
+    return now-pending.since>=500?{color:candidate,pending:null}:{color:previous,pending};
   }
   function labelBackdrop(el,styles){
     // The GPU image excludes native DOM fills, such as status badges and rows.
@@ -209,6 +214,7 @@
   }
   function measureLabels(){
     const range=document.createRange(),styles=new Map();
+    const previousBackdrops=new Map(labelLayout.map(label=>[label.el,label.backdrop]));
     labelLayout=[];
     for(const label of labels){
       const {el,nodes}=label;
@@ -220,7 +226,11 @@
       const clip=scroller?scroller.getBoundingClientRect():{left,top,right:left+width,bottom:top+height};
       const visible=rects.map(rect=>({left:Math.max(rect.left,left,clip.left),top:Math.max(rect.top,top,clip.top),right:Math.min(rect.right,left+width,clip.right),bottom:Math.min(rect.bottom,top+height,clip.bottom)}))
         .filter(rect=>rect.right>rect.left && rect.bottom>rect.top);
-      if(visible.length)labelLayout.push({el,rects:visible,backdrop:labelBackdrop(el,styles)});
+      if(visible.length){
+        const backdrop=labelBackdrop(el,styles),previous=previousBackdrops.get(el);
+        if(previous && backdrop.some((value,i)=>value!==previous[i])){inkHistory.delete(el);inkCandidates.delete(el);}
+        labelLayout.push({el,rects:visible,backdrop});
+      }
     }
     labelLayoutDirty=false;
   }
@@ -238,7 +248,7 @@
     return samples;
   }
   function resetLabelContrast(){
-    labelLayoutDirty=true;contrastUrgent=true;inkHistory=new WeakMap();
+    labelLayoutDirty=true;contrastUrgent=true;inkHistory=new WeakMap();inkCandidates=new WeakMap();
   }
   function updateLabelContrast(){
     if(['white','black'].includes(root.dataset.textColor)){clearTimeout(contrastTimer);contrastTimer=0;return;}
@@ -258,12 +268,17 @@
     if(!inkPixels || inkPixels.length!==w*h*4)inkPixels=new Uint8Array(w*h*4);
     gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,inkPixels);
     if(labelLayoutDirty || moving)measureLabels();
+    let waiting=false;
+    const now=performance.now();
     for(const {el,rects,backdrop} of labelLayout){
-      const color=chooseLabelInk(sampleLabel(rects,backdrop,w,h),inkHistory.get(el));
+      const previous=inkHistory.get(el),candidate=chooseLabelInk(sampleLabel(rects,backdrop,w,h),previous);
+      const {color,pending}=stabiliseLabelInk(candidate,previous,inkCandidates.get(el),now);
+      if(pending){inkCandidates.set(el,pending);waiting=true;}else inkCandidates.delete(el);
       inkHistory.set(el,color);
       if(el.dataset.autoInk!==color)el.dataset.autoInk=color;
     }
     contrastUrgent=false;lastContrast=performance.now();
+    if(waiting)contrastTimer=setTimeout(()=>{contrastTimer=0;invalidate();},120);
   }
   function drawLayer(shapes){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
@@ -367,6 +382,7 @@
   new MutationObserver(records=>{
     if(records.every(r=>r.type==='attributes' && ['data-auto-ink','data-glass-surface','data-optics'].includes(r.attributeName)))return;
     if(records.some(r=>r.type==='childList'))refreshTargets();
+    else if(records.some(r=>['class','hidden','open'].includes(r.attributeName)))resetLabelContrast();
     labelLayoutDirty=true;contrastUrgent=true;
     invalidate();
   }).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class','hidden','open','data-auto-ink','data-glass-surface']});
@@ -388,16 +404,18 @@
     if(event.data?.type==='rain-ready' || (event.data?.type==='rain-photo-ready' && event.data.image===photo?.src))requestRainBitmap(true);
     if(event.data?.type!=='rain-bitmap')return;
     if(event.data.photo && event.data.photo!==photo?.src){event.data.image.close();return;}
+    if(!rainImage)resetLabelContrast();
     rainImage?.close();rainImage=event.data.image;sourceDirty=true;invalidate();
     requestAnimationFrame(()=>requestRainBitmap());
   });
-  function layoutChanged(){labelLayoutDirty=true;contrastUrgent=true;invalidate();}
+  function layoutChanged(){resetLabelContrast();invalidate();}
+  function hoveredLabelChanged(){labelLayoutDirty=true;contrastUrgent=true;invalidate();}
   window.addEventListener('resize',layoutChanged);
   new ResizeObserver(layoutChanged).observe(canvas);
   window.addEventListener('scroll',layoutChanged,{passive:true});
   document.addEventListener('scroll',layoutChanged,{passive:true,capture:true});
-  document.addEventListener('pointerover',layoutChanged,{passive:true});
-  document.addEventListener('pointerout',layoutChanged,{passive:true});
+  document.addEventListener('pointerover',hoveredLabelChanged,{passive:true});
+  document.addEventListener('pointerout',hoveredLabelChanged,{passive:true});
   document.addEventListener('click',()=>invalidate(true));
   function trackPointer(event){
     if(event.isPrimary===false)return;
