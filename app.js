@@ -691,10 +691,10 @@ const T = {
   tabMats:{ja:"教材", en:"Materials"},
   tabSettings:{ja:"設定", en:"Settings"},
   settingsTitle:{ja:"自分の見やすさに合わせる", en:"Make yourself at home"},
-  settingsIntro:{ja:"ガラスの表情、テーマ、言語をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass, theme and language. Your preferences are saved in this browser."},
+  settingsIntro:{ja:"ガラスの表情と言語をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass and language. Your preferences are saved in this browser."},
   glassTitle:{ja:"ガラスのプリセット", en:"Glass material"},
   glassHint:{ja:"タップすると、すべての画面に適用されます。", en:"Choose a material to apply it across every view."},
-  appearanceTitle:{ja:"テーマと言語", en:"Appearance & language"},
+  appearanceTitle:{ja:"言語", en:"Language"},
   sceneryTitle:{ja:"背景と雨", en:"Scenery & rain"},
   sceneryHint:{ja:"雨を止めても、ボタンや画面のアニメーションは変わりません。", en:"Pausing rain keeps all interface animations running."},
   presetApple:{ja:"やわらかな屈折と、背景になじむガラス。", en:"A gentle lens that adapts to its surroundings."},
@@ -706,6 +706,10 @@ const T = {
   themeAuto:{ja:"テーマ：自動", en:"Theme: Auto"},
   themeLight:{ja:"テーマ：ライト", en:"Theme: Light"},
   themeDark:{ja:"テーマ：ダーク", en:"Theme: Dark"},
+  textAuto:{ja:"文字色：自動", en:"Text colour: Auto"},
+  textWhite:{ja:"文字色：白", en:"Text colour: White"},
+  textBlack:{ja:"文字色：黒", en:"Text colour: Black"},
+  changeTextColor:{ja:"文字色を切り替え", en:"Change text colour"},
   timetable:{ja:"時間割", en:"Timetable"},
   ttHint:{ja:"科目をタップすると詳細へ", en:"Tap a course for details"},
   chooseTimetableView:{ja:"時間割の表示を選択", en:"Choose a timetable view"},
@@ -895,6 +899,7 @@ const MAT_NOTES = [
 /* ---------- 状態 ---------- */
 let LANG = "ja";
 let THEME = "auto";
+let TEXT_COLOR = "auto";
 let VIEW = "home";
 let WEEK = calendarWeekFor(todayISO());
 /* 科目詳細は、授業中（なければ次）の科目を開く。手で選んだ科目は、次に授業が切り替わるまでそのまま。 */
@@ -1087,7 +1092,10 @@ function motionEnabled(){ return !(motionPreference && motionPreference.matches)
 function rainMotionEnabled(){ return RAIN && motionEnabled(); }
 function renderAmbience(){
   document.documentElement.dataset.motion = motionEnabled()?'on':'off';
-  $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?(motionEnabled()?'rainOn':'rainReduced'):'rainOff')+'</span>';
+  const label=t(RAIN?(motionEnabled()?'rainOn':'rainReduced'):'rainOff');
+  $('rain-btn').innerHTML = uiIcon(RAIN?'rain':'rain-off');
+  $('rain-btn').setAttribute('aria-label',label);
+  $('rain-btn').title=label;
   $('rain-btn').setAttribute('aria-pressed',RAIN);
   window.dispatchEvent(new Event('ambiencechange'));
 }
@@ -1133,9 +1141,11 @@ function resolvedTheme(){ return THEME==="auto" ? (mq && mq.matches ? "dark" : "
 function isDark(){ return resolvedTheme()==="dark"; }
 function applyTheme(){
   document.documentElement.dataset.theme = resolvedTheme();
-  $("theme-btn").innerHTML = uiIcon(THEME==="light" ? "light" : THEME==="dark" ? "dark" : "auto")
-    + '<span>'+t(THEME==="auto" ? "themeAuto" : THEME==="light" ? "themeLight" : "themeDark")+'</span>';
-  $("theme-btn").title = t("changeTheme");
+  $("theme-btn").innerHTML = uiIcon(THEME==="light" ? "light" : THEME==="dark" ? "dark" : "auto");
+  const label=t(THEME==="auto" ? "themeAuto" : THEME==="light" ? "themeLight" : "themeDark")+' · '+t('changeTheme');
+  $("theme-btn").setAttribute('aria-label',label);
+  $("theme-btn").title=label;
+  applyTextColor();
   updateWallpaper();
 }
 function cycleTheme(){
@@ -1145,6 +1155,22 @@ function cycleTheme(){
   moveIn($("theme-btn").querySelector('.ui-icon'));
 }
 if(mq && mq.addEventListener) mq.addEventListener("change", ()=>{ if(THEME==="auto"){ applyTheme(); renderAll(); } });
+
+/* Text contrast can be chosen independently of the photograph and theme. */
+function applyTextColor(){
+  document.documentElement.dataset.textColor=TEXT_COLOR;
+  const label=t(TEXT_COLOR==='white'?'textWhite':TEXT_COLOR==='black'?'textBlack':'textAuto');
+  $('text-color-btn').innerHTML=uiIcon('text-'+TEXT_COLOR);
+  $('text-color-btn').setAttribute('aria-label',label+' · '+t('changeTextColor'));
+  $('text-color-btn').title=label+' · '+t('changeTextColor');
+  window.dispatchEvent(new Event('textcolorchange'));
+}
+function cycleTextColor(){
+  TEXT_COLOR=TEXT_COLOR==='auto'?'white':TEXT_COLOR==='white'?'black':'auto';
+  store.set('text-color',TEXT_COLOR);
+  applyTextColor();
+  moveIn($('text-color-btn').querySelector('.ui-icon'));
+}
 
 /* ---------- 共通ヘルパ ---------- */
 const cc = c => isDark() ? c.colorD : c.color;
@@ -1160,8 +1186,12 @@ function uiIcon(name){
     light:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
     dark:'<path d="M20.5 14.2A8.7 8.7 0 0 1 9.8 3.5a8.8 8.8 0 1 0 10.7 10.7Z"/>',
     auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18Z" fill="currentColor" stroke="none"/>',
+    'text-auto':'<path d="m3 19 5-14 5 14M5 14h6m5-8h5m0 0-2-2m2 2-2 2m2 10h-5m0 0 2-2m-2 2 2 2"/>',
+    'text-white':'<circle cx="12" cy="12" r="10" fill="#172c3a" stroke="#f7fafc"/><path d="m7 17 5-11 5 11M9 13h6" stroke="#fff"/>',
+    'text-black':'<circle cx="12" cy="12" r="10" fill="#f7fafc" stroke="#172c3a"/><path d="m7 17 5-11 5 11M9 13h6" stroke="#111"/>',
     shuffle:'<path d="m17 3 4 4-4 4m0 2 4 4-4 4M3 7h3c5 0 7 10 12 10h3M3 17h3c2 0 4-3 6-6s4-4 6-4h3"/>',
     rain:'<path d="M8 16H6a4 4 0 1 1 1-7 5 5 0 0 1 10-1 4 4 0 1 1 1 8M10 16l-1 4m5-4-1 4m5-1-1 3"/>',
+    'rain-off':'<path d="m3 3 18 18M5 8a4 4 0 0 0 1 8h2m2-10a5 5 0 0 1 7 2 4 4 0 0 1 3 7M10 16l-1 4m5-4-1 4"/>',
     pause:'<path d="M8 5v14M16 5v14"/>',
     play:'<path d="m8 4 12 8-12 8Z"/>'
   };
@@ -2039,7 +2069,9 @@ function renderSettings(){
   $('glass-title').textContent=t('glassTitle');
   $('glass-hint').textContent=t('glassHint');
   $('appearance-title').textContent=t('appearanceTitle');
-  $('settings-open').innerHTML=uiIcon('settings')+'<span>'+t('tabSettings')+'</span>';
+  $('settings-open').innerHTML=uiIcon('settings');
+  $('settings-open').setAttribute('aria-label',t('tabSettings'));
+  $('settings-open').title=t('tabSettings');
   const descriptions=['presetApple','presetAppleClear','presetThick','presetFrosted','presetClear','presetPrism'];
   $('glass-presets').innerHTML=(window.GlassMaterials?.presets||[]).map((preset,i)=>
     '<button type="button" class="preset-card" data-preset="'+preset.id+'" aria-pressed="'+(GLASS_PRESET===preset.id)+'">'
@@ -2112,7 +2144,9 @@ function renderAll(){
     $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats","tabSettings"][i])+'</span>';
   });
   $("foot").textContent = t("foot");
-  $('shuffle-btn').innerHTML = uiIcon('shuffle')+'<span>'+t('shuffleBackground')+'</span>';
+  $('shuffle-btn').innerHTML = uiIcon('shuffle');
+  $('shuffle-btn').setAttribute('aria-label',t('shuffleBackground'));
+  $('shuffle-btn').title=t('shuffleBackground');
   if($('background-status').textContent) $('background-status').textContent = t($('shuffle-btn').disabled?'backgroundLoading':'backgroundFailed');
   document.querySelector('.ambience').setAttribute('aria-label',t('backgroundSettings'));
   renderAmbience();
@@ -2230,6 +2264,7 @@ $("settings-open").addEventListener("click", ()=>{setView("settings");$("setting
 $("btn-ja").addEventListener("click", ()=>setLang("ja"));
 $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
+$('text-color-btn').addEventListener('click',cycleTextColor);
 $('shuffle-btn').addEventListener('click',()=>updateWallpaper(true));
 $('rain-btn').addEventListener('click',()=>{ RAIN=!RAIN; store.set('rain',RAIN?'on':'off'); renderAmbience(); });
 document.addEventListener("keydown", e=>{
@@ -2264,7 +2299,9 @@ window.addEventListener("afterprint", ()=>{
 /* ---------- 起動 ---------- */
 (function init(){
   const savedTheme = store.get("theme");
-  if(savedTheme) THEME = savedTheme;
+  if(['auto','light','dark'].includes(savedTheme)) THEME = savedTheme;
+  const savedTextColor=store.get('text-color');
+  if(['auto','white','black'].includes(savedTextColor)) TEXT_COLOR=savedTextColor;
   const savedLang = store.get("lang");
   if(savedLang) LANG = savedLang;
   TIMETABLE_VIEW = store.get("timetable-view")==="week" ? "week" : "day";
