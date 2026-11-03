@@ -55,6 +55,7 @@
   // 12px pickup sigma, and at most ten pyramid levels. Never lower quality on motion.
   const SIGMA0=3,PICK_SIGMA=12,PYR_MAX=10;
   function materialNeedsPyramid(material){return material.blur>0 || material.frost>0 || material.pickup>0;}
+  function materialNeedsStatistics(material){return material.appearance==='auto' || material.dim>0;}
   function buildPyramid(){
     const cw=canvas.width,ch=canvas.height,bw=Math.max(1,Math.ceil(cw/2)),bh=Math.max(1,Math.ceil(ch/2));
     const levels=Math.min(PYR_MAX,mipLevels(bw,bh)),P=rtex('pyr',bw,bh,levels),T=rtex('pyrTmp',bw,bh,levels);
@@ -66,7 +67,14 @@
   }
   const source=document.createElement('canvas'),cx=source.getContext('2d',{willReadFrequently:true});
   const imageTex=gl.createTexture();
-  let meanLum=.6,pixels=null;
+  let meanLum=.6,pixels=null,sourceStatisticsCurrent=false;
+  function sourceLuminanceNeeded(){
+    const presets=window.GlassMaterials.presets;
+    const selected=presets.find(p=>p.id===root.dataset.material)?.p||presets[5].p;
+    if(materialNeedsStatistics(selected))return true;
+    return targets.some(el=>el.dataset.materialPreview && el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}) &&
+      materialNeedsStatistics(presets.find(p=>p.id===el.dataset.materialPreview)?.p||presets[5].p));
+  }
   function uploadSource(){
     source.width=canvas.width;source.height=canvas.height;
     cx.fillStyle=root.dataset.theme==='dark'?'#171f2b':'#dce6eb';cx.fillRect(0,0,source.width,source.height);
@@ -82,13 +90,16 @@
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.MIRRORED_REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.MIRRORED_REPEAT);
     gl.generateMipmap(gl.TEXTURE_2D);
+    sourceStatisticsCurrent=false;sourceDirty=false;
+  }
+  function updateSourceStatistics(){
     pixels=cx.getImageData(0,0,source.width,source.height).data;
     let sum=0;
     for(let y=0;y<24;y++)for(let x=0;x<24;x++){
       const i=(Math.floor((y+.5)*source.height/24)*source.width+Math.floor((x+.5)*source.width/24))*4;
       sum+=luminance(pixels.subarray(i,i+3));
     }
-    meanLum=sum/(24*24);sourceDirty=false;
+    meanLum=sum/(24*24);sourceStatisticsCurrent=true;
   }
   const lin=c=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;};
   const luminance=c=>.2126*lin(c[0])+.7152*lin(c[1])+.0722*lin(c[2]);
@@ -138,7 +149,7 @@
       if(el.closest('.tabs'))depth+=30;
       if(!layers.has(depth))layers.set(depth,[]);
       const style=getComputedStyle(el),m=window.GlassMaterials.presets.find(p=>p.id===(el.dataset.materialPreview||root.dataset.material))?.p||window.GlassMaterials.presets[5].p;
-      const L=measure(rect),old=toneMemory.get(el)||0;
+      const L=m.appearance==='auto'?measure(rect):0,old=toneMemory.get(el)||0;
       const tone=m.appearance==='light'?0:m.appearance==='dark'?1:Math.min(rect.width,rect.height)<=96?(old>.5?(L<.22?1:0):(L<.14?1:0)):0;
       toneMemory.set(el,tone);
       layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone,clip});
@@ -300,6 +311,7 @@
       const ratio=Math.min(devicePixelRatio||1,2);
       if(w!==width || h!==height || ratio!==dpr){width=w;height=h;dpr=ratio;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);sourceDirty=true;}
       if(sourceDirty)uploadSource();
+      if(!sourceStatisticsCurrent && sourceLuminanceNeeded())updateSourceStatistics();
       rtex('scene',canvas.width,canvas.height,mipLevels(canvas.width,canvas.height));rtex('output',canvas.width,canvas.height);
       drawTo(programs.cover,fb.scene.fbo,canvas.width,canvas.height,L=>{
         bindTex(0,imageTex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,1,0,0);gl.uniform4f(L.u_rect,0,0,1,1);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
