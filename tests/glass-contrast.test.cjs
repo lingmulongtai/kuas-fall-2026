@@ -24,6 +24,26 @@ test('small brightness changes do not make rain alternate text colours',()=>{
   assert.equal(c.chooseLabelInk([.65],'light'),'dark');
   assert.equal(c.chooseLabelInk([.02],'dark'),'light');
 });
+test('transient rain changes are ignored while scene resets take effect immediately',()=>{
+  const {context:c}=setup();
+  assert.equal(c.stabiliseLabelInk('dark',undefined,undefined,0).color,'dark');
+  let state=c.stabiliseLabelInk('light','dark',undefined,100);
+  assert.equal(state.color,'dark');
+  state=c.stabiliseLabelInk('dark','dark',state.pending,230);
+  assert.equal(state.pending,null);
+  state=c.stabiliseLabelInk('light','dark',state.pending,400);
+  assert.equal(c.stabiliseLabelInk('light','dark',state.pending,899).color,'dark');
+  assert.equal(c.stabiliseLabelInk('light','dark',state.pending,900).color,'light');
+});
+test('automatic reversals must each sustain the new colour for 500ms',()=>{
+  const {context:c}=setup();
+  let state=c.stabiliseLabelInk('dark','light',undefined,100);
+  state=c.stabiliseLabelInk('dark','light',state.pending,600);
+  assert.equal(state.color,'dark');
+  state=c.stabiliseLabelInk('light','dark',undefined,610);
+  assert.equal(c.stabiliseLabelInk('light','dark',state.pending,1000).color,'dark');
+  assert.equal(c.stabiliseLabelInk('light','dark',state.pending,1110).color,'light');
+});
 test('the harder-to-read parts of mixed backgrounds influence the result',()=>{
   const {context:c}=setup();
   assert.equal(c.chooseLabelInk([...Array(70).fill(.1),...Array(30).fill(.6)]),'dark');
@@ -69,4 +89,30 @@ test('throttled updates schedule one trailing measurement when cursor movement s
   context.contrastTimer=42;timers.set(42,()=>assert.fail('Manual colour must cancel auto work'));
   context.root.dataset.textColor='white';context.updateLabelContrast();
   assert.equal(timers.has(42),false);
+});
+test('pending colours continue evaluating without rain or further pointer events',()=>{
+  let now=100,id=0;const timers=new Map(),el={dataset:{autoInk:'light'}},history=new WeakMap([[el,'light']]);
+  const context=vm.createContext({root:{dataset:{textColor:'auto'}},document:{getAnimations:()=>[]},performance:{now:()=>now},
+    contrastUrgent:true,lastContrast:0,contrastTimer:0,labelLayoutDirty:false,labelLayout:[{el}],inkHistory:history,inkCandidates:new WeakMap(),
+    inkPixels:null,width:1,height:1,programs:{cover:{}},rtex:()=>({}),drawTo(){},gl:{readPixels(){}},
+    sampleLabel:()=>[.8],chooseLabelInk:()=> 'dark',
+    setTimeout(fn){timers.set(++id,fn);return id;},clearTimeout:key=>timers.delete(key),invalidate(){}});
+  vm.runInContext(source.slice(source.indexOf('  function stabiliseLabelInk('),source.indexOf('  function labelBackdrop('))+source.slice(source.indexOf('  function updateLabelContrast('),source.indexOf('  function drawLayer(')),context);
+  context.updateLabelContrast();
+  assert.equal(el.dataset.autoInk,'light');assert.equal(timers.size,1);
+  now=700;context.updateLabelContrast();
+  assert.equal(el.dataset.autoInk,'dark');assert.equal(timers.size,0);
+});
+test('the first rain image resets colour history while subsequent water frames retain it',()=>{
+  let handler,resets=0,closed=0;const sender={},photo={src:'https://images.unsplash.com/photo-test'};
+  const context=vm.createContext({window:{addEventListener(type,fn){handler=fn;}},document:{querySelector:()=>({contentWindow:sender})},photo,
+    rainImage:null,sourceDirty:false,resetLabelContrast:()=>resets++,invalidate(){},requestAnimationFrame(){}});
+  vm.runInContext(source.slice(source.indexOf("  window.addEventListener('message'"),source.indexOf('  function layoutChanged(')),context);
+  const image=()=>({close(){closed++;}});
+  handler({source:sender,data:{type:'rain-bitmap',photo:photo.src,image:image()}});
+  assert.equal(resets,1);
+  handler({source:sender,data:{type:'rain-bitmap',photo:photo.src,image:image()}});
+  assert.equal(resets,1);assert.equal(closed,1);
+  handler({source:sender,data:{type:'rain-bitmap',photo:'https://images.unsplash.com/stale',image:image()}});
+  assert.equal(resets,1);assert.equal(closed,2);
 });
