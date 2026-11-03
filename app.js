@@ -6,7 +6,7 @@
 /* ---------- 時限 ---------- */
 const PERIODS = {
   1:"9:00–10:30", 2:"10:40–12:10", 3:"13:00–14:30",
-  4:"14:40–16:10", 5:"16:20–17:50", 6:"18:00–19:00"
+  4:"14:40–16:10", 5:"16:20–17:50", 6:"18:00–19:30"
 };
 
 const DAYS = [
@@ -64,6 +64,46 @@ const CAREER_FORMAT = {
            en:"30 min GW presentations (about 4 teams each?), 15 min Q&A, 45 min Career Showcase. Assignment 1: Career Showcase report. Assignment 2: GW report (everyone submits)"}
 };
 const TBD = {ja:"未定", en:"TBD"};
+/* AC1 第9・10回：2026/10/19の教員連絡。具体的な締切日時は未確認。 */
+const CALC_VIDEO_NOTICE = {
+  ja:"10/19の連絡：第9・10回はオンデマンド動画。Teamsのクイズで出席判定。解答時間制限あり、中断後も再提出不可、期限後の回答不可。動画・クイズの具体的な締切日時は未確認のため、Teamsの案内を確認する。時間割の枠は視聴・学習の目安で、ライブ開始時刻や締切ではありません。",
+  en:"Oct 19 announcement: sessions 9 and 10 use on-demand videos. Attendance is checked through Teams quizzes. Answers are timed; resubmission is not allowed, even after interruption, and answers after the deadline are not accepted. Specific video and quiz deadlines are unconfirmed; check the Teams instructions. Timetable slots are study guides, not live start times or deadlines."
+};
+
+/* 機械製作実習 第3〜14週の班別実習。2026/9/18現在の Timetable（handouts/machine-shop-timetable.pdf）の TA01 の列。
+   PDFにあるのは開始時刻だけなので、end は次の班の開始時刻（最後の班と、複数の班がそろって始める回は5限の終わり）を目安にしている。 */
+const SHOP_GROUP = "TA01";
+const SHOP_PDF = "handouts/machine-shop-timetable.pdf";
+const PLACES = {
+  ws1F: {ja:"Machine Workshop (1F)", en:"Machine Workshop (1F)"},
+  wsBF: {ja:"Machine Workshop (BF)", en:"Machine Workshop (BF)"},
+  pmr:  {ja:"Precision Measurement Room (BF)", en:"Precision Measurement Room (BF)"},
+  plaza:{ja:"Science Plaza", en:"Science Plaza"},
+  lab2: {ja:"Teaching Lab. 2 (2F)", en:"Teaching Lab. 2 (2F)"},
+  s307: {ja:"S307教室", en:"Room S307"}
+};
+const TA = (practice, start, end, place, ja, en, together) =>
+  ["実習"+practice+"："+ja, "Practice "+practice+": "+en, "f2f",
+   {group:{practice, start, end, together:!!together, place:PLACES[place], equip:{ja, en}}}];
+
+/* 学生出欠状況表（2026/11/02 17:54発行）の転記。
+   marks は基準日までのコマ順。null は原票の空欄で、欠席とは区別する。
+   原票の個人情報・PDF本体は公開しない。実績は現在日時から推定しない。 */
+const ATTENDANCE = {
+  asOf:"2026-11-02", issuedAt:"17:54",
+  ruleUrl:"https://www.kuas.ac.jp/wp-content/uploads/2025/06/8668ad7f581ee93ea448a3555ea69d5e.pdf",
+  courses:{
+    calc:{total:30, rate:45, marks:["present","present","absent","present","present","absent","absent","present",null,null,"absent"]},
+    ec:{total:15, rate:20, marks:["present","late","absent","absent",null]},
+    mom:{total:30, rate:50, marks:["late","present","present","present","present","absent","absent","present","absent","absent"]},
+    emt:{total:30, rate:70, marks:["present","present","present","present","present","absent","absent","present","present","absent"]},
+    qol:{total:15, rate:80, marks:["present","present","present","present",null]},
+    shop:{total:45, rate:100, marks:Array(18).fill("present")},
+    bds:{total:15, rate:50, marks:["present","present",null,null,null,"present"]},
+    career:{total:15, rate:80, marks:["present","present","absent","present","present"]},
+    ece:{total:16, rate:null, marks:[]}
+  }
+};
 
 /* ---------- 科目 ---------- */
 const COURSES = [
@@ -255,8 +295,8 @@ const COURSES = [
     ["1階非同次線形常微分方程式","Non-homogeneous linear ODE of 1st order"],
     ["変数分離法","Separation of variables"],
     ["ベルヌーイの微分方程式","Bernoulli differential equation"],
-    ["2階線形常微分方程式","Linear ODE of second order","ondemand"],
-    ["2階同次線形常微分方程式","Homogeneous linear ODE of 2nd order","ondemand"],
+    ["2階線形常微分方程式","Linear ODE of second order","ondemand",{studySlot:true, notice:CALC_VIDEO_NOTICE}],
+    ["2階同次線形常微分方程式","Homogeneous linear ODE of 2nd order","ondemand",{studySlot:true, notice:CALC_VIDEO_NOTICE}],
     ["2階非同次線形常微分方程式","Non-homogeneous linear ODE of 2nd order"],
     ["未定係数法","Method of undetermined coefficients"],
     ["強制力のあるばね–質量系","Mass-spring systems with driving force"],
@@ -370,11 +410,17 @@ const COURSES = [
   teachers:{ja:"足立 伸太郎、川上 浩司、生津 資大、的場 洋嗣", en:"ADACHI Shintarou, KAWAKAMI Hiroshi, NAMAZU Takahiro, MATOBA Hirotsugu"},
   credits:3, lang:{ja:"英語", en:"English"},
   code:"MX241301", ttcode:"JMX430301", classMode:"f2f",
-  location:{ja:"S306教室", en:"Room S306"},
+  location:{ja:"S306教室（第3〜14週は班別の実習場所）", en:"Room S306 (weeks 3-14: group practice rooms)"},
+  groupName:SHOP_GROUP,
   slots:[{day:3,period:3,span:3,pick:w=>[w]}],
   total:15, perWeek:1, unit:"week", firstWeek:1, lastWeek:15,
+  planSource:{ja:"第3〜14週は"+SHOP_GROUP+"の班別スケジュール（2026/9/18現在のTimetable）。班ごとにローテーションするので、シラバスの週ごとの順番とは違う。PDFには開始時刻しかないため、終了時刻は次の班の開始時刻（最後の班は5限の終わり17:50）からの目安。",
+              en:"Weeks 3-14 follow the "+SHOP_GROUP+" group timetable (as of 2026/9/18). Groups rotate, so the order differs from the syllabus. The PDF lists start times only; end times are estimated from the next group's start (17:50, the end of period 5, for the last group)."},
+  handouts:[
+    {src:SHOP_PDF, pdf:true, ja:"班別Timetable（全班・2026/9/18現在・PDF）", en:"Group timetable (all groups, as of 2026/9/18, PDF)"}],
   memos:[
-    {date:"2026-09-24", ja:"土曜日に練習できるか担当者に確認する。練習の可否・日時は未確定。", en:"Ask the workshop staff whether Saturday practice is possible. Availability and dates are not confirmed."}],
+    {date:"2026-09-24", ja:"土曜日に練習できるか担当者に確認する。練習の可否・日時は未確定。", en:"Ask the workshop staff whether Saturday practice is possible. Availability and dates are not confirmed."},
+    {ja:"第3週（10/8）からは班別。"+SHOP_GROUP+"は回によって開始時刻・場所・機械が変わるので、毎週ここで確認する。", en:"From week 3 (Oct 8) the class splits into groups. "+SHOP_GROUP+"'s start time, room and machine change every week, so check here each week."}],
   outline:{
     ja:"旋盤・フライス盤・ボール盤などの工作機械を実際に使うハンズオン実習。機械加工の基礎、加工プロセス、工作機械、加工精度について知識と技能を身につける。さらに3Dプリンタによる積層造形を学び、加工プロセスと安全に関する一般知識を完成させる。",
     en:"Hands-on experience with machining tools including lathes, mills and drills, covering machining fundamentals, processes, machine tools and accuracy, plus additive manufacturing with 3D printing."},
@@ -395,18 +441,18 @@ const COURSES = [
   schedule:S([
     ["ガイダンス、工作実習室の見学、安全教育","Guidance, machine workshop mini tour and safety"],
     ["各工作機械の安全に関する講義、機械製図の講義、NCプログラミングの講義と実習","Lecture on safety of individual machine tools; machine drawing; NC programming lecture and practice"],
-    ["3Dプリンティング(1)：3Dプリンタの機構と制御","3D Printing (1): the mechanisms and control of the 3D printer"],
-    ["3Dプリンティング(2)：立体造形物をつくる","3D Printing (2): creating three-dimensional solid objects"],
-    ["旋盤(1)：手動およびNCによる旋削","The lathe (1): turning performed manually and with numerical control"],
-    ["旋盤(2)：続き","The lathe (2): continued"],
-    ["フライス加工(1)：各種部品の製作","Milling (1): fabricating various components"],
-    ["フライス加工(2)：続き、平面研削による平面出し","Milling (2): continued; surface grinding"],
-    ["マシニングセンタ(1)：CNCプログラミング","Machining center (1): CNC programming"],
-    ["マシニングセンタ(2)：各種部品の製作、手作業（穴あけ、やすり仕上げ）","Machining center (2): fabricating components; manual working: drilling, finishing using files"],
-    ["板金のレーザ加工","Laser processing of sheet metal"],
-    ["表面粗さ試験機と三次元測定機による精密測定","Precision measurement using surface roughness testing and coordinate measuring machines"],
-    ["電動モータの分解","Disassembly of an electrical motor"],
-    ["電動モータの組立","Assembly of an electrical motor"],
+    TA(1,"13:00","14:15","ws1F","マシニングセンタ","Machining Center"),
+    TA(1,"13:00","14:05","pmr","CNC三次元測定機","CNC coordinate measuring machine"),
+    TA(1,"13:00","13:40","wsBF","ボール盤","Drilling machine"),
+    TA(4,"13:00","14:40","wsBF","旋盤（Lathe 3）","Lathe 3"),
+    TA(4,"13:00","14:40","wsBF","NC旋盤（NC Lathe 2）","NC Lathe 2"),
+    TA(4,"13:00","17:50","plaza","3Dプリンタ","3D Printer",true),
+    TA(3,"16:15","17:50","ws1F","フライス盤（OKK・青）","Milling machine (OKK, blue)"),
+    TA(3,"17:05","17:50","wsBF","平面研削盤","Surface grinder"),
+    TA(3,"17:05","17:50","ws1F","レーザ加工機","Laser cutting machine"),
+    TA(2,"13:00","17:50","lab2","ステッピングモータ","Stepper motor",true),
+    TA(2,"13:00","17:50","lab2","ステッピングモータ","Stepper motor",true),
+    TA(2,"13:00","17:50","s307","NCプログラム","NC programming",true),
     ["最終発表、課題の討論、総括","Final presentation, discussion of issues, and review"]],"f2f")
 },
 {
@@ -559,9 +605,17 @@ function mondayOf(iso){
   const weekday = new Date(iso+'T12:00:00Z').getUTCDay();
   return addDays(iso,-((weekday+6)%7));
 }
-function todayISO(){
-  return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+/* 今の日本時間。min は0時からの分。 */
+const JST_CLOCK = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+function nowJST(){
+  const p = {};
+  JST_CLOCK.formatToParts(new Date()).forEach(x=>{ p[x.type]=x.value; });
+  return {date:p.year+'-'+p.month+'-'+p.day, min:Number(p.hour)*60+Number(p.minute)};
 }
+function todayISO(){ return nowJST().date; }
+/* 0=月 … 6=日 */
+function weekdayOf(iso){ return (new Date(iso+'T12:00:00Z').getUTCDay()+6)%7; }
+const toMin = hm => { const [h,m] = hm.split(':').map(Number); return h*60+m; };
 const SEMESTER_DATES = Object.values(DATES).flat().sort();
 const CALENDAR_WEEKS = [];
 for(let start=mondayOf(SEMESTER_DATES[0]);start<=SEMESTER_DATES.at(-1);start=addDays(start,7)) CALENDAR_WEEKS.push(start);
@@ -594,6 +648,32 @@ function markedSessions(c,m){ return OCCURRENCES.filter(item=>item.c===c && mark
 function occurrenceOf(c,n){ return OCCURRENCES.find(item=>item.c===c && item.n===n); }
 function memosOn(item){ return (item.c.memos||[]).filter(m=>m.date===item.date); }
 function phaseFor(c,n){ return (c.phases||[]).find(p=>n>=p.from && n<=p.to); }
+/* 班別実習の回（機械製作実習の第3〜14週）。 */
+function groupOf(item){ return item && item.session && item.session.group || null; }
+/* 指定時刻のない動画回。時間割は学習の目安としてのみ残す。 */
+function isStudySlot(item){ return !!(item && item.session && item.session.studySlot); }
+/* 実際に教室にいる時間（分）。班別の回は班の開始時刻から。 */
+function classWindow(item){
+  const g = groupOf(item);
+  if(g) return {start:toMin(g.start), end:toMin(g.end)};
+  const span = item.s.span||1;
+  return {start:toMin(PERIODS[item.s.period].split('–')[0]), end:toMin(PERIODS[item.s.period+span-1].split('–')[1])};
+}
+function periodAt(min){
+  const p = Object.keys(PERIODS).find(k=>{ const [a,b] = PERIODS[k].split('–').map(toMin); return min>=a && min<b; });
+  return p ? Number(p) : null;
+}
+/* 授業中の回と、その次に始まる回。 */
+function liveState(now){
+  const current = sessionsOn(now.date).find(item=>{ const w=classWindow(item); return !isStudySlot(item) && now.min>=w.start && now.min<w.end; }) || null;
+  const later = OCCURRENCES.filter(item=>!isStudySlot(item) && (item.date>now.date || (item.date===now.date && classWindow(item).start>now.min)));
+  later.sort((a,b)=>a.date.localeCompare(b.date) || classWindow(a).start-classWindow(b).start);
+  return {current, next:later[0]||null};
+}
+/* その科目の、授業中の回か次の回。 */
+function courseFocus(c,now){
+  return OCCURRENCES.find(item=>item.c===c && (item.date>now.date || (item.date===now.date && (isStudySlot(item) || classWindow(item).end>now.min)))) || null;
+}
 /* 通常の形態と違う回（対面科目のオンデマンド回など）。 */
 function formatChanges(){
   return OCCURRENCES.filter(item=>item.c.classMode==="f2f" && item.session && item.session.mode!=="f2f");
@@ -646,12 +726,38 @@ const T = {
   colCredit:{ja:"単位", en:"Cr."},
   colMode:{ja:"形態", en:"Format"},
   colEval:{ja:"成績評価の内訳", en:"Grade breakdown"},
-  colAbs:{ja:"欠席の目安", en:"Absence guide"},
+  colAbs:{ja:"学期全体の欠席目安", en:"Whole-term absence guide"},
   colTotal:{ja:"回数", en:"Sessions"},
   colTerm:{ja:"開講期間", en:"Runs"},
-  absTitle:{ja:"休める回数の目安", en:"How many classes you can miss"},
-  absLead:{ja:"授業回数の2/3以上の出席という一般的な基準で計算した目安です。9科目のシラバスには出席回数の規定が書かれていないため、正式なルールは学生便覧と各担当教員の指示を確認してください。",
-           en:"Calculated on the common rule of attending at least two thirds of classes. None of the nine syllabi states an attendance rule, so confirm the official one in the student handbook and with each instructor."},
+  absTitle:{ja:"学期全体の欠席目安（2/3基準）", en:"Whole-term absence guide (two-thirds rule)"},
+  absLead:{ja:"工学部履修要項の一般基準は授業回数の3分の2以上の出席です。出席だけで単位修得が決まるわけではありません。科目独自の条件や遅刻の扱いは担当教員に確認してください。",
+           en:"The Faculty of Engineering handbook generally requires attendance at two thirds or more of classes. Attendance alone does not guarantee credit. Confirm course-specific requirements and the treatment of lateness with each instructor."},
+  attendanceTitle:{ja:"出欠・必要な出席回数", en:"Attendance and remaining requirements"},
+  attendanceRate:{ja:"出席率（○のみ）", en:"Attendance (○ only)"},
+  attendanceRecord:{ja:"入力済みの記録", en:"Attendance records"},
+  attendanceNeeded:{ja:"今後必要（2/3試算）", en:"Needed from now (two-thirds estimate)"},
+  attendanceAllowance:{ja:"計算上の余裕", en:"Calculated margin"},
+  attendancePending:{ja:"未開始", en:"Not started"},
+  attendanceBlank:{ja:"未入力", en:"blank"},
+  attendanceNote:{ja:"○は出席、△は遅刻、×は欠席。○のみを出席として最終3分の2に達するための試算です。原票の空欄は未入力として残します。遅刻△・未入力は出席数に加えず、欠席とも断定しません。残り回数は、初期記録または最後に入力した授業までを経過分として計算します。日付が進んでも未入力を自動で欠席にはしません。掲載予定どおりの実施を前提とし、科目独自の条件は要確認です。",
+                  en:"○ means present, △ late, and × absent. The estimate counts only ○ toward the final two-thirds threshold. Late and blank records are neither added to attendance nor assumed absent. Remaining periods start after the initial report or the latest edited class. A new date never automatically marks blank classes absent. The estimate assumes the published timetable is completed; confirm course-specific requirements."},
+  attendanceEdit:{ja:"出欠を入力・修正", en:"Enter or correct attendance"},
+  attendanceLocal:{ja:"入力はこのブラウザーに自動保存されます。別の端末・ブラウザーには自動同期されないので、移すときは書き出し・読み込みを使ってください。",
+                   en:"Entries are saved automatically in this browser. They do not sync across devices or browsers; use export and import to move them."},
+  attendanceSaved:{ja:"このブラウザーに保存済み", en:"Saved in this browser"},
+  attendanceInitial:{ja:"11月2日時点の初期記録を表示中", en:"Showing the initial November 2 report"},
+  attendanceMemory:{ja:"このブラウザーに保存できません。今回の画面には反映されています。閉じる前に書き出してください。", en:"This browser could not save your entries. Changes are reflected here; export them before closing the page."},
+  attendanceInvalid:{ja:"保存された入力を読み込めませんでした。元の出欠表を表示しています。保存データは上書きしていません。", en:"Saved entries could not be read. The original report is shown; the stored data has not been overwritten."},
+  attendanceExport:{ja:"入力を書き出す", en:"Export entries"},
+  attendanceImport:{ja:"入力を読み込む", en:"Import entries"},
+  attendanceImportNote:{ja:"読み込むと、このブラウザーの入力をファイルの内容に置き換えます。", en:"Import replaces this browser's entries with the file contents."},
+  attendanceImportError:{ja:"読み込めませんでした。正しい出欠データのファイルを選んでください。現在の入力は保持しています。", en:"Import failed. Select a valid attendance export. Your current entries have been kept."},
+  attendanceImported:{ja:"入力を読み込みました。", en:"Entries imported."},
+  attendanceExported:{ja:"入力を書き出しました。", en:"Entries exported."},
+  attendanceExportError:{ja:"書き出せませんでした。ブラウザーのダウンロード設定を確認してください。", en:"Export failed. Check this browser's download settings."},
+  attendanceFuture:{ja:"未来の授業は当日から入力できます。実習・演習は1コマずつ記録してください。", en:"Future classes can be entered from their scheduled date. Record each period separately for practicals and exercises."},
+  attendanceQol:{ja:"QOLのシラバスには全回出席・各回課題の条件があります。2/3の試算だけで判断せず、担当教員に確認してください。",
+                 en:"The QOL syllabus requires attendance at every lecture and completion of each assignment. Confirm the requirement with the instructor rather than relying on the two-thirds estimate."},
   absUnitP:{ja:"コマ", en:"periods"},
   absUnitW:{ja:"週", en:"weeks"},
   examsTitle:{ja:"試験・予定", en:"Exams & key dates"},
@@ -675,6 +781,20 @@ const T = {
   phaseRange:{ja:"第{a}〜{b}回", en:"Sessions {a}-{b}"},
   handoutsTitle:{ja:"配布資料を開く", en:"Open the handouts"},
   handoutOpen:{ja:"元のサイズで開く", en:"Open full size"},
+  pdfOpen:{ja:"PDFを新しいタブで開く", en:"Open the PDF in a new tab"},
+  groupPdf:{ja:"班別Timetable（PDF）", en:"Group timetable (PDF)"},
+  grouph:{ja:"班", en:"Group"},
+  groupRange:{ja:"{start}〜{end}頃", en:"{start} to about {end}"},
+  groupFrom:{ja:"{start}〜", en:"from {start}"},
+  nowLabel:{ja:"いまの授業", en:"Right now"},
+  jst:{ja:"日本時間", en:"JST"},
+  liveNow:{ja:"授業中", en:"In class"},
+  nextUp:{ja:"次の授業", en:"Up next"},
+  nextClass:{ja:"次回", en:"Next class"},
+  timeLeft:{ja:"残り{n}", en:"{n} left"},
+  startsIn:{ja:"あと{n}で開始", en:"Starts in {n}"},
+  noLiveClass:{ja:"いまは授業の時間ではありません", en:"No class at the moment"},
+  termOver:{ja:"今学期の授業はすべて終わりました", en:"All classes this term are over"},
   nextQuiz:{ja:"次回", en:"Next"},
   lastQuiz:{ja:"最終回", en:"Last"},
   countToday:{ja:"今日", en:"Today"},
@@ -741,8 +861,8 @@ const T = {
   colIsbn:{ja:"ISBN", en:"ISBN"},
   colForm:{ja:"形態", en:"Format"},
   paper:{ja:"（記載なし）", en:"(not stated)"},
-  foot:{ja:"内容は先端なびのシラバス9件と学生時間割表、授業での案内・配布資料にもとづきます。日本語は原文からの要約訳です。正式な情報は必ず先端なびのシラバスと授業での案内を確認してください。授業時間は2025年度からの全学統一時間、6限は18:00–19:00。",
-        en:"Built from the nine Sentan-navi syllabi, the student timetable, and announcements and handouts from class. Japanese text is a summarised translation; always check the official syllabus and class announcements. Period times follow the university-wide schedule from 2025; period 6 is 18:00-19:00."}
+  foot:{ja:"内容は先端なびのシラバス9件と学生時間割表、授業での案内・配布資料、機械製作実習の班別Timetable（TA01）にもとづきます。日本語は原文からの要約訳です。正式な情報は必ず先端なびのシラバスと授業での案内を確認してください。授業時間は日本時間。ビジネスデータサイエンス入門（6限）は18:00–19:30。",
+        en:"Built from the nine Sentan-navi syllabi, the student timetable, announcements and handouts from class, and the Machine Shop group timetable (TA01). Japanese text is a summarised translation; always check the official syllabus and class announcements. All class times are in Japan Standard Time. Introduction to Business Data Science (period 6) runs from 18:00 to 19:30."}
 };
 
 /* 教材ビュー用のメモ */
@@ -762,8 +882,16 @@ let LANG = "ja";
 let THEME = "auto";
 let VIEW = "home";
 let WEEK = calendarWeekFor(todayISO());
-let COURSE = COURSES[0].id;
-let DAY = Math.min(4, Math.max(0, new Date().getDay()-1));
+/* 科目詳細は、授業中（なければ次）の科目を開く。手で選んだ科目は、次に授業が切り替わるまでそのまま。 */
+let COURSE_AUTO = true;
+let COURSE_PICKED_AT = null;
+function focusItem(now){ const st = liveState(now||nowJST()); return st.current || st.next; }
+function focusKey(item){ return item ? item.c.id+'-'+item.n : ''; }
+function liveCourseId(){ const item = focusItem(); return item ? item.c.id : COURSES[0].id; }
+let COURSE = liveCourseId();
+/* スマホの時間割は今日の曜日（土日は月曜）から。 */
+let DAY = (d=>d<5?d:0)(weekdayOf(todayISO()));
+let RENDERED_DATE = null;
 let TIMETABLE_VIEW = "day";
 
 const $ = id => document.getElementById(id);
@@ -1062,6 +1190,224 @@ function totalPeriods(c){ return c.unit==="week" ? c.total*weeklyPeriods(c) : c.
 function allowedAbsence(c){ return Math.floor(totalPeriods(c)/3); }
 function allowedWeeks(c){ return Math.floor(courseWeeks(c)/3); }
 
+/* 原票は保持し、手入力は日付・時限をキーにした差分としてこのブラウザーに保存する。 */
+const ATTENDANCE_STORAGE_KEY = "kuas-fall-2026-attendance-v1";
+let attendanceEdits = {};
+let attendanceStorageState = "saved";
+let attendanceUpdatedAt = null;
+let attendanceStorageBlocked = false;
+let attendancePendingEdits = {};
+let attendancePendingReplacement = false;
+
+function attendancePeriods(c){
+  const record = c && ATTENDANCE.courses[c.id];
+  if(!record) return [];
+  const edits = attendanceEdits[c.id] || {};
+  return OCCURRENCES.filter(item=>item.c.id===c.id)
+    .flatMap(item=>Array.from({length:item.s.span||1},(_,offset)=>({date:item.date,period:item.s.period+offset})))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.period-b.period)
+    .map((item,index)=>{
+      const key = item.date+":"+item.period;
+      const sourceStatus = index<record.marks.length ? record.marks[index] : null;
+      return {...item,key,sourceStatus,status:Object.prototype.hasOwnProperty.call(edits,key) ? edits[key] : sourceStatus};
+    });
+}
+
+function attendancePayload(){
+  return {version:1,term:"2026-fall",sourceAsOf:ATTENDANCE.asOf,updatedAt:attendanceUpdatedAt,edits:attendanceEdits};
+}
+function exportAttendanceData(){ return JSON.stringify(attendancePayload(),null,2); }
+
+/* すべて検査してから反映する。未知の科目・日付・時限や他学期のデータは取り込まない。 */
+function validateAttendanceData(value){
+  const object = input=>input!==null && typeof input==="object" && !Array.isArray(input);
+  const fail = ()=>{ throw new Error("Invalid attendance backup data"); };
+  const keys = ["version","term","sourceAsOf","updatedAt","edits"];
+  if(!object(value) || Object.keys(value).length!==keys.length || !keys.every(key=>Object.prototype.hasOwnProperty.call(value,key))) fail();
+  if(value.version!==1 || value.term!=="2026-fall" || value.sourceAsOf!==ATTENDANCE.asOf || !object(value.edits)) fail();
+  if(value.updatedAt!==null && (typeof value.updatedAt!=="string" || !Number.isFinite(Date.parse(value.updatedAt)) || new Date(value.updatedAt).toISOString()!==value.updatedAt)) fail();
+  const edits = {};
+  for(const [id,courseEdits] of Object.entries(value.edits)){
+    const c = COURSES.find(course=>course.id===id);
+    if(!c || !Object.prototype.hasOwnProperty.call(ATTENDANCE.courses,id) || !object(courseEdits)) fail();
+    const validKeys = new Set(attendancePeriods(c).map(item=>item.key));
+    const copy = {};
+    for(const [key,status] of Object.entries(courseEdits)){
+      if(!validKeys.has(key) || ![null,"present","late","absent"].includes(status)) fail();
+      copy[key] = status;
+    }
+    if(Object.keys(copy).length) edits[id] = copy;
+  }
+  return {edits,updatedAt:value.updatedAt};
+}
+function mergeAttendanceEdits(base,changes){
+  const merged = {...base};
+  for(const [id,edits] of Object.entries(changes)) merged[id] = {...(merged[id]||{}),...edits};
+  return merged;
+}
+function refreshAttendanceData(){
+  if(attendanceStorageBlocked) return false;
+  /* 保存に失敗した明示的な取り込みは、差分ではなく置換する意図を保持する。 */
+  if(attendancePendingReplacement) return true;
+  let stored;
+  try{ stored = localStorage.getItem(ATTENDANCE_STORAGE_KEY); }
+  catch(error){ attendanceStorageState = "memory"; return false; }
+  let data;
+  try{ data = stored===null ? {edits:{},updatedAt:null} : validateAttendanceData(JSON.parse(stored)); }
+  catch(error){ attendanceStorageBlocked = true; attendanceStorageState = "memory"; return false; }
+  /* 別タブの保存済み入力に、このタブの未保存セルだけを重ねる。 */
+  attendanceEdits = mergeAttendanceEdits(data.edits,attendancePendingEdits);
+  return true;
+}
+function saveAttendanceData(){
+  /* 壊れた保存データはセル編集だけでは置換しない。明示的な取り込みでのみ解除する。 */
+  if(attendanceStorageBlocked){ attendanceStorageState = "memory"; return false; }
+  try{
+    localStorage.setItem(ATTENDANCE_STORAGE_KEY,exportAttendanceData());
+    attendanceStorageState = "saved";
+    attendancePendingEdits = {};
+    attendancePendingReplacement = false;
+    return true;
+  }catch(error){
+    attendanceStorageState = "memory";
+    return false;
+  }
+}
+function loadAttendanceData(){
+  let stored;
+  try{ stored = localStorage.getItem(ATTENDANCE_STORAGE_KEY); }
+  catch(error){ attendanceStorageState = "memory"; return; }
+  if(stored===null) return;
+  try{
+    const data = validateAttendanceData(JSON.parse(stored));
+    attendanceEdits = data.edits;
+    attendanceUpdatedAt = data.updatedAt;
+  }catch(error){ attendanceStorageBlocked = true; attendanceStorageState = "invalid"; }
+}
+function setAttendanceStatus(courseId,key,status){
+  if(typeof courseId!=="string" || typeof key!=="string" || ![null,"present","late","absent"].includes(status)) return false;
+  const c = COURSES.find(course=>course.id===courseId);
+  if(!c || !attendancePeriods(c).some(item=>item.key===key)) return false;
+  const canSave = refreshAttendanceData();
+  const change = {[courseId]:{[key]:status}};
+  attendancePendingEdits = mergeAttendanceEdits(attendancePendingEdits,change);
+  attendanceEdits = mergeAttendanceEdits(attendanceEdits,change);
+  attendanceUpdatedAt = new Date().toISOString();
+  if(canSave) saveAttendanceData();
+  else attendanceStorageState = "memory";
+  return true;
+}
+function importAttendanceData(text){
+  if(typeof text!=="string") throw new Error("Invalid attendance backup data");
+  const data = validateAttendanceData(JSON.parse(text));
+  attendanceEdits = data.edits;
+  attendanceUpdatedAt = data.updatedAt;
+  attendanceStorageBlocked = false;
+  attendancePendingEdits = {};
+  attendancePendingReplacement = true;
+  saveAttendanceData();
+  return true;
+}
+loadAttendanceData();
+
+function attendanceStats(c){
+  const record = ATTENDANCE.courses[c.id];
+  if(!record) return null;
+  const periods = attendancePeriods(c), edits = attendanceEdits[c.id] || {};
+  const edited = Object.keys(edits).length>0;
+  const lastEdited = periods.reduce((last,item,index)=>Object.prototype.hasOwnProperty.call(edits,item.key) ? index+1 : last,0);
+  const total = record.total, elapsed = Math.max(record.marks.length,lastEdited);
+  const statuses = periods.slice(0,elapsed).map(item=>item.status);
+  const count = status=>statuses.filter(mark=>mark===status).length;
+  const present = count("present"), remaining = total-elapsed;
+  const required = Math.ceil(total*2/3), needed = Math.max(0,required-present);
+  const rate = edited ? (elapsed ? present/elapsed*100 : null) : record.rate;
+  return {total,elapsed,present,late:count("late"),absent:count("absent"),unmarked:count(null),
+    remaining,required,needed,allowance:remaining-needed,rate,sourceRate:record.rate,edited};
+}
+
+function attendanceStorageHTML(c){
+  const inputId = "attendance-import-"+(c?c.id:"home");
+  const stateKey = attendanceStorageState==="memory" ? "attendanceMemory" : attendanceStorageState==="invalid" ? "attendanceInvalid" : attendanceUpdatedAt ? "attendanceSaved" : "attendanceInitial";
+  return '<div class="attendance-storage"><p>'+t("attendanceLocal")+'</p>'
+    + '<p class="attendance-save-state" role="status">'+t(stateKey)+'</p><div class="attendance-actions">'
+    + '<button type="button" class="iconbtn" data-attendance-export>'+t("attendanceExport")+'</button>'
+    + '<label class="iconbtn attendance-import-label" for="'+inputId+'">'+t("attendanceImport")
+    + '<input id="'+inputId+'" type="file" accept=".json,application/json" data-attendance-import></label></div>'
+    + '<p class="attendance-small">'+t("attendanceImportNote")+'</p>'
+    + '<p role="status" aria-live="polite" data-attendance-feedback></p></div>';
+}
+
+function attendanceEditorHTML(c){
+  const labels = LANG==="ja" ? {empty:"未入力",present:"○ 出席",late:"△ 遅刻",absent:"× 欠席"}
+    : {empty:"Not entered",present:"○ Present",late:"△ Late",absent:"× Absent"};
+  let h = '<details class="attendance-editor"><summary>'+t("attendanceEdit")+'</summary><p>'+t("attendanceFuture")+'</p>'
+    + '<div class="attendance-editor-scroll"><table class="grid"><thead><tr><th scope="col">'+(LANG==="ja"?'日付':'Date')+'</th>'
+    + '<th scope="col">'+(LANG==="ja"?'時限':'Period')+'</th><th scope="col">'+(LANG==="ja"?'出欠':'Attendance')+'</th></tr></thead><tbody>';
+  attendancePeriods(c).forEach(item=>{
+    const future = item.date>todayISO();
+    const label = L(c)+' '+item.date+' '+(LANG==="ja"?item.period+'限':'period '+item.period);
+    h += '<tr'+(future?' class="attendance-future"':'')+'><td>'+fmtDate(item.date)+'</td>'
+      + '<td>'+(LANG==="ja"?item.period+'限':item.period)+'</td><td><select aria-label="'+esc(label)+'"'
+      + ' data-attendance-course="'+c.id+'" data-attendance-key="'+item.key+'"'+(future?' disabled':'')+'>'
+      + [["",labels.empty],["present",labels.present],["late",labels.late],["absent",labels.absent]]
+        .map(([value,text])=>'<option value="'+value+'"'+((item.status||"")===value?' selected':'')+'>'+text+'</option>').join("")
+      + '</select></td></tr>';
+  });
+  return h+'</tbody></table></div></details>';
+}
+
+function attendanceProgressHTML(s){
+  if(s.needed===0) return '<p class="notice">'+(LANG==="ja"?'一般の出席回数基準に到達しています。課題・試験・科目独自の条件も確認してください。':'The general attendance count has been reached. Check assignments, exams and course-specific requirements too.')+'</p>';
+  if(s.allowance<0) return '<p class="notice">'+(LANG==="ja"?'今後すべて出席しても、現在の入力では'+(-s.allowance)+'コマ不足します。過去の未入力・遅刻の扱いも確認してください。':'Even attending every remaining period leaves a shortfall of '+(-s.allowance)+' under the current records. Confirm past blank and late records too.')+'</p>';
+  return "";
+}
+
+function renderAttendance(c){
+  const stamp = ATTENDANCE.asOf.replace(/-/g,"/")+" "+ATTENDANCE.issuedAt;
+  let dateLabel = LANG==="ja" ? "初期記録："+stamp+"発行の学生出欠状況表" : "Initial student attendance report: "+stamp+" JST";
+  if(attendanceUpdatedAt) dateLabel += (LANG==="ja"?" ／ 入力更新：":" / Entries updated: ")+new Date(attendanceUpdatedAt).toLocaleString(LANG==="ja"?"ja-JP":"en-GB",{timeZone:"Asia/Tokyo"});
+  const recordLabel = s=>"○ "+s.present+" ／ △ "+s.late+" ／ × "+s.absent+" ／ "+t("attendanceBlank")+" "+s.unmarked;
+  const neededLabel = s=>LANG==="ja" ? "残り"+s.remaining+"コマ中 "+s.needed+"コマ" : s.needed+" of "+s.remaining+" remaining periods";
+  const marginLabel = s=>s.allowance<0 ? (LANG==="ja"?(-s.allowance)+"コマ不足":(-s.allowance)+" periods short") : (LANG==="ja" ? s.allowance+"コマ" : s.allowance+" periods");
+  const rateLabel = s=>s.rate===null ? t("attendancePending") : Math.floor(s.rate)+"%";
+  const qolNote = '<p class="notice">'+t("attendanceQol")+'</p>';
+  let h = '<section class="'+(c?'box':'sec')+' attendance-snapshot"'+(!c?' id="attendance"':'')+'>'
+    + (c ? '<h3>'+t("attendanceTitle")+'</h3><p>'+dateLabel+'</p>'
+      : '<div class="sec-head"><h2>'+t("attendanceTitle")+'</h2><span>'+dateLabel+'</span></div>');
+  if(c){
+    const s = attendanceStats(c);
+    if(!s) return "";
+    h += '<p><b>'+t("attendanceRate")+'：'+rateLabel(s)+'</b><br>'+recordLabel(s)+'</p>'
+      + '<p>'+t("attendanceNeeded")+'：<b>'+neededLabel(s)+'</b><br>'
+      + t("attendanceAllowance")+'：'+(c.id==="qol" ? (LANG==="ja"?'独自条件を要確認':'Confirm course requirements') : marginLabel(s))+'</p>'
+      + (s.edited?'<p class="attendance-small">'+(LANG==="ja"?'初期記録の出席率：':'Original reported rate: ')+(s.sourceRate===null?t("attendancePending"):s.sourceRate+'%')+'</p>':'')
+      + attendanceProgressHTML(s)+attendanceEditorHTML(c);
+  } else {
+    h += '<div style="overflow-x:auto"><table class="grid"><thead><tr>'
+      + [t("colCourse"),t("attendanceRate"),t("attendanceRecord"),t("attendanceNeeded"),t("attendanceAllowance")]
+        .map(label=>'<th scope="col">'+label+'</th>').join("")+'</tr></thead><tbody>';
+    const ordered = ["ec","bds","calc","mom","emt","qol","career","shop","ece"];
+    ordered.forEach(id=>{
+      const course = COURSES.find(item=>item.id===id), s = attendanceStats(course);
+      h += '<tr><th scope="row"><button type="button" class="linkbtn" data-attendance-open="'+id+'">'+esc(L(course))+'</button>'
+        + '<span class="attendance-mobile">'+neededLabel(s)+'</span></th><td class="num">'+rateLabel(s)+'</td>'
+        + '<td style="white-space:nowrap">'+recordLabel(s)+'</td>'
+        + '<td style="white-space:nowrap"><b>'+neededLabel(s)+'</b></td><td style="white-space:nowrap">'
+        + (id==="qol" ? (LANG==="ja"?'独自条件を要確認':'Confirm course requirements') : marginLabel(s))+'</td></tr>';
+    });
+    h += '</tbody></table></div><p class="attendance-scroll-hint">'
+      + (LANG==="ja"?'科目名から出欠を入力できます。表は左右にスクロールできます。':'Select a course name to enter attendance. Scroll sideways to see every column.')+'</p>';
+    h += '<p>'+(LANG==="ja"?'科目名を押すと、日付ごとの出欠を入力できます。':'Select a course name to enter attendance for each class.')+'</p>';
+  }
+  h += '<p>'+t("attendanceNote")+'</p>';
+  if(!c || c.id==="qol") h += qolNote;
+  h += '<p>'+t("absLead")+' <a href="'+ATTENDANCE.ruleUrl+'" target="_blank" rel="noopener">'
+    + (LANG==="ja"?'2025年度 工学部履修要項 p.6・14':'2025 Faculty of Engineering handbook, pp.6 and 14')+'</a></p>'
+    + attendanceStorageHTML(c)+'</section>';
+  return h;
+}
+
 function modeBadge(m,fillIt){
   const d = MODES[m]; if(!d) return "";
   return '<span class="badge '+d.cls+(fillIt?" fill":"")+'">'+d[LANG]+'</span>';
@@ -1091,9 +1437,23 @@ function markBadge(m){
 function markBadges(list){
   return list.length ? '<div class="marks">'+list.map(markBadge).join('')+'</div>' : '';
 }
+function groupTime(g){
+  return fill(t(g.together?"groupFrom":"groupRange"),{start:g.start,end:g.end});
+}
+/* 班別の回は「3–5限 ・ TA01 13:00〜14:15頃」。 */
 function sessionTime(item){
-  const span = item.s.span||1;
-  return periodLabel(item.s.period,span)+' '+slotTime(item.s.period,span);
+  const span = item.s.span||1, g = groupOf(item);
+  const time = periodLabel(item.s.period,span)+' '+(g ? (LANG==="ja"?'・ ':'· ')+item.c.groupName+' '+groupTime(g) : slotTime(item.s.period,span));
+  return isStudySlot(item) ? (LANG==="ja"?'視聴・学習の目安：':'Study guide: ')+time+(LANG==="ja"?'（ライブ開始・締切ではありません）':' (not a live start or deadline)') : time;
+}
+function sessionPlace(item){
+  const g = groupOf(item);
+  return g ? L(g.place) : locationText(item.c,item.session?item.session.mode:undefined);
+}
+/* 班別の回には、班別TimetableのPDFへのリンクを付ける。 */
+function groupLine(item){
+  if(!groupOf(item)) return '';
+  return '<p class="extra group-line"><a href="'+esc(SHOP_PDF)+'" target="_blank" rel="noopener">'+t("groupPdf")+'</a></p>';
 }
 /* 毎週1曜日なら「毎週火曜 2限…」、複数の曜日なら「毎回（火・金）3限…」。 */
 function weeklyTime(items){
@@ -1129,10 +1489,85 @@ function countdown(date,today){
   return days<0 ? t("countDone") : days===0 ? t("countToday") : days===1 ? t("countTomorrow") : fill(t("countDays"),{n:days});
 }
 
+/* ---------- いまの授業 ---------- */
+const clockText = min => Math.floor(min/60)+':'+String(min%60).padStart(2,'0');
+function durationText(min){
+  const h = Math.floor(min/60), m = min%60;
+  if(LANG==="ja") return (h?h+'時間':'')+(m||!h?m+'分':'');
+  return [h?h+' h':'', m||!h?m+' min':''].filter(Boolean).join(' ');
+}
+function nowItem(item,kind,now){
+  const c = item.c, w = classWindow(item), sess = item.session;
+  const status = kind==="live" ? fill(t("timeLeft"),{n:durationText(w.end-now.min)})
+    : item.date===now.date ? fill(t("startsIn"),{n:durationText(w.start-now.min)})
+    : fmtDate(item.date)+' '+countdown(item.date,now.date);
+  const done = kind==="live" ? Math.round(100*(now.min-w.start)/(w.end-w.start)) : 0;
+  return '<article class="now-item is-'+kind+'" style="--c:'+cc(c)+'">'
+    + '<p class="now-head"><span class="now-tag">'+t(kind==="live"?"liveNow":"nextUp")+'</span><span class="now-status">'+esc(status)+'</span></p>'
+    + '<h3><button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button></h3>'
+    + '<p class="now-meta">'+esc(sessionTime(item))+'</p>'
+    + '<p class="now-meta">'+esc(sessionPlace(item))+'</p>'
+    + (sess ? '<p class="now-meta">'+esc(fill(t("session"),{n:item.n})+' '+L(sess))+'</p>' : '')
+    + groupLine(item)
+    + (kind==="live" ? '<div class="now-progress" aria-hidden="true"><i style="width:'+done+'%"></i></div>' : '')
+    + '</article>';
+}
+/* 時間割の上：日本時間の現在時刻、授業中の科目と次の授業。 */
+function nowPanelHTML(now,st){
+  const items = (st.current ? nowItem(st.current,"live",now) : '')+(st.next ? nowItem(st.next,"next",now) : '');
+  return '<p class="now-clock"><time datetime="'+now.date+'T'+clockText(now.min).padStart(5,'0')+'+09:00">'
+    + '<b>'+clockText(now.min)+'</b><span>'+fmtDate(now.date)+'</span></time><small>'+t("jst")+'</small></p>'
+    + '<div class="now-body">'+(st.current ? '' : '<p class="now-empty">'+t(st.next?"noLiveClass":"termOver")+'</p>')
+    + (items ? '<div class="now-items">'+items+'</div>' : '')+'</div>';
+}
+/* 科目詳細の上：その科目の授業中の回か次回。 */
+function courseLiveHTML(c,now){
+  const item = courseFocus(c,now);
+  if(!item) return '';
+  const study = isStudySlot(item), w = classWindow(item), live = !study && item.date===now.date && now.min>=w.start;
+  const status = study ? (LANG==="ja"?'締切日時は未確認・Teamsで確認':'Deadlines unconfirmed; check Teams') : live ? fill(t("timeLeft"),{n:durationText(w.end-now.min)})
+    : item.date===now.date ? fill(t("startsIn"),{n:durationText(w.start-now.min)}) : countdown(item.date,now.date);
+  return '<p class="course-live'+(live?' is-live':'')+'"><span class="now-tag">'+(study?L(MODES.ondemand):t(live?"liveNow":"nextClass"))+'</span>'
+    + '<b>'+esc(fmtDate(item.date)+' '+sessionTime(item))+'</b>'
+    + '<span>'+esc(sessionPlace(item))+'</span>'
+    + '<span>'+esc(fill(t("session"),{n:item.n})+(item.session?' '+L(item.session):''))+'</span>'
+    + '<span class="now-status">'+esc(status)+'</span></p>';
+}
+/* 授業中・次の授業の印。描画し直さずに付け替えるので、開いている資料や入力はそのまま。 */
+function markLive(el,kind){
+  el.classList.toggle('is-live',kind==="live");
+  el.classList.toggle('is-next',kind==="next");
+  let tag = el.querySelector('.live-tag');
+  if(!kind){ if(tag) tag.remove(); return; }
+  if(!tag){
+    tag = document.createElement('span');
+    tag.className = 'live-tag';
+    (el.querySelector('[data-tag-slot]')||el).prepend(tag);
+  }
+  tag.textContent = t(kind==="live"?"liveNow":"nextUp");
+}
+function applyLive(){
+  const now = nowJST(), st = liveState(now), day = weekdayOf(now.date), period = day<5 ? periodAt(now.min) : null;
+  const panel = $("now-panel"), banner = $("course-live");
+  if(panel) panel.innerHTML = nowPanelHTML(now,st);
+  if(banner) banner.innerHTML = courseLiveHTML(byId(COURSE),now);
+  const slotKey = item => item ? item.c.id+'@'+item.s.day+'-'+item.s.period : '-';
+  const nextToday = st.next && st.next.date===now.date ? st.next : null;
+  document.querySelectorAll('.tt .hd').forEach(el=>el.classList.toggle('is-today',Number(el.dataset.day)===day));
+  document.querySelectorAll('.tt .per').forEach(el=>el.classList.toggle('is-now',Number(el.dataset.period)===period));
+  document.querySelectorAll('.tt .blk').forEach(el=>{
+    const key = el.dataset.course+'@'+el.dataset.slot;
+    markLive(el, key===slotKey(st.current) ? "live" : key===slotKey(nextToday) ? "next" : null);
+  });
+  const live = focusKey(st.current);
+  document.querySelectorAll('.wk[data-session],.plan tr[data-session]').forEach(el=>markLive(el, el.dataset.session===live ? "live" : null));
+}
+
 /* 各回の補足：キャリアショーケースのゲストと、その日の授業メモ。 */
 function sessionExtras(item){
   const sess = item.session;
   return (sess && sess.showcase ? '<p class="extra">'+esc(fill(t("showcase"),{who:L(sess.showcase)}))+'</p>' : '')
+    + (sess && sess.notice ? '<p class="extra memo-line">'+esc(L(sess.notice))+'</p>' : '')
     + memosOn(item).map(m=>'<p class="extra memo-line"><b>'+t("memoLabel")+'</b> '+esc(L(m))+'</p>').join('');
 }
 
@@ -1205,7 +1640,7 @@ function renderExams(){
     if(group==="notice") items.forEach(item=>notices.push({item, html:noticeRow(item,markBadge(m),m.note,today)}));
     else (group==="check" ? checks : main).push({recurring:items.length>1, date:items[0].date, html:examCard(c,m,today)});
   }));
-  formatChanges().forEach(item=>notices.push({item, html:noticeRow(item,modeBadge(item.session.mode,true),null,today)}));
+  formatChanges().forEach(item=>notices.push({item, html:noticeRow(item,modeBadge(item.session.mode,true),item.session.notice,today)}));
   if(!main.length && !checks.length && !notices.length && !homework.length) return '';
   /* 1回きりの試験を日付順に先に、毎週の小テストはその後。 */
   main.sort((a,b)=>a.recurring-b.recurring || a.date.localeCompare(b.date));
@@ -1238,12 +1673,14 @@ function renderHome(){
   h += '<div class="timetable-switch" role="group" aria-label="'+t("chooseTimetableView")+'">';
   ["day","week"].forEach(mode=>{ h += '<button type="button" data-timetable-select="'+mode+'" aria-controls="timetable-grid" aria-pressed="'+(mode===TIMETABLE_VIEW)+'">'+t(mode==="day"?"timetableDay":"timetableWeek")+'</button>'; });
   h += '</div>';
+  const now = nowJST();
+  h += '<section class="now-panel" id="now-panel" aria-label="'+t("nowLabel")+'">'+nowPanelHTML(now,liveState(now))+'</section>';
   h += '<div class="day-switch" role="group" aria-label="'+t("chooseDay")+'">';
   DAYS.forEach((d,i)=>{ h += '<button type="button" data-day-select="'+i+'" aria-pressed="'+(i===DAY)+'">'+d.s[LANG]+'</button>'; });
   h += '</div><div class="ttwrap"><div class="tt" id="timetable-grid"><div class="tt-corner">'+t("colSlot")+'</div>';
   DAYS.forEach((d,i)=>{ h += '<div class="hd'+(i===DAY?'':' day-hidden')+'" data-day="'+i+'"><span class="tt-day-full">'+d[LANG]+'</span><span class="tt-day-short">'+d.s[LANG]+'</span></div>'; });
 
-  const occ = {};
+  const occ = {}, today = todayISO();
   COURSES.forEach(c=>c.slots.forEach(s=>{
     const span=s.span||1;
     occ[s.day+"-"+s.period] = {c:c, span:span, start:true};
@@ -1254,17 +1691,21 @@ function renderHome(){
   h += '<div class="lunch" style="grid-row:4">'+t("lunch")+'</div>';
 
   for(let p=1;p<=6;p++){
-    h += '<div class="per" style="grid-column:1;grid-row:'+rowOf(p)+'"><b>'+p+'</b><span>'+PERIODS[p].replace('–','<br>– ')+'</span></div>';
+    h += '<div class="per" data-period="'+p+'" style="grid-column:1;grid-row:'+rowOf(p)+'"><b>'+p+'</b><span>'+PERIODS[p].replace('–','<br>– ')+'</span></div>';
     for(let d=0;d<5;d++){
       const cell = occ[d+"-"+p], col = d+2, row = rowOf(p);
       if(cell && cell.covered) continue;
       if(cell && cell.start){
         const c = cell.c;
-        h += '<button class="blk'+(d===DAY?'':' day-hidden')+'" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-day="'+d+'" data-course="'+c.id+'">'
+        /* 班別の科目は、今日以降で一番近い回の班の時間・場所・機械を出す。 */
+        const up = (c.groupName || c.schedule.some(s=>s.studySlot)) && OCCURRENCES.find(item=>item.c===c && item.s.day===d && item.date>=today), g = groupOf(up), study = isStudySlot(up);
+        h += '<button class="blk'+(d===DAY?'':' day-hidden')+'" type="button" style="--c:'+cc(c)+';grid-column:'+col+';grid-row:'+row+' / span '+cell.span+'" data-day="'+d+'" data-slot="'+d+'-'+p+'" data-course="'+c.id+'">'
            + '<span class="nm">'+courseName(c)+'</span>'
-           + '<span class="location">'+esc(locationText(c))+'</span>'
+           + '<span class="location">'+esc(g ? L(g.place) : study ? sessionPlace(up) : locationText(c))+'</span>'
+           + (study ? '<span class="grp">'+esc(fmtDate(up.date)+' '+sessionTime(up))+'</span>' : '')
+           + (g ? '<span class="grp"><b>'+esc(c.groupName)+'</b> '+esc(fmtDate(up.date)+' '+groupTime(g))+'<br>'+esc(L(g.equip))+'</span>' : '')
            + '<span class="mt">'+esc(L(c.teachers))+'</span>'
-           + '<span class="cr"><span>'+c.credits+(LANG==="ja"?"単位":" cr")+'</span>'+modeBadge(mainMode(c),true)
+           + '<span class="cr"><span>'+c.credits+(LANG==="ja"?"単位":" cr")+'</span>'+modeBadge(study?up.session.mode:mainMode(c),true)
            + (c.firstWeek>1 ? ' <span class="badge tagopt">'+t("eceShort")+'</span>' : '')
            + '</span></button>';
       } else {
@@ -1272,7 +1713,7 @@ function renderHome(){
       }
     }
   }
-  h += '</div></div></div>'+renderExams()+summary;
+  h += '</div></div></div>'+renderExams()+renderAttendance()+summary;
 
   /* 科目一覧 */
   h += '<div class="sec"><div class="sec-head"><h2>'+t("courses")+'</h2><span>'+(LANG==="ja"?"成績評価の割合・開講期間・欠席の目安":"grade weights, term and absence guide")+'</span></div>';
@@ -1285,14 +1726,14 @@ function renderHome(){
       + '<td><span class="swatch" style="background:'+cc(c)+'"></span>'
       +   '<button class="linkbtn" type="button" data-course="'+c.id+'">'+esc(L(c))+'</button>'
       +   '<div style="font-size:11.5px;color:var(--ink-3)">'+esc(L(c.teachers))+'</div></td>'
-      + '<td>'+slotText(c)+'<div class="location">'+esc(locationText(c))+'</div></td>'
+      + '<td>'+slotText(c)+'<div class="location">'+(c.schedule.some(s=>s.studySlot)?(LANG==="ja"?'通常：':'Usually: '):'')+esc(locationText(c))+'</div></td>'
       + '<td class="num">'+c.credits+'</td>'
       + '<td>'+courseModeLabel(c)+'</td>'
       + '<td style="white-space:nowrap;font-size:12.5px">'+termText(c)+'</td>'
       + '<td style="min-width:190px">'+evalBar(c)+'<div class="evlist">'
       +   c.evals.map(e=>L(e)+" "+e.pct+"%").join(LANG==="ja"?" ／ ":" / ")+'</div></td>'
       + '<td class="num">'+totalPeriods(c)+'</td>'
-      + '<td class="num"><b>'+allowedAbsence(c)+'</b> '+t("absUnitP")+'<div style="font-size:11px;color:var(--ink-3)">≒ '+allowedWeeks(c)+' '+t("absUnitW")+'</div></td>'
+      + '<td class="num">'+(c.id==="qol" ? (LANG==="ja"?'全回出席の条件あり':'All lectures required') : '<b>'+allowedAbsence(c)+'</b> '+t("absUnitP")+'<div style="font-size:11px;color:var(--ink-3)">≒ '+allowedWeeks(c)+' '+t("absUnitW")+'</div>')+'</td>'
       + '</tr>';
   });
   h += '</tbody></table></div></div>';
@@ -1302,24 +1743,6 @@ function renderHome(){
   h += '<div style="overflow-x:auto"><table class="grid"><tbody>';
   BREAKS.forEach(b=>{ h += '<tr><td style="white-space:nowrap;width:130px">'+fmtDate(b.d)+'</td><td>'+L(b)+'</td></tr>'; });
   h += '</tbody></table></div></div>';
-
-  /* 欠席の目安 */
-  h += '<div class="sec"><div class="sec-head"><h2>'+t("absTitle")+'</h2></div>'
-     + '<div class="notice"><b>'+(LANG==="ja"?"目安であって規定ではありません":"A guide, not a rule")+'</b><br>'+t("absLead")+'</div>';
-  h += '<div class="cards" style="margin-top:14px">';
-  COURSES.forEach(c=>{
-    h += '<div class="panel" style="padding:13px 15px;border-left:4px solid '+cc(c)+'">'
-      + '<div style="font-family:var(--mincho);font-size:14px">'+esc(L(c))+'</div>'
-      + '<div class="ratio">'+allowedAbsence(c)+' <small>/ '+totalPeriods(c)+' '+t("absUnitP")+'</small></div>'
-      + '<div style="font-size:12px;color:var(--ink-2)">'
-      + (LANG==="ja"
-          ? (weeklyPeriods(c)>1 ? "週"+weeklyPeriods(c)+"コマなので、丸ごと休めるのは"+allowedWeeks(c)+"週まで" : "週1コマなので "+allowedWeeks(c)+"回まで")
-          : (weeklyPeriods(c)>1 ? weeklyPeriods(c)+" periods a week, so at most "+allowedWeeks(c)+" full weeks" : "one period a week, so up to "+allowedWeeks(c)+" classes"))
-      + '</div>'
-      + (c.alert ? '<div style="margin-top:7px;font-size:12px;color:var(--vermilion)">'+esc(L(c.alert))+'</div>' : '')
-      + '</div>';
-  });
-  h += '</div></div>';
 
   $("view-home").innerHTML = h;
 }
@@ -1360,16 +1783,16 @@ function renderWeek(){
       items.forEach(it=>{
         const c=it.c, sess=it.session, marks=marksFor(it), phase=phaseFor(c,it.n);
         h += '<article class="wk'+(marks.some(m=>m.kind==="midterm")?' is-exam':'')+'" style="--c:'+cc(c)+'" data-session="'+c.id+'-'+it.n+'">'
-          + '<div class="top"><span class="p">'+periodLabel(it.s.period,it.s.span||1)+' '+slotTime(it.s.period,it.s.span||1)+'</span>'
+          + '<div class="top"><span class="p">'+esc(sessionTime(it))+'</span>'
           + '<button class="nm week-course" type="button" data-course="'+c.id+'">'+courseName(c)+'</button>'
           + modeBadge(sess?sess.mode:"f2f",true)
-          + '</div><p class="location">'+t("colLocation")+(LANG==="ja"?"：":": ")+esc(locationText(c,sess?sess.mode:undefined))+'</p>'
+          + '</div><p class="location">'+t("colLocation")+(LANG==="ja"?"：":": ")+esc(sessionPlace(it))+'</p>'
           + markBadges(marks);
         if(sess){
           h += '<p class="topic"><span class="sn">'
              + fill(t("session"),{n:it.n})+'</span>'+esc(L(sess))+'</p>';
         }
-        h += sessionExtras(it) + homeworkBlock(it,true)
+        h += groupLine(it) + sessionExtras(it) + homeworkBlock(it,true)
            + '<details class="study-details"><summary>'+t("studyDetails")+'</summary>'
            + '<p class="p">'+esc(phase ? fill(t("phaseTeacher"),{who:L(phase.teacher)}) : L(c.teachers))+'</p>'
            + (sess && sess.format ? '<p class="hw">'+esc(L(sess.format))+'</p>' : '')
@@ -1399,16 +1822,18 @@ function renderCourse(){
     + fact(t("credh"), c.credits+(LANG==="ja"?" 単位":" credits"))
     + fact(t("langh"), L(c.lang))
     + fact(t("colSlot"), slotText(c))
-    + fact(t("colLocation"), esc(locationText(c))+(c.classMode==="f2f"?"　"+t("campus"):""))
+    + fact(t("colLocation"), (c.schedule.some(s=>s.studySlot)?(LANG==="ja"?'通常：':'Usually: '):'')+esc(locationText(c))+(c.classMode==="f2f"?"　"+t("campus"):""))
+    + (c.groupName ? fact(t("grouph"), esc(c.groupName)) : '')
     + fact(t("colMode"), courseModeLabel(c))
     + fact(t("sessh"), totalPeriods(c)+(LANG==="ja"?" コマ":" periods"))
     + fact(t("firstDay"), fmtDate(courseDates(c)[0]))
     + fact(t("lastDay"), fmtDate(courseDates(c).at(-1)))
     + fact(t("codeh"), c.code)
     + fact(t("ttcodeh"), c.ttcode)
-    + '</dl></div>';
+    + '</dl><div id="course-live" class="course-live-wrap">'+courseLiveHTML(c,nowJST())+'</div></div>';
 
   h += '<div class="cbody"><div>';
+  h += renderAttendance(c);
   if(c.memos && c.memos.length){
     h += '<div class="box memo-box"><h3>'+t("memoTitle")+'</h3><ul class="goals">'
        + c.memos.map(m=>'<li>'+(m.date?'<b>'+fmtDate(m.date)+'</b> ':'')+esc(L(m))+'</li>').join('')+'</ul></div>';
@@ -1426,10 +1851,12 @@ function renderCourse(){
       h += '<tr class="phase"><td colspan="3">'+esc([fill(t("phaseRange"),{a:phase.from,b:phase.to}), phase[LANG], fill(t("phaseTeacher"),{who:L(phase.teacher)})].filter(Boolean).join(LANG==="ja"?" ・ ":" · "))+'</td></tr>';
     }
     const cls = [calendarWeekFor(item.date)===WEEK?'now':'', marks.some(m=>m.kind==="midterm")?'exam':''].filter(Boolean).join(' ');
-    h += '<tr'+(cls?' class="'+cls+'"':'')+'>'
+    const g = groupOf(item);
+    h += '<tr'+(cls?' class="'+cls+'"':'')+' data-session="'+c.id+'-'+s.n+'">'
       + '<td class="n">'+s.n+'</td>'
-      + '<td>'+esc(L(s))+'<div style="font-size:11.5px;color:var(--ink-3)">'
+      + '<td data-tag-slot>'+esc(L(s))+'<div style="font-size:11.5px;color:var(--ink-3)">'
       +   fill(t("weekLabel"),{n:item.teachingWeek})+' ・ '+fmtDate(item.date)+'</div>'
+      +   (g ? '<p class="extra group-line"><b>'+esc(c.groupName)+'</b> '+esc(groupTime(g)+' ・ '+L(g.place))+'</p>' : '')
       +   markBadges(marks.filter(m=>!m.all))+sessionExtras(item)+homeworkBlock(item,false)
       +   (s.format ? '<p class="extra">'+esc(L(s.format))+'</p>' : '')+'</td>'
       + '<td class="m">'+modeBadge(s.mode,false)+'</td></tr>';
@@ -1445,9 +1872,10 @@ function renderCourse(){
        + (m?'<span class="note when">'+esc(markWhen(c,m))+'</span>':'')+'</span></div>';
   });
   if(c.alert) h += '<div class="notice" style="margin-top:12px"><b>'+t("watch")+'</b><br>'+esc(L(c.alert))+'</div>';
-  h += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12.5px;color:var(--ink-2)">'
+  if(c.id!=="qol") h += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12.5px;color:var(--ink-2)">'
      + t("absTitle")+'：<b style="font-family:var(--mincho);font-size:16px">'+allowedAbsence(c)+'</b> '+t("absUnitP")
-     + ' / '+totalPeriods(c)+'（≒ '+allowedWeeks(c)+' '+t("absUnitW")+'）</div></div>';
+     + ' / '+totalPeriods(c)+'（≒ '+allowedWeeks(c)+' '+t("absUnitW")+'）</div>';
+  h += '</div>';
 
   if(c.hw){
     const given = OCCURRENCES.filter(item=>item.c===c && tasksOn(item).length);
@@ -1476,8 +1904,12 @@ function handoutLinks(c){
   if(!c.handouts || !c.handouts.length) return '';
   return '<div class="handouts"><p class="handouts-title">'+t("handoutsTitle")+'</p>'
     + c.handouts.map(d=>'<details class="handout"><summary>'+esc(L(d))+'</summary>'
-      + '<a href="'+esc(d.src)+'" target="_blank" rel="noopener"><img src="'+esc(d.src)+'" alt="'+esc(L(d))+'" loading="lazy" decoding="async"></a>'
-      + '<a class="handout-open" href="'+esc(d.src)+'" target="_blank" rel="noopener">'+t("handoutOpen")+'</a></details>').join('')
+      + (d.pdf
+        ? '<iframe class="handout-pdf" src="'+esc(d.src)+'#view=FitH" title="'+esc(L(d))+'" loading="lazy"></iframe>'
+          + '<a class="handout-open" href="'+esc(d.src)+'" target="_blank" rel="noopener">'+t("pdfOpen")+'</a>'
+        : '<a href="'+esc(d.src)+'" target="_blank" rel="noopener"><img src="'+esc(d.src)+'" alt="'+esc(L(d))+'" loading="lazy" decoding="async"></a>'
+          + '<a class="handout-open" href="'+esc(d.src)+'" target="_blank" rel="noopener">'+t("handoutOpen")+'</a>')
+      + '</details>').join('')
     + '</div>';
 }
 function matRows(label,list){
@@ -1579,9 +2011,16 @@ function setLang(l){
   renderAll();
   revealView();
 }
+/* 科目タブを開くとき、手で選んでいなければ授業中（なければ次）の科目にする。 */
+function followLiveCourse(){
+  if(!COURSE_AUTO) return;
+  const id = liveCourseId();
+  if(id!==COURSE){ COURSE = id; renderCourse(); applyLive(); }
+}
 function setView(v){
   const changed = VIEW!==v;
   stopMotion();
+  if(v==="course" && changed) followLiveCourse();
   VIEW = v;
   ["home","week","course","mats"].forEach(k=>{
     $("view-"+k).hidden = (k!==v);
@@ -1604,6 +2043,7 @@ function setWeek(n){
   WEEK = next;
   renderWeek();
   renderCourse();
+  applyLive();
   if(VIEW==="week"){
     const target = inWeek ? ($(focusId) || $('w-select')) : null;
     if(target) (target.disabled ? $('w-select') : target).focus({preventScroll:true});
@@ -1613,7 +2053,9 @@ function setWeek(n){
 function openCourse(id){
   const fromPicker = document.activeElement.closest('.picker');
   const alreadyInCourse = VIEW==="course";
-  COURSE = id; renderCourse(); setView("course");
+  COURSE_AUTO = false;
+  COURSE_PICKED_AT = focusKey(focusItem());
+  COURSE = id; renderCourse(); applyLive(); setView("course");
   const target = fromPicker ? document.querySelector('.picker [data-course="'+id+'"]') : document.querySelector('.chead h2');
   if(!fromPicker) target.tabIndex = -1;
   target.focus({preventScroll:true});
@@ -1645,14 +2087,62 @@ function renderAll(){
     $("view-"+k).setAttribute('aria-labelledby', 'tab-'+k);
     $("view-"+k).tabIndex = 0;
   });
+  RENDERED_DATE = todayISO();
   renderHome(); renderWeek(); renderCourse(); renderMats();
+  applyLive();
   syncSelections();
+}
+/* 毎分：時計と授業中の印を更新。日付が変わったら全体を描き直す。
+   手で選んだ科目は、授業が切り替わったら自動の追従に戻す。 */
+function tick(){
+  if(todayISO()!==RENDERED_DATE){ renderAll(); return; }
+  if(!COURSE_AUTO && focusKey(focusItem())!==COURSE_PICKED_AT) COURSE_AUTO = true;
+  applyLive();
+}
+
+/* 出欠だけを更新し、入力欄の開閉・スクロール・フォーカスを保つ。 */
+function refreshAttendanceViews(focus){
+  const editor = document.querySelector('#view-course .attendance-editor');
+  const scroller = document.querySelector('#view-course .attendance-editor-scroll');
+  const wasOpen = editor && editor.open, scrollTop = scroller ? scroller.scrollTop : 0;
+  renderHome(); renderCourse(); applyLive();
+  const nextEditor = document.querySelector('#view-course .attendance-editor');
+  const nextScroller = document.querySelector('#view-course .attendance-editor-scroll');
+  if(nextEditor) nextEditor.open = !!wasOpen;
+  if(nextScroller) nextScroller.scrollTop = scrollTop;
+  if(focus){
+    const target = Array.from(document.querySelectorAll('[data-attendance-key]'))
+      .find(el=>el.dataset.attendanceCourse===focus.courseId && el.dataset.attendanceKey===focus.key);
+    if(target) target.focus({preventScroll:true});
+  }
+}
+function attendanceFeedback(key){
+  document.querySelectorAll('[data-attendance-feedback]').forEach(el=>{ el.textContent = t(key); });
+}
+function downloadAttendance(){
+  let url;
+  try{
+    url = URL.createObjectURL(new Blob([exportAttendanceData()],{type:'application/json'}));
+    const link = document.createElement('a');
+    link.href = url; link.download = 'kuas-fall-2026-attendance-'+todayISO()+'.json';
+    document.body.appendChild(link); link.click(); link.remove();
+    attendanceFeedback('attendanceExported');
+  }catch(e){ attendanceFeedback('attendanceExportError'); }
+  finally{ if(url) setTimeout(()=>URL.revokeObjectURL(url),1000); }
 }
 
 /* イベント委譲：再描画してもハンドラを付け直さなくていい */
 document.addEventListener("click", e=>{
   const tv = e.target.closest("[data-timetable-select]");
   if(tv){ setTimetableView(tv.dataset.timetableSelect); return; }
+  const attendanceButton = e.target.closest('[data-attendance-open]');
+  if(attendanceButton){
+    openCourse(attendanceButton.dataset.attendanceOpen);
+    const editor = document.querySelector('#view-course .attendance-editor');
+    if(editor){ editor.open = true; editor.scrollIntoView({block:'start'}); }
+    return;
+  }
+  if(e.target.closest('[data-attendance-export]')){ downloadAttendance(); return; }
   const db = e.target.closest("[data-day-select]");
   if(db){
     const direction = Math.sign(Number(db.dataset.daySelect)-DAY);
@@ -1672,7 +2162,23 @@ document.addEventListener("click", e=>{
   if(e.target.closest("#w-prev")) return setWeek(WEEK-1);
   if(e.target.closest("#w-next")) return setWeek(WEEK+1);
 });
-document.addEventListener('change',e=>{
+document.addEventListener('change',async e=>{
+  if(e.target.matches('[data-attendance-key]')){
+    const courseId = e.target.dataset.attendanceCourse, key = e.target.dataset.attendanceKey;
+    if(setAttendanceStatus(courseId,key,e.target.value||null)) refreshAttendanceViews({courseId,key});
+    return;
+  }
+  if(e.target.matches('[data-attendance-import]')){
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    try{
+      if(file.size>1024*1024) throw new Error('File too large');
+      importAttendanceData(await file.text());
+      refreshAttendanceViews(); attendanceFeedback('attendanceImported');
+    }catch(error){ attendanceFeedback('attendanceImportError'); }
+    e.target.value = '';
+    return;
+  }
   if(e.target.id==='w-select') setWeek(Number(e.target.value));
   if(e.target.id==='calendar-date' && e.target.validity.valid && e.target.value) setWeek(calendarWeekFor(e.target.value));
 });
@@ -1728,4 +2234,8 @@ window.addEventListener("afterprint", ()=>{
   applyTheme();
   renderAll();
   revealView();
+  /* 分の変わり目に合わせて更新。バックグラウンドから戻ったときもすぐ合わせる。 */
+  (function everyMinute(){ setTimeout(()=>{ tick(); everyMinute(); }, 60000-Date.now()%60000+200); })();
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
+  window.addEventListener('pageshow',tick);
 })();
