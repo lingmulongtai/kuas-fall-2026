@@ -218,18 +218,22 @@
   window.addEventListener('wallpaperchange',event=>{photo=event.detail;rainImage?.close();rainImage=null;sourceDirty=true;invalidate();});
   window.addEventListener('rainreset',()=>{rainImage?.close();rainImage=null;sourceDirty=true;invalidate();});
   window.addEventListener('glasschange',()=>invalidate(true));
-  function requestRainBitmap(){
-    if(RAIN && rainMotionEnabled() && !document.hidden && !suspended)
-      document.querySelector('#rain iframe')?.contentWindow.postMessage({type:'rain-bitmap-request'},'*');
+  function requestRainBitmap(once=false){
+    const frame=document.querySelector('#rain iframe');
+    if(RAIN && (once || rainMotionEnabled()) && !document.hidden && !suspended && photo?.naturalWidth && frame?.style.visibility!=='hidden')
+      frame?.contentWindow.postMessage({type:'rain-bitmap-request'},'*');
   }
   window.addEventListener('ambiencechange',()=>{if(!RAIN){rainImage?.close();rainImage=null;}sourceDirty=true;invalidate();requestRainBitmap();});
   // The isolated rain document transfers a full resolution bitmap. No changes
   // to particle counts, refraction, simulation speed or rain shader are needed.
   window.addEventListener('message',event=>{
     const frame=document.querySelector('#rain iframe');
-    if(event.source!==frame?.contentWindow || event.data?.type!=='rain-bitmap')return;
+    if(event.source!==frame?.contentWindow)return;
+    if(event.data?.type==='rain-ready' || (event.data?.type==='rain-photo-ready' && event.data.image===photo?.src))requestRainBitmap(true);
+    if(event.data?.type!=='rain-bitmap')return;
+    if(event.data.photo && event.data.photo!==photo?.src){event.data.image.close();return;}
     rainImage?.close();rainImage=event.data.image;sourceDirty=true;invalidate();
-    requestAnimationFrame(requestRainBitmap);
+    requestAnimationFrame(()=>requestRainBitmap());
   });
   window.addEventListener('resize',()=>invalidate());
   new ResizeObserver(()=>invalidate()).observe(canvas);

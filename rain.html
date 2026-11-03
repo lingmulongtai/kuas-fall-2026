@@ -117,6 +117,7 @@ function usePhotoTextures(gl){
     upload(...args);
   };
   customBg.addEventListener('load',()=>{
+    bitmapRequested=true;
     const active=gl.getParameter(gl.ACTIVE_TEXTURE);
     for(const [unit,source] of sources){
       gl.activeTexture(unit);
@@ -132,13 +133,19 @@ function usePhotoTextures(gl){
 }
 // Transfer the rendered background to the glass layer without modifying the
 // supplied rain simulation. Only one bitmap may be in flight at a time.
-let bitmapPending=false,bitmapRequested=true;
+let bitmapPending=false,bitmapRequested=true,bitmapFailures=0;
 function shareGlassBackground(){
-  if(!bitmapRequested || bitmapPending || canvas.hidden || typeof createImageBitmap!=='function') return;
+  if(!bitmapRequested || bitmapPending || canvas.hidden || !customBg.complete || !customBg.naturalWidth || typeof createImageBitmap!=='function') return;
   bitmapPending=true;bitmapRequested=false;
+  const photo=customBg.src;
   createImageBitmap(canvas).then(image=>{
-    parent.postMessage({type:'rain-bitmap',image},'*',[image]);
-  }).catch(()=>{}).finally(()=>{bitmapPending=false;});
+    if(photo!==customBg.src){image.close();bitmapRequested=true;return;}
+    bitmapFailures=0;
+    parent.postMessage({type:'rain-bitmap',image,photo},'*',[image]);
+  }).catch(()=>{
+    if(++bitmapFailures<3)bitmapRequested=true;
+    else parent.postMessage({type:'rain-error'},'*');
+  }).finally(()=>{bitmapPending=false;if(bitmapRequested)nativeFrame(shareGlassBackground);});
 }
 function loadRainScript(){
   // Retain the last rendered image when the user pauses the external animation loops.
