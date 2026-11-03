@@ -672,6 +672,12 @@ ul.goals li{margin-bottom:8px}
   [data-optics="ready"] .preset-art::before{display:none}
   [data-optics="ready"] [data-glass-ink="dark"]{--ink:#172C3A;--ink-2:#263b48;--ink-3:#344652;--indigo:#164e78;--rule:rgba(20,40,60,.4);--rule-2:rgba(20,40,60,.17)}
   [data-optics="ready"] [data-glass-ink="light"]{--ink:#f2f7fa;--ink-2:#e4edf3;--ink-3:#d8e6ee;--indigo:#c3e3fa;--rule:rgba(230,244,255,.42);--rule-2:rgba(230,244,255,.2)}
+  [data-optics="ready"] [data-glass-ink="dark"]{text-shadow:0 1px 2px rgba(255,255,255,.65)}
+  [data-optics="ready"] [data-glass-ink="light"]{text-shadow:0 1px 2px rgba(0,0,0,.8)}
+  [data-theme="dark"],[data-optics="ready"][data-theme="dark"] [data-glass-ink]{
+    --ink:#f7fafc;--ink-2:#f7fafc;--ink-3:#f7fafc;--indigo:#f7fafc;
+    --notice-ink:#f7fafc;--vermilion:#f7fafc;--f2f:#f7fafc;--live:#f7fafc;--ondemand:#f7fafc;--exam:#f7fafc;--quiz:#f7fafc;
+  }
   [data-optics="ready"] .tabs button[aria-selected="true"],
   [data-optics="ready"] .day-switch button[aria-pressed="true"],
   [data-optics="ready"] .timetable-switch button[aria-pressed="true"]{color:var(--ink);font-weight:750}

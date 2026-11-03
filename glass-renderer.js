@@ -118,8 +118,10 @@
       const L=measure(rect),old=toneMemory.get(el)||0;
       const tone=m.appearance==='light'?0:m.appearance==='dark'?1:Math.min(rect.width,rect.height)<=96?(old>.5?(L<.22?1:0):(L<.14?1:0)):0;
       toneMemory.set(el,tone);
-      const f=Math.min(1,m.frost*2.5+m.tintAmount*.5),seen=(tone>.5?L*(1-f)+.01*f:L*(1-f)+f)*(1-m.dim*.8);
-      const ink=seen>.2?'dark':'light';
+      // Text contrast is a UI preference, separate from the optical material.
+      // Avoid assuming extra white haze when deciding light-theme label ink.
+      const f=Math.min(1,m.frost+m.tintAmount*.5),seen=(tone>.5?L*(1-f)+.01*f:L*(1-f)+f)*(1-m.dim*.8);
+      const ink=root.dataset.theme==='dark'?'light':seen>.2?'dark':'light';
       if(el.dataset.glassInk!==ink)el.dataset.glassInk=ink;
       layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone});
       if(el.classList.contains('segmented')){
