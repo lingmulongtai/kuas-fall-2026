@@ -85,6 +85,7 @@ function usePhotoTextures(gl){
   gl.drawArrays=(...args)=>{
     draw(...args);
     if(customBg.complete && customBg.naturalWidth) canvas.hidden=false;
+    shareGlassBackground();
   };
   const getLocation=gl.getUniformLocation.bind(gl), uniform1f=gl.uniform1f.bind(gl), ratios=new Set();
   gl.getUniformLocation=(program,name)=>{
@@ -129,6 +130,16 @@ function usePhotoTextures(gl){
     if(sources.size && !canvas.hidden) gl.drawArrays(gl.TRIANGLES,0,6);
   });
 }
+// Transfer the rendered background to the glass layer without modifying the
+// supplied rain simulation. Only one bitmap may be in flight at a time.
+let bitmapPending=false,bitmapRequested=true;
+function shareGlassBackground(){
+  if(!bitmapRequested || bitmapPending || canvas.hidden || typeof createImageBitmap!=='function') return;
+  bitmapPending=true;bitmapRequested=false;
+  createImageBitmap(canvas).then(image=>{
+    parent.postMessage({type:'rain-bitmap',image},'*',[image]);
+  }).catch(()=>{}).finally(()=>{bitmapPending=false;});
+}
 function loadRainScript(){
   // Retain the last rendered image when the user pauses the external animation loops.
   // Match the renderer's boot size before creating its WebGL viewport.
@@ -154,6 +165,7 @@ function loadRainScript(){
 window.addEventListener('message',event=>{
   if(event.source!==parent || !event.data) return;
   const message=event.data;
+  if(message.type==='rain-bitmap-request'){bitmapRequested=true;shareGlassBackground();}
   if(message.type==='rain-state'){
     pauseFrames(!message.running);
     if(typeof message.image==='string' && message.image!==customBg.src){
