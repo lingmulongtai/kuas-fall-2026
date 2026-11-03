@@ -302,10 +302,28 @@
   window.addEventListener('scroll',()=>invalidate(),{passive:true});
   document.addEventListener('scroll',()=>invalidate(),{passive:true,capture:true});
   document.addEventListener('click',()=>invalidate(true));
-  document.addEventListener('pointermove',event=>{touch.x=event.clientX-left;touch.y=event.clientY-top;invalidate();},{passive:true});
-  document.addEventListener('pointerdown',()=>{touch.strength=1;invalidate(true);},{passive:true});
-  document.addEventListener('pointerup',()=>{touch.strength=0;invalidate(true);},{passive:true});
-  document.addEventListener('visibilitychange',()=>{invalidate();requestRainBitmap();});
+  function trackPointer(event){
+    if(event.isPrimary===false)return;
+    touch.x=event.clientX-left;touch.y=event.clientY-top;touch.strength=1;
+    invalidate();
+  }
+  function clearPointer(){
+    touch.x=-1e4;touch.y=-1e4;touch.strength=0;
+    invalidate();
+  }
+  function releasePointer(event){
+    if(event.isPrimary===false)return;
+    if(event.pointerType==='touch')clearPointer();else trackPointer(event);
+  }
+  // Mouse and pen hover keep the reference highlight under the cursor. Touch
+  // has no resting cursor, so its highlight ends with contact or cancellation.
+  document.addEventListener('pointermove',trackPointer,{passive:true});
+  document.addEventListener('pointerdown',trackPointer,{passive:true});
+  document.addEventListener('pointerup',releasePointer,{passive:true});
+  document.addEventListener('pointercancel',event=>{if(event.isPrimary!==false)clearPointer();},{passive:true});
+  document.documentElement.addEventListener('pointerleave',clearPointer,{passive:true});
+  window.addEventListener('blur',clearPointer);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearPointer();invalidate();requestRainBitmap();});
   for(const pref of [reducedTransparency,contrast])pref.addEventListener('change',()=>invalidate());
   window.addEventListener('beforeprint',()=>{suspended=true;root.dataset.optics='fallback';});
   window.addEventListener('afterprint',()=>{suspended=false;invalidate();requestRainBitmap();});
