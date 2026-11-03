@@ -718,6 +718,10 @@ ul.goals li{margin-bottom:8px}
   .preset-note{font-size:12px}
   .settings-heading{padding:26px 20px}
 }
+@media screen and (max-width:359px){
+  .masthead-in{padding-inline:12px}
+  .header-tools{gap:8px}
+}
 
 /* The WebGL material replaces the former CSS approximation. Text stays native. */
 #glass-canvas{position:fixed;inset:0;z-index:-1;width:100%;height:100vh;height:100lvh;pointer-events:none;visibility:hidden}
