@@ -50,3 +50,20 @@ test('automatic theme follows OS changes without changing the text preference',(
   assert.equal(s.root.dataset.theme,'light');
   assert.equal(s.root.dataset.textColor,'black');
 });
+test('appearance buttons expose their current mode without visible labels',()=>{
+  const s=setup();
+  for(const theme of ['auto','light','dark']){
+    s.context.THEME=theme;s.context.applyTheme();
+    const button=s.elements['theme-btn'];
+    assert.match(button.attributes['aria-label'],new RegExp('theme'+theme[0].toUpperCase()+theme.slice(1)));
+    assert.equal(button.title,button.attributes['aria-label']);
+    assert.doesNotMatch(button.innerHTML,/<span/);
+  }
+  for(const text of ['auto','white','black']){
+    s.context.TEXT_COLOR=text;s.context.applyTextColor();
+    const button=s.elements['text-color-btn'];
+    assert.match(button.attributes['aria-label'],new RegExp('text'+text[0].toUpperCase()+text.slice(1)));
+    assert.equal(button.title,button.attributes['aria-label']);
+    assert.doesNotMatch(button.innerHTML,/<span/);
+  }
+});
