@@ -140,8 +140,6 @@
       const L=measure(rect),old=toneMemory.get(el)||0;
       const tone=m.appearance==='light'?0:m.appearance==='dark'?1:Math.min(rect.width,rect.height)<=96?(old>.5?(L<.22?1:0):(L<.14?1:0)):0;
       toneMemory.set(el,tone);
-      const forcedInk=root.dataset.textColor==='white'?'light':root.dataset.textColor==='black'?'dark':root.dataset.theme==='dark'?'light':null;
-      if(forcedInk && el.dataset.glassInk!==forcedInk)el.dataset.glassInk=forcedInk;
       layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone,clip});
       if(el.classList.contains('segmented')){
         const selected=el.querySelector('[aria-selected="true"],[aria-pressed="true"]');
@@ -156,35 +154,100 @@
     return [...layers].sort((a,b)=>a[0]-b[0]).map(entry=>entry[1]);
   }
   const touch={x:-1e4,y:-1e4,strength:0};
-  let inkPixels=null;
+  let inkPixels=null,labels=[],labelLayout=[],labelLayoutDirty=true,inkHistory=new WeakMap(),contrastUrgent=true,lastContrast=-Infinity,contrastTimer=0;
+  const colorCache=new Map(),colorCanvas=document.createElement('canvas');
+  colorCanvas.width=colorCanvas.height=1;
+  const colorContext=colorCanvas.getContext('2d',{willReadFrequently:true});
+  function chooseLabelInk(samples,previous){
+    const black=luminance([17,17,17]),scores={};
+    for(const color of ['dark','light']){
+      const ratios=samples.map(L=>color==='light'?1.05/(L+.05):(L+.05)/(black+.05)).sort((a,b)=>a-b);
+      // Protect the harder-to-read part of a label, not just its median pixel.
+      scores[color]=ratios[Math.floor((ratios.length-1)*.2)];
+    }
+    const best=scores.dark>=scores.light?'dark':'light';
+    return previous && previous!==best && scores[previous]>=3 && scores[best]<scores[previous]*1.15?previous:best;
+  }
+  function labelBackdrop(el,styles){
+    // The GPU image excludes native DOM fills, such as status badges and rows.
+    // Composite these over the glass before measuring their text contrast.
+    const layers=[];
+    for(let node=el;node && node!==document.body;node=node.parentElement){
+      if(!styles.has(node))styles.set(node,getComputedStyle(node));
+      const color=styles.get(node).backgroundColor;
+      if(!colorCache.has(color)){
+        colorContext.clearRect(0,0,1,1);colorContext.fillStyle=color; colorContext.fillRect(0,0,1,1);
+        colorCache.set(color,[...colorContext.getImageData(0,0,1,1).data]);
+      }
+      const rgba=colorCache.get(color);
+      if(rgba[3])layers.push(rgba);
+      if(rgba[3]===255)break;
+    }
+    const result=[0,0,0,0];
+    for(const rgba of layers.reverse()){
+      const alpha=rgba[3]/255,out=alpha+result[3]*(1-alpha);
+      for(let i=0;i<3;i++)result[i]=(rgba[i]*alpha+result[i]*result[3]*(1-alpha))/out;
+      result[3]=out;
+    }
+    return result;
+  }
+  function measureLabels(){
+    const range=document.createRange(),styles=new Map();
+    labelLayout=[];
+    for(const label of labels){
+      const {el,nodes}=label;
+      if(!el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))continue;
+      const rects=[];
+      if(nodes.length)for(const node of nodes){range.selectNodeContents(node);rects.push(...range.getClientRects());}
+      else rects.push(el.getBoundingClientRect());
+      const scroller=el.closest('.calendar-scroll,.attendance-editor-scroll');
+      const clip=scroller?scroller.getBoundingClientRect():{left,top,right:left+width,bottom:top+height};
+      const visible=rects.map(rect=>({left:Math.max(rect.left,left,clip.left),top:Math.max(rect.top,top,clip.top),right:Math.min(rect.right,left+width,clip.right),bottom:Math.min(rect.bottom,top+height,clip.bottom)}))
+        .filter(rect=>rect.right>rect.left && rect.bottom>rect.top);
+      if(visible.length)labelLayout.push({el,rects:visible,backdrop:labelBackdrop(el,styles)});
+    }
+    labelLayoutDirty=false;
+  }
+  function sampleLabel(rects,backdrop,w,h){
+    const samples=[];
+    for(const rect of rects){
+      const columns=clamp(Math.ceil((rect.right-rect.left)/10),2,32);
+      for(let y=0;y<3;y++)for(let x=0;x<columns;x++){
+        const px=clamp(Math.floor((rect.left-left+(rect.right-rect.left)*(.1+.8*(x+.5)/columns))*w/width),0,w-1);
+        const py=clamp(Math.floor((rect.top-top+(rect.bottom-rect.top)*(.15+.7*(y+.5)/3))*h/height),0,h-1);
+        const i=((h-1-py)*w+px)*4;
+        samples.push(luminance([0,1,2].map(c=>backdrop[c]*backdrop[3]+inkPixels[i+c]*(1-backdrop[3]))));
+      }
+    }
+    return samples;
+  }
+  function resetLabelContrast(){
+    labelLayoutDirty=true;contrastUrgent=true;inkHistory=new WeakMap();
+  }
   function updateLabelContrast(){
-    if(root.dataset.theme==='dark' || ['white','black'].includes(root.dataset.textColor))return;
-    // Inspect the finished glass, including neighbouring lenses and dimming,
-    // rather than predicting text contrast from the unprocessed photograph.
-    const w=Math.min(320,canvas.width),h=Math.max(1,Math.round(canvas.height*w/canvas.width));
+    if(['white','black'].includes(root.dataset.textColor)){clearTimeout(contrastTimer);contrastTimer=0;return;}
+    const moving=document.getAnimations().some(animation=>animation.playState==='running');
+    const elapsed=performance.now()-lastContrast;
+    if(!contrastUrgent && !moving && elapsed<120){
+      if(!contrastTimer)contrastTimer=setTimeout(()=>{contrastTimer=0;invalidate();},Math.ceil(120-elapsed));
+      return;
+    }
+    clearTimeout(contrastTimer);contrastTimer=0;
+    // Sample the finished glass at each actual text line, in either theme.
+    const w=Math.min(1024,Math.ceil(width)),h=Math.max(1,Math.round(height*w/width));
     const ink=rtex('ink',w,h);
     drawTo(programs.cover,ink.fbo,w,h,L=>{
       bindTex(0,fb.scene.tex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,-1,0,0);gl.uniform4f(L.u_rect,0,0,1,1);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
     });
     if(!inkPixels || inkPixels.length!==w*h*4)inkPixels=new Uint8Array(w*h*4);
     gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,inkPixels);
-    for(const el of targets){
-      if(!el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))continue;
-      const text=el.querySelector(':scope > .preset-caption,:scope > .sec-head,:scope > .brand,:scope > .daylab,:scope > h2')||el;
-      const rect=text.getBoundingClientRect();
-      if(!rect.width || !rect.height || rect.bottom<top || rect.top>top+height)continue;
-      const samples=[];
-      for(let y=0;y<6;y++)for(let x=0;x<8;x++){
-        const px=clamp(Math.floor((rect.left-left+rect.width*(.2+.6*(x+.5)/8))*w/width),0,w-1);
-        const py=clamp(Math.floor((rect.top-top+rect.height*(.2+.6*(y+.5)/6))*h/height),0,h-1);
-        const i=((h-1-py)*w+px)*4;
-        samples.push(luminance(inkPixels.subarray(i,i+3)));
-      }
-      samples.sort((a,b)=>a-b);
-      const L=samples[Math.floor(samples.length/2)];
-      const color=1.05/(L+.05)>=(L+.05)/.073?'light':'dark';
-      if(el.dataset.glassInk!==color)el.dataset.glassInk=color;
+    if(labelLayoutDirty || moving)measureLabels();
+    for(const {el,rects,backdrop} of labelLayout){
+      const color=chooseLabelInk(sampleLabel(rects,backdrop,w,h),inkHistory.get(el));
+      inkHistory.set(el,color);
+      if(el.dataset.autoInk!==color)el.dataset.autoInk=color;
     }
+    contrastUrgent=false;lastContrast=performance.now();
   }
   function drawLayer(shapes){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
@@ -247,6 +310,7 @@
         // reference merge value without fusing adjacent buttons or cards.
         for(const batch of batchSurfaces(shapes,capacity)){buildPyramid();drawLayer(batch);}
       }
+      root.dataset.optics='ready';
       updateLabelContrast();
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER,fb.scene.fbo);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,null);
       gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);
@@ -269,23 +333,33 @@
   function refreshTargets(){
     targets=[...document.querySelectorAll(selectors)];
     for(const el of targets)if(!el.hasAttribute('data-glass-surface'))el.setAttribute('data-glass-surface','');
+    const text=new Map(),walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+    while(walker.nextNode()){
+      const node=walker.currentNode,el=node.parentElement;
+      if(!node.textContent.trim() || el.closest('script,style,svg,option,textarea'))continue;
+      if(!text.has(el))text.set(el,{el,nodes:[]});
+      text.get(el).nodes.push(node);
+    }
+    for(const el of document.querySelectorAll('.ui-icon,select,input:not([type="file"]):not([type="hidden"])'))text.set(el,{el,nodes:[]});
+    labels=[...text.values()];resetLabelContrast();
     invalidate();
   }
   new MutationObserver(records=>{
-    if(records.every(r=>r.type==='attributes' && ['data-glass-ink','data-glass-surface','data-optics'].includes(r.attributeName)))return;
+    if(records.every(r=>r.type==='attributes' && ['data-auto-ink','data-glass-surface','data-optics'].includes(r.attributeName)))return;
     if(records.some(r=>r.type==='childList'))refreshTargets();
+    labelLayoutDirty=true;contrastUrgent=true;
     invalidate();
-  }).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class','hidden','open','data-glass-ink','data-glass-surface']});
-  window.addEventListener('wallpaperchange',event=>{photo=event.detail;rainImage?.close();rainImage=null;sourceDirty=true;invalidate();});
-  window.addEventListener('rainreset',()=>{rainImage?.close();rainImage=null;sourceDirty=true;invalidate();});
-  window.addEventListener('glasschange',()=>invalidate(true));
-  window.addEventListener('textcolorchange',()=>invalidate());
+  }).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class','hidden','open','data-auto-ink','data-glass-surface']});
+  window.addEventListener('wallpaperchange',event=>{photo=event.detail;rainImage?.close();rainImage=null;sourceDirty=true;resetLabelContrast();invalidate();});
+  window.addEventListener('rainreset',()=>{rainImage?.close();rainImage=null;sourceDirty=true;resetLabelContrast();invalidate();});
+  window.addEventListener('glasschange',()=>{resetLabelContrast();invalidate(true);});
+  window.addEventListener('textcolorchange',()=>{resetLabelContrast();invalidate();});
   function requestRainBitmap(once=false){
     const frame=document.querySelector('#rain iframe');
     if(RAIN && (once || rainMotionEnabled()) && !document.hidden && !suspended && photo?.naturalWidth && frame?.style.visibility!=='hidden')
       frame?.contentWindow.postMessage({type:'rain-bitmap-request'},'*');
   }
-  window.addEventListener('ambiencechange',()=>{if(!RAIN){rainImage?.close();rainImage=null;}sourceDirty=true;invalidate();requestRainBitmap();});
+  window.addEventListener('ambiencechange',()=>{if(!RAIN){rainImage?.close();rainImage=null;}sourceDirty=true;resetLabelContrast();invalidate();requestRainBitmap();});
   // The isolated rain document transfers a full resolution bitmap. No changes
   // to particle counts, refraction, simulation speed or rain shader are needed.
   window.addEventListener('message',event=>{
@@ -297,10 +371,13 @@
     rainImage?.close();rainImage=event.data.image;sourceDirty=true;invalidate();
     requestAnimationFrame(()=>requestRainBitmap());
   });
-  window.addEventListener('resize',()=>invalidate());
-  new ResizeObserver(()=>invalidate()).observe(canvas);
-  window.addEventListener('scroll',()=>invalidate(),{passive:true});
-  document.addEventListener('scroll',()=>invalidate(),{passive:true,capture:true});
+  function layoutChanged(){labelLayoutDirty=true;contrastUrgent=true;invalidate();}
+  window.addEventListener('resize',layoutChanged);
+  new ResizeObserver(layoutChanged).observe(canvas);
+  window.addEventListener('scroll',layoutChanged,{passive:true});
+  document.addEventListener('scroll',layoutChanged,{passive:true,capture:true});
+  document.addEventListener('pointerover',layoutChanged,{passive:true});
+  document.addEventListener('pointerout',layoutChanged,{passive:true});
   document.addEventListener('click',()=>invalidate(true));
   function trackPointer(event){
     if(event.isPrimary===false)return;
