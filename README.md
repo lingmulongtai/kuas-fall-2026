@@ -76,7 +76,7 @@ Unsplash全体を毎回検索する方式ではなく、選定した写真の候
 
 ## ガラスと動き
 
-[Good Machines Liquid Glass Lab](https://goodmachines.ai/lab/liquid-glass)の6プリセットを使用する。取得日：2026/11/03。数値、屈折・分散・frost・照明のGLSL、17タップのGaussian blurを保持し、画面サイズやUI形状に接続する部分を実装している。描画中も解像度を下げず、参照と同じ最大DPR 2で描く。元サイトが許可する形状数を超えるUIには、端末のuniform上限に応じた形状配列と階層別の描画passを使用する。
+[Good Machines Liquid Glass Lab](https://goodmachines.ai/lab/liquid-glass)の6プリセットを使用する。取得日：2026/11/03。数値、屈折・分散・frost・照明のGLSL、17タップのGaussian blurを保持し、画面サイズやUI形状に接続する部分を実装している。描画中も解像度を下げず、参照と同じ最大DPR 2で描く。元サイトの8形状という上限を超えるUIには、端末のuniform上限に応じた形状配列と階層別の描画passを使用する。
 
 1つのWebGL2 contextが背景とガラスを描き、文字・入力・ボタンはネイティブDOMに残す。親カードと子の操作面は別passにして両方の縁を保つ。設定のサンプルも、素材ごとのdim・mergeを含む同じ値で描く。雨は隔離したiframeから描画済みbitmapを受け取り、ガラスの入力に使う。水滴のシミュレーションや雨の品質値は変更しない。
 
@@ -94,7 +94,7 @@ node --check effects.js
 node --check glass-materials.js
 node --check glass-renderer.js
 node --test tests/*.test.cjs
-node scripts/build.mjs tests/attendance.test.cjs tests/attendance-input.test.cjs
+node scripts/build.mjs
 python -m http.server 4186 --bind 127.0.0.1
 ```
 
