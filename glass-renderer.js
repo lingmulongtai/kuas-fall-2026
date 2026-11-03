@@ -10,10 +10,10 @@
   document.body.prepend(canvas);
   const reducedTransparency=matchMedia('(prefers-reduced-transparency: reduce)');
   const contrast=matchMedia('(prefers-contrast: more)');
-  const selectors='.masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head,.tabs,.langswitch,.picker button,.day-switch,.timetable-switch,.iconbtn,.nav-w,.panel,.blk,.tt .empty,.now-panel,.now-item,.course-live,.exam-card,.notice-list li,.handouts,.wk,.notice,.sidenote,.preset-card,.preset-lens,select,input,.attendance-editor,summary';
+  const selectors='.masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head,.tabs,.langswitch,.picker button,.day-switch,.timetable-switch,.iconbtn,.nav-w,.panel,.blk,.tt .empty,.now-panel,.now-item,.course-live,.exam-card,.notice-list li,.handouts,.wk,.notice,.sidenote,.preset-card,.preset-lens,select,input:not([type="file"]):not([type="hidden"]),.attendance-editor,summary';
   const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
   let gl,programs,photo=document.querySelector('#wallpaper img'),rainImage=null,raf=0,settleUntil=0,suspended=false;
-  let width=0,height=0,dpr=1,sourceDirty=true,targets=[],capacity=8;
+  let width=0,height=0,left=0,top=0,dpr=1,sourceDirty=true,targets=[],capacity=8;
   const fb={};
   try{ gl=canvas.getContext('webgl2',{antialias:false,alpha:false,premultipliedAlpha:false,preserveDrawingBuffer:false}); }catch(_){}
   if(!gl){ root.dataset.optics='fallback'; return; }
@@ -107,8 +107,9 @@
   function collect(){
     const layers=new Map();
     for(const el of targets){
-      const rect=el.getBoundingClientRect();
-      if(!rect.width || !rect.height || rect.bottom< -96 || rect.top>height+96 || !el.checkVisibility())continue;
+      const bounds=el.getBoundingClientRect();
+      if(!bounds.width || !bounds.height || bounds.bottom<top-96 || bounds.top>top+height+96 || !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))continue;
+      const rect={left:bounds.left-left,top:bounds.top-top,width:bounds.width,height:bounds.height};
       let depth=0,parent=el.parentElement;
       while(parent){if(parent.matches(selectors))depth++;parent=parent.parentElement;}
       if(el.closest('.tabs'))depth+=30;
@@ -126,7 +127,8 @@
         if(selected){
           const level=depth+1;
           if(!layers.has(level))layers.set(level,[]);
-          layers.get(level).push({rect:selected.getBoundingClientRect(),r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone});
+          const selectedRect=selected.getBoundingClientRect();
+          layers.get(level).push({rect:{left:selectedRect.left-left,top:selectedRect.top-top,width:selectedRect.width,height:selectedRect.height},r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone});
         }
       }
     }
@@ -165,7 +167,10 @@
     raf=0;
     if(suspended || document.hidden || reducedTransparency.matches || contrast.matches){root.dataset.optics='fallback';return;}
     try{
-      const w=innerWidth,h=parseFloat(getComputedStyle(document.getElementById('wallpaper')).height)||innerHeight;
+      // CSS percentages exclude a reserved scrollbar gutter; innerWidth does not.
+      // Use the actual painted box for both coordinates and texture resolution.
+      const box=canvas.getBoundingClientRect(),w=box.width,h=box.height;
+      left=box.left;top=box.top;
       const ratio=Math.min(devicePixelRatio||1,2);
       if(w!==width || h!==height || ratio!==dpr){width=w;height=h;dpr=ratio;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);sourceDirty=true;}
       if(sourceDirty)uploadSource();
@@ -195,7 +200,9 @@
       }
       root.dataset.optics='ready';
     }catch(error){console.error('Glass render:',error);root.dataset.optics='fallback';return;}
-    if(performance.now()<settleUntil)invalidate();
+    // WAAPI transforms do not generate style mutations. Follow every frame,
+    // including the final settled geometry, with or without animated rain.
+    if(performance.now()<settleUntil || document.getAnimations().some(animation=>animation.playState==='running'))invalidate();
   }
   function invalidate(animate=false){if(animate && motionEnabled())settleUntil=performance.now()+450;if(!raf)raf=requestAnimationFrame(render);}
   function refreshTargets(){
@@ -225,10 +232,11 @@
     requestAnimationFrame(requestRainBitmap);
   });
   window.addEventListener('resize',()=>invalidate());
+  new ResizeObserver(()=>invalidate()).observe(canvas);
   window.addEventListener('scroll',()=>invalidate(),{passive:true});
   document.addEventListener('scroll',()=>invalidate(),{passive:true,capture:true});
   document.addEventListener('click',()=>invalidate(true));
-  document.addEventListener('pointermove',event=>{touch.x=event.clientX;touch.y=event.clientY;invalidate();},{passive:true});
+  document.addEventListener('pointermove',event=>{touch.x=event.clientX-left;touch.y=event.clientY-top;invalidate();},{passive:true});
   document.addEventListener('pointerdown',()=>{touch.strength=1;invalidate(true);},{passive:true});
   document.addEventListener('pointerup',()=>{touch.strength=0;invalidate(true);},{passive:true});
   document.addEventListener('visibilitychange',()=>{invalidate();requestRainBitmap();});
