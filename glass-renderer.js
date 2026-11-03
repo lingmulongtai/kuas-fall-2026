@@ -67,7 +67,7 @@
   }
   const source=document.createElement('canvas'),cx=source.getContext('2d',{willReadFrequently:true});
   const imageTex=gl.createTexture();
-  let meanLum=.6,pixels=null,sourceStatisticsCurrent=false;
+  let meanLum=.6,pixels=null,sourceStatisticsCurrent=false,imageWidth=0,imageHeight=0;
   function sourceLuminanceNeeded(){
     const presets=window.GlassMaterials.presets;
     const selected=presets.find(p=>p.id===root.dataset.material)?.p||presets[5].p;
@@ -76,7 +76,8 @@
       materialNeedsStatistics(presets.find(p=>p.id===el.dataset.materialPreview)?.p||presets[5].p));
   }
   function uploadSource(){
-    source.width=canvas.width;source.height=canvas.height;
+    if(source.width!==canvas.width)source.width=canvas.width;
+    if(source.height!==canvas.height)source.height=canvas.height;
     cx.fillStyle=root.dataset.theme==='dark'?'#171f2b':'#dce6eb';cx.fillRect(0,0,source.width,source.height);
     const image=RAIN && rainImage ? rainImage : photo;
     if(image && (image.width || image.naturalWidth)){
@@ -85,10 +86,13 @@
       cx.drawImage(image,(source.width-iw*scale)/2,(source.height-ih*scale)/2,iw*scale,ih*scale);
     }
     bindTex(0,imageTex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
-    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,source);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.MIRRORED_REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.MIRRORED_REPEAT);
+    if(imageWidth!==source.width || imageHeight!==source.height){
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,source);
+      imageWidth=source.width;imageHeight=source.height;
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.MIRRORED_REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.MIRRORED_REPEAT);
+    }else gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,gl.RGBA,gl.UNSIGNED_BYTE,source);
     gl.generateMipmap(gl.TEXTURE_2D);
     sourceStatisticsCurrent=false;sourceDirty=false;
   }
