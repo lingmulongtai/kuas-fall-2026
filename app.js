@@ -691,10 +691,10 @@ const T = {
   tabMats:{ja:"教材", en:"Materials"},
   tabSettings:{ja:"設定", en:"Settings"},
   settingsTitle:{ja:"自分の見やすさに合わせる", en:"Make yourself at home"},
-  settingsIntro:{ja:"ガラスの表情、テーマ、言語をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass, theme and language. Your preferences are saved in this browser."},
+  settingsIntro:{ja:"ガラスの表情と言語をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass and language. Your preferences are saved in this browser."},
   glassTitle:{ja:"ガラスのプリセット", en:"Glass material"},
   glassHint:{ja:"タップすると、すべての画面に適用されます。", en:"Choose a material to apply it across every view."},
-  appearanceTitle:{ja:"テーマと言語", en:"Appearance & language"},
+  appearanceTitle:{ja:"言語", en:"Language"},
   sceneryTitle:{ja:"背景と雨", en:"Scenery & rain"},
   sceneryHint:{ja:"雨を止めても、ボタンや画面のアニメーションは変わりません。", en:"Pausing rain keeps all interface animations running."},
   presetApple:{ja:"やわらかな屈折と、背景になじむガラス。", en:"A gentle lens that adapts to its surroundings."},
@@ -1092,7 +1092,10 @@ function motionEnabled(){ return !(motionPreference && motionPreference.matches)
 function rainMotionEnabled(){ return RAIN && motionEnabled(); }
 function renderAmbience(){
   document.documentElement.dataset.motion = motionEnabled()?'on':'off';
-  $('rain-btn').innerHTML = uiIcon('rain')+'<span>'+t(RAIN?(motionEnabled()?'rainOn':'rainReduced'):'rainOff')+'</span>';
+  const label=t(RAIN?(motionEnabled()?'rainOn':'rainReduced'):'rainOff');
+  $('rain-btn').innerHTML = uiIcon(RAIN?'rain':'rain-off');
+  $('rain-btn').setAttribute('aria-label',label);
+  $('rain-btn').title=label;
   $('rain-btn').setAttribute('aria-pressed',RAIN);
   window.dispatchEvent(new Event('ambiencechange'));
 }
@@ -1138,9 +1141,10 @@ function resolvedTheme(){ return THEME==="auto" ? (mq && mq.matches ? "dark" : "
 function isDark(){ return resolvedTheme()==="dark"; }
 function applyTheme(){
   document.documentElement.dataset.theme = resolvedTheme();
-  $("theme-btn").innerHTML = uiIcon(THEME==="light" ? "light" : THEME==="dark" ? "dark" : "auto")
-    + '<span>'+t(THEME==="auto" ? "themeAuto" : THEME==="light" ? "themeLight" : "themeDark")+'</span>';
-  $("theme-btn").title = t("changeTheme");
+  $("theme-btn").innerHTML = uiIcon(THEME==="light" ? "light" : THEME==="dark" ? "dark" : "auto");
+  const label=t(THEME==="auto" ? "themeAuto" : THEME==="light" ? "themeLight" : "themeDark")+' · '+t('changeTheme');
+  $("theme-btn").setAttribute('aria-label',label);
+  $("theme-btn").title=label;
   applyTextColor();
   updateWallpaper();
 }
@@ -1187,6 +1191,7 @@ function uiIcon(name){
     'text-black':'<circle cx="12" cy="12" r="10" fill="#f7fafc" stroke="#172c3a"/><path d="m7 17 5-11 5 11M9 13h6" stroke="#111"/>',
     shuffle:'<path d="m17 3 4 4-4 4m0 2 4 4-4 4M3 7h3c5 0 7 10 12 10h3M3 17h3c2 0 4-3 6-6s4-4 6-4h3"/>',
     rain:'<path d="M8 16H6a4 4 0 1 1 1-7 5 5 0 0 1 10-1 4 4 0 1 1 1 8M10 16l-1 4m5-4-1 4m5-1-1 3"/>',
+    'rain-off':'<path d="m3 3 18 18M5 8a4 4 0 0 0 1 8h2m2-10a5 5 0 0 1 7 2 4 4 0 0 1 3 7M10 16l-1 4m5-4-1 4"/>',
     pause:'<path d="M8 5v14M16 5v14"/>',
     play:'<path d="m8 4 12 8-12 8Z"/>'
   };
@@ -2064,7 +2069,9 @@ function renderSettings(){
   $('glass-title').textContent=t('glassTitle');
   $('glass-hint').textContent=t('glassHint');
   $('appearance-title').textContent=t('appearanceTitle');
-  $('settings-open').innerHTML=uiIcon('settings')+'<span>'+t('tabSettings')+'</span>';
+  $('settings-open').innerHTML=uiIcon('settings');
+  $('settings-open').setAttribute('aria-label',t('tabSettings'));
+  $('settings-open').title=t('tabSettings');
   const descriptions=['presetApple','presetAppleClear','presetThick','presetFrosted','presetClear','presetPrism'];
   $('glass-presets').innerHTML=(window.GlassMaterials?.presets||[]).map((preset,i)=>
     '<button type="button" class="preset-card" data-preset="'+preset.id+'" aria-pressed="'+(GLASS_PRESET===preset.id)+'">'
@@ -2137,7 +2144,9 @@ function renderAll(){
     $("tab-"+k).innerHTML = uiIcon(k)+'<span>'+t(["tabHome","tabWeek","tabCourse","tabMats","tabSettings"][i])+'</span>';
   });
   $("foot").textContent = t("foot");
-  $('shuffle-btn').innerHTML = uiIcon('shuffle')+'<span>'+t('shuffleBackground')+'</span>';
+  $('shuffle-btn').innerHTML = uiIcon('shuffle');
+  $('shuffle-btn').setAttribute('aria-label',t('shuffleBackground'));
+  $('shuffle-btn').title=t('shuffleBackground');
   if($('background-status').textContent) $('background-status').textContent = t($('shuffle-btn').disabled?'backgroundLoading':'backgroundFailed');
   document.querySelector('.ambience').setAttribute('aria-label',t('backgroundSettings'));
   renderAmbience();
