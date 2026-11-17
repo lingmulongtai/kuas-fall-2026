@@ -17,6 +17,7 @@
   let width=0,height=0,left=0,top=0,dpr=1,sourceDirty=true,targets=[],capacity=8;
   let asciiActive=false;
   let viewport, textureLimit, dock;
+  let preparedBase, preparedCrop;
   const fb={};
   try{ gl=canvas.getContext('webgl2',{antialias:false,alpha:true,premultipliedAlpha:true,preserveDrawingBuffer:false}); }catch(_){}
   if(!gl){ root.dataset.optics='fallback'; return; }
@@ -83,10 +84,17 @@ void main(){
   const SIGMA0=3,PICK_SIGMA=12,PYR_MAX=10;
   function materialNeedsPyramid(material){return material.blur>0 || material.frost>0 || material.pickup>0;}
   function materialNeedsStatistics(material){return material.appearance==='auto' || material.dim>0;}
-  function buildPyramid(){
+  function sampledPyramidLevels(material,density,levels){
+    const maxLod=Math.max(0,Math.log2(Math.max(material.blur,PICK_SIGMA)*density/SIGMA0));
+    // Include both levels of the trilinear lookup, including its upper neighbor
+    // at an integer LOD so rounding in the shader cannot expose stale pixels.
+    return Math.min(levels,Math.floor(maxLod)+2);
+  }
+  function buildPyramid(material){
     const cw=canvas.width,ch=canvas.height,bw=Math.max(1,Math.ceil(cw/2)),bh=Math.max(1,Math.ceil(ch/2));
     const levels=Math.min(PYR_MAX,mipLevels(bw,bh)),P=rtex('pyr',bw,bh,levels),T=rtex('pyrTmp',bw,bh,levels);
-    for(let i=0;i<levels;i++){
+    const sampled=sampledPyramidLevels(material,dpr,levels);
+    for(let i=0;i<sampled;i++){
       const w=Math.max(1,bw>>i),h=Math.max(1,bh>>i),sig=i?1.3:1.5;
       drawTo(programs.blur,T.fbos[i],w,h,L=>{bindTex(0,i?P.tex:fb.scene.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,1/w,0);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i?i-1:1);});
       drawTo(programs.blur,P.fbos[i],w,h,L=>{bindTex(0,T.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,0,1/h);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i);});
@@ -197,6 +205,7 @@ void main(){
   }
   const touch={x:-1e4,y:-1e4,strength:0};
   let inkPixels=null,labels=[],labelLayout=[],labelLayoutDirty=true,inkHistory=new WeakMap(),inkCandidates=new WeakMap(),contrastUrgent=true,lastContrast=-Infinity,contrastTimer=0;
+  let inkRevision=0,inkTransfer=null,inkBuffer=null,inkBufferBytes=0,inkReadbackFailed=false;
   const colorCache=new Map(),colorCanvas=document.createElement('canvas');
   colorCanvas.width=colorCanvas.height=1;
   const colorContext=colorCanvas.getContext('2d',{willReadFrequently:true});
@@ -274,10 +283,12 @@ void main(){
     return samples;
   }
   function resetLabelContrast(){
+    inkRevision++;
     labelLayoutDirty=true;contrastUrgent=true;inkHistory=new WeakMap();inkCandidates=new WeakMap();
   }
   function updateLabelContrast(){
     if(['white','black'].includes(root.dataset.textColor)){clearTimeout(contrastTimer);contrastTimer=0;return;}
+    if(inkTransfer)return;
     const moving=document.getAnimations().some(animation=>animation.playState==='running');
     const elapsed=performance.now()-lastContrast;
     if(!contrastUrgent && !moving && elapsed<120){
@@ -291,23 +302,67 @@ void main(){
     drawTo(programs.cover,ink.fbo,w,h,L=>{
       bindTex(0,fb.scene.tex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,-1,0,0);gl.uniform4f(L.u_rect,0,0,1,1);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
     });
-    if(!inkPixels || inkPixels.length!==w*h*4)inkPixels=new Uint8Array(w*h*4);
-    gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,inkPixels);
     if(labelLayoutDirty || moving)measureLabels();
+    if(!inkPixels || inkPixels.length!==w*h*4)inkPixels=new Uint8Array(w*h*4);
+    const first=lastContrast===-Infinity;
+    contrastUrgent=false;lastContrast=performance.now();
+    const frame={w,h,layout:labelLayout,revision:inkRevision,left,top,width,height};
+    if(!first && !inkReadbackFailed && queueInkReadback(frame))return;
+    gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,inkPixels);
+    applyInkReadback(frame);
+  }
+  function queueInkReadback(frame){
+    inkBuffer??=gl.createBuffer();
+    if(!inkBuffer)return false;
+    // The sample moves to a GPU buffer. The next glass frame need not wait
+    // for the GPU to finish producing it or for the CPU to read it back.
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER,inkBuffer);
+    if(inkBufferBytes!==inkPixels.byteLength){
+      inkBufferBytes=inkPixels.byteLength;
+      gl.bufferData(gl.PIXEL_PACK_BUFFER,inkBufferBytes,gl.STREAM_READ);
+    }
+    gl.readPixels(0,0,frame.w,frame.h,gl.RGBA,gl.UNSIGNED_BYTE,0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+    const sync=gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE,0);
+    if(!sync)return false;
+    inkTransfer={frame,sync};
+    gl.flush();
+    requestAnimationFrame(finishInkReadback);
+    return true;
+  }
+  function finishInkReadback(){
+    const {frame,sync}=inkTransfer;
+    const status=gl.clientWaitSync(sync,0,0);
+    if(status===gl.TIMEOUT_EXPIRED){requestAnimationFrame(finishInkReadback);return;}
+    gl.deleteSync(sync);inkTransfer=null;
+    if(status===gl.WAIT_FAILED){inkReadbackFailed=true;contrastUrgent=true;}
+    else if(frame.revision===inkRevision && frame.left===left && frame.top===top && frame.width===width && frame.height===height &&
+      root.dataset.optics==='ready' && !['white','black'].includes(root.dataset.textColor)){
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER,inkBuffer);
+      gl.getBufferSubData(gl.PIXEL_PACK_BUFFER,0,inkPixels);
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+      applyInkReadback(frame);
+    }
+    if(contrastUrgent || labelLayoutDirty)invalidate();
+  }
+  function applyInkReadback({w,h,layout}){
     let waiting=false;
     const now=performance.now();
-    for(const {el,rects,backdrop} of labelLayout){
+    for(const {el,rects,backdrop} of layout){
       const previous=inkHistory.get(el),candidate=chooseLabelInk(sampleLabel(rects,backdrop,w,h),previous);
       const {color,pending}=stabiliseLabelInk(candidate,previous,inkCandidates.get(el),now);
       if(pending){inkCandidates.set(el,pending);waiting=true;}else inkCandidates.delete(el);
       inkHistory.set(el,color);
       if(el.dataset.autoInk!==color)el.dataset.autoInk=color;
     }
-    contrastUrgent=false;lastContrast=performance.now();
-    if(waiting)contrastTimer=setTimeout(()=>{contrastTimer=0;invalidate();},120);
+    if(waiting&&!contrastTimer)contrastTimer=setTimeout(()=>{contrastTimer=0;invalidate();},120);
   }
   function drawLayer(shapes){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
+    const q=clamp((meanLum-.12)/.25,0,1);
+    const dim=material.dim*q*q*(3-2*q);
+    const region=batchRegion(shapes,dim);
+    if(!hasPixels(region))return;
     for(let i=0;i<shapes.length;i++){
       const {rect:r,m,tone}=shapes[i],o=i*4;
       s0.set([r.left+r.width/2,r.top+r.height/2,r.width/2,r.height/2],o);
@@ -318,7 +373,7 @@ void main(){
       const rgb=m.tint.match(/[0-9a-f]{2}/gi).map(h=>parseInt(h,16)/255);
       m2.set([...rgb,m.tintAmount],o);m3.set([m.pickup,m.specular,m.rimWidth,m.shadow],o);
     }
-    drawTo(programs.glass,fb.output.fbo,canvas.width,canvas.height,L=>{
+    drawRegion(region,programs.glass,fb.output.fbo,L=>{
       bindTex(0,fb.scene.tex);gl.uniform1i(L.u_scene,0);bindTex(1,materialNeedsPyramid(material)?fb.pyr.tex:fb.scene.tex);gl.uniform1i(L.u_blur,1);
       gl.uniform2f(L.u_res,canvas.width,canvas.height);gl.uniform2f(L.u_dpr,canvas.width/width,canvas.height/height);
       gl.uniform2f(L.u_texel,1/canvas.width,1/canvas.height);gl.uniform4f(L.u_map,1/width,-1/height,0,1);gl.uniform1f(L.u_sceneLod,0);
@@ -327,11 +382,42 @@ void main(){
       gl.uniform4f(L.u_touch,touch.x,touch.y,material.interactive?touch.strength:0,46);
       gl.uniform1f(L.u_merge,material.merge);gl.uniform1f(L.u_zoom,1);
       const a=material.lightAngle*Math.PI/180;gl.uniform2f(L.u_light,Math.cos(a),Math.sin(a));
-      const q=clamp((meanLum-.12)/.25,0,1);gl.uniform1f(L.u_dimK,material.dim*q*q*(3-2*q));
+      gl.uniform1f(L.u_dimK,dim);
       gl.uniform1f(L.u_pickLod,Math.max(0,Math.log2(PICK_SIGMA*dpr/SIGMA0)));
     });
-    copyFrame(fb.output,fb.scene);
+    copyFrame(fb.output,fb.scene,region);
     bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
+  }
+  function batchRegion(shapes,dim){
+    const sx=canvas.width/width,sy=canvas.height/height;
+    // The unchanged shader stops affecting pixels 96 CSS px outside its field.
+    // Without dimming, only the antialiased rim and the 26 px shadow offset by
+    // 5 px contribute. Each smooth-min can extend that field by at most k/4.
+    const reach=dim>0?96:Math.max(31,0.75/sx);
+    const margin=reach+shapes.slice(1).reduce((sum,shape)=>sum+shape.m.merge/4,0);
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const {rect} of shapes){
+      minX=Math.min(minX,rect.left);minY=Math.min(minY,rect.top);
+      maxX=Math.max(maxX,rect.left+rect.width);maxY=Math.max(maxY,rect.top+rect.height);
+    }
+    return {
+      x:clamp(Math.floor((minX-margin)*sx)-1,0,canvas.width),
+      y:clamp(Math.floor((minY-margin)*sy)-1,0,canvas.height),
+      right:clamp(Math.ceil((maxX+margin)*sx)+1,0,canvas.width),
+      bottom:clamp(Math.ceil((maxY+margin)*sy)+1,0,canvas.height)
+    };
+  }
+  function hasPixels({x,y,right,bottom}){return right>x&&bottom>y;}
+  function drawRegion(region,program,fbo,setup){
+    const {x,y,right,bottom}=region;
+    if(x===0&&y===0&&right===canvas.width&&bottom===canvas.height){
+      drawTo(program,fbo,canvas.width,canvas.height,setup);
+      return;
+    }
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(x,canvas.height-bottom,right-x,bottom-y);
+    try{drawTo(program,fbo,canvas.width,canvas.height,setup);}
+    finally{gl.disable(gl.SCISSOR_TEST);}
   }
   function copyFrame(from,to,rect={x:0,y:0,right:canvas.width,bottom:canvas.height}){
     const {x,y,right,bottom}=rect;
@@ -344,7 +430,7 @@ void main(){
   function renderGroup(layers){
     for(const [,shapes] of [...layers].sort((a,b)=>a[0]-b[0])){
       for(const batch of batchSurfaces(shapes,capacity)){
-        if(materialNeedsPyramid(batch[0].m))buildPyramid();
+        if(materialNeedsPyramid(batch[0].m))buildPyramid(batch[0].m);
         drawLayer(batch);
       }
     }
@@ -375,7 +461,7 @@ void main(){
     if(w<=0 || h<=0)return;
     const plane=planeFor(host),{surface,context}=plane;
     const sx=canvas.width/width,sy=canvas.height/height;
-    drawTo(programs.overlay,null,canvas.width,canvas.height,L=>{
+    drawRegion(region,programs.overlay,null,L=>{
       bindTex(0,fb.scene.tex);gl.uniform1i(L.u_result,0);
       bindTex(1,under.tex);gl.uniform1i(L.u_under,1);
       if(plate){
@@ -423,8 +509,9 @@ void main(){
         present(host,under,region,origin);
         // Shapes carried outside the scrollport are buffered in the DOM canvas.
         // Only the visible portion participates in subsequent glass and ink.
+        const visible=pixelBounds(rect.left+host.clientLeft,rect.top+host.clientTop,rect.left+host.clientLeft+host.clientWidth,rect.top+host.clientTop+host.clientHeight);
+        copyFrame(fb.scene,under,visible);
         copyFrame(under,fb.scene);
-        copyFrame(fb.output,fb.scene,pixelBounds(rect.left+host.clientLeft,rect.top+host.clientTop,rect.left+host.clientLeft+host.clientWidth,rect.top+host.clientTop+host.clientHeight));
         bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
       }
     }
@@ -462,14 +549,19 @@ void main(){
       const bufferWidth=Math.round(width*ratio),bufferHeight=Math.round(height*ratio);
       if(canvas.width!==bufferWidth)canvas.width=bufferWidth;
       if(canvas.height!==bufferHeight)canvas.height=bufferHeight;
-      if(sourceDirty)uploadSource();
+      const changedSource=sourceDirty;
+      if(changedSource)uploadSource();
       if(!sourceStatisticsCurrent && sourceLuminanceNeeded())updateSourceStatistics();
       rtex('scene',canvas.width,canvas.height,mipLevels(canvas.width,canvas.height));rtex('output',canvas.width,canvas.height);
       const base=rtex('base',canvas.width,canvas.height);
-      drawTo(programs.cover,base.fbo,canvas.width,canvas.height,L=>{
-        bindTex(0,imageTex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,1,0,0);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
-        gl.uniform4f(L.u_rect,-padX/box.width,-padY/box.height,width/box.width,height/box.height);
-      });
+      const crop=[-padX/box.width,-padY/box.height,width/box.width,height/box.height];
+      if(changedSource || base!==preparedBase || crop.some((value,i)=>value!==preparedCrop[i])){
+        drawTo(programs.cover,base.fbo,canvas.width,canvas.height,L=>{
+          bindTex(0,imageTex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,1,0,0);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
+          gl.uniform4f(L.u_rect,...crop);
+        });
+        preparedBase=base;preparedCrop=crop;
+      }
       copyFrame(base,fb.scene);
       bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
       presentGroups(collect(),base);

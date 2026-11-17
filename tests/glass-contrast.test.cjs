@@ -79,7 +79,7 @@ test('translucent nested fills composite in paint order and exclude the body beh
 test('throttled updates schedule one trailing measurement when cursor movement stops',()=>{
   const timers=new Map();let id=0,invalidations=0;
   const context=vm.createContext({root:{dataset:{textColor:'auto'}},document:{getAnimations:()=>[]},performance:{now:()=>50},
-    contrastUrgent:false,lastContrast:0,contrastTimer:0,Math,
+    contrastUrgent:false,lastContrast:0,contrastTimer:0,inkTransfer:null,Math,
     setTimeout(fn,delay){assert.equal(delay,70);timers.set(++id,fn);return id;},clearTimeout:key=>timers.delete(key),invalidate:()=>invalidations++});
   vm.runInContext(source.slice(source.indexOf('  function updateLabelContrast('),source.indexOf('  function drawLayer(')),context);
   context.updateLabelContrast();context.updateLabelContrast();
@@ -94,7 +94,7 @@ test('pending colours continue evaluating without rain or further pointer events
   let now=100,id=0;const timers=new Map(),el={dataset:{autoInk:'light'}},history=new WeakMap([[el,'light']]);
   const context=vm.createContext({root:{dataset:{textColor:'auto'}},document:{getAnimations:()=>[]},performance:{now:()=>now},
     contrastUrgent:true,lastContrast:0,contrastTimer:0,labelLayoutDirty:false,labelLayout:[{el}],inkHistory:history,inkCandidates:new WeakMap(),
-    inkPixels:null,width:1,height:1,programs:{cover:{}},rtex:()=>({}),drawTo(){},gl:{readPixels(){}},
+    inkPixels:null,inkRevision:0,inkTransfer:null,inkReadbackFailed:true,left:0,top:0,width:1,height:1,programs:{cover:{}},rtex:()=>({}),drawTo(){},gl:{readPixels(){}},
     sampleLabel:()=>[.8],chooseLabelInk:()=> 'dark',
     setTimeout(fn){timers.set(++id,fn);return id;},clearTimeout:key=>timers.delete(key),invalidate(){}});
   vm.runInContext(source.slice(source.indexOf('  function stabiliseLabelInk('),source.indexOf('  function labelBackdrop('))+source.slice(source.indexOf('  function updateLabelContrast('),source.indexOf('  function drawLayer(')),context);
@@ -102,6 +102,28 @@ test('pending colours continue evaluating without rain or further pointer events
   assert.equal(el.dataset.autoInk,'light');assert.equal(timers.size,1);
   now=700;context.updateLabelContrast();
   assert.equal(el.dataset.autoInk,'dark');assert.equal(timers.size,0);
+});
+test('GPU ink readback waits without blocking and discards superseded lighting',()=>{
+  const pending=[];let samples=0,reads=0,status=1;
+  const frame={revision:4,left:0,top:0,width:100,height:100};
+  const context=vm.createContext({
+    inkTransfer:{frame,sync:{}},inkRevision:4,inkBuffer:{},inkPixels:new Uint8Array(16),
+    root:{dataset:{optics:'ready',textColor:'auto'}},left:0,top:0,width:100,height:100,
+    contrastUrgent:false,labelLayoutDirty:false,
+    gl:{TIMEOUT_EXPIRED:1,WAIT_FAILED:2,clientWaitSync:()=>status,deleteSync(){},bindBuffer(){},getBufferSubData(){reads++;}},
+    applyInkReadback(){samples++;}, requestAnimationFrame:fn=>pending.push(fn), invalidate(){},
+  });
+  vm.runInContext(source.slice(source.indexOf('  function finishInkReadback('),source.indexOf('  function applyInkReadback(')),context);
+  context.finishInkReadback();
+  assert.equal(reads,0);
+  assert.equal(pending.length,1);
+  status=3;pending.shift()();
+  assert.equal(reads,1);
+  assert.equal(samples,1);
+  context.inkTransfer={frame,sync:{}};context.inkRevision++;
+  context.finishInkReadback();
+  assert.equal(reads,1,'Ignore obsolete scene geometry and color');
+  assert.equal(context.inkTransfer,null);
 });
 test('the first rain image resets colour history while subsequent water frames retain it',()=>{
   let handler,resets=0,closed=0;const sender={},photo={src:'https://images.unsplash.com/photo-test'};
