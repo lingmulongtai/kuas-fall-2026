@@ -92,6 +92,7 @@ function usePhotoTextures(gl){
   const draw=gl.drawArrays.bind(gl);
   gl.drawArrays=(...args)=>{
     draw(...args);
+    drawVersion++;
     if(customBg.complete && customBg.naturalWidth) canvas.hidden=false;
     shareGlassBackground();
   };
@@ -152,17 +153,18 @@ function usePhotoTextures(gl){
 }
 // Transfer the rendered background to the glass layer without modifying the
 // supplied rain simulation. Only one bitmap may be in flight at a time.
-let bitmapPending=false,bitmapRequested=true,bitmapFailures=0;
+let bitmapPending=false,bitmapRequested=true,bitmapForced=false,bitmapFailures=0,drawVersion=0,sharedVersion=-1;
 function shareGlassBackground(){
   if(!bitmapRequested || bitmapPending || canvas.hidden || !customBg.complete || !customBg.naturalWidth || typeof createImageBitmap!=='function') return;
-  bitmapPending=true;bitmapRequested=false;
-  const photo=customBg.src;
+  if(!bitmapForced && drawVersion===sharedVersion)return;
+  const photo=customBg.src,version=drawVersion,forced=bitmapForced;
+  bitmapPending=true;bitmapRequested=false;bitmapForced=false;
   createImageBitmap(canvas).then(image=>{
     if(photo!==customBg.src){image.close();bitmapRequested=true;return;}
-    bitmapFailures=0;
+    bitmapFailures=0;sharedVersion=version;
     parent.postMessage({type:'rain-bitmap',image,photo},'*',[image]);
   }).catch(()=>{
-    if(++bitmapFailures<3)bitmapRequested=true;
+    if(++bitmapFailures<3){bitmapRequested=true;bitmapForced||=forced;}
     else parent.postMessage({type:'rain-error'},'*');
   }).finally(()=>{bitmapPending=false;if(bitmapRequested)nativeFrame(shareGlassBackground);});
 }
@@ -191,7 +193,7 @@ function loadRainScript(){
 window.addEventListener('message',event=>{
   if(event.source!==parent || !event.data) return;
   const message=event.data;
-  if(message.type==='rain-bitmap-request'){bitmapRequested=true;shareGlassBackground();}
+  if(message.type==='rain-bitmap-request'){bitmapRequested=true;bitmapForced||=message.force===true;shareGlassBackground();}
   if(message.type==='rain-state'){
     pauseFrames(!message.running);
     if(typeof message.image==='string' && message.image!==customBg.src){
