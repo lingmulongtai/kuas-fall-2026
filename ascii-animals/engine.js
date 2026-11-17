@@ -624,7 +624,12 @@ function create(world, animal, motionPreference) {
     const live = entities.filter((e) => !e.leaving && e.A === A);
     const want = desiredCount(A);
     if (live.length < want) {
-      for (let i = live.length; i < want; i++) entities.push(makeEntity(A, { fade: initial ? 1 : 0 }));
+      const returning = entities.filter(e => e.leaving && e.A === A).slice(0, want - live.length);
+      for (const entity of returning) {
+        entity.leaving = false;
+        if (initial) entity.fade = 1;
+      }
+      for (let i = live.length + returning.length; i < want; i++) entities.push(makeEntity(A, { fade: initial ? 1 : 0 }));
     } else if (live.length > want) {
       live.slice(want).forEach((e) => (e.leaving = true));
     }
@@ -1071,6 +1076,18 @@ function create(world, animal, motionPreference) {
 
   return {
     resize,
+    setTuning({size,density,speed}) {
+      const densityChanged = settings.density !== density;
+      settings.size = size;
+      settings.density = density;
+      settings.speed = speed;
+      if (!densityChanged || !R.W) return;
+      syncPopulation(reducedMotion.matches);
+      if (reducedMotion.matches) {
+        entities = entities.filter(entity => !entity.leaving);
+        bokehs = [];
+      }
+    },
     setAnimal(id) {
       if (reducedMotion.matches && Object.hasOwn(ANIMAL_BY_ID, id) && id !== current) {
         current = id;

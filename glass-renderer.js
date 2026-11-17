@@ -11,11 +11,13 @@
   document.body.prepend(canvas);
   const reducedTransparency=matchMedia('(prefers-reduced-transparency: reduce)');
   const contrast=matchMedia('(prefers-contrast: more)');
-  const selectors='.masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head,.tabs,.langswitch,.picker button,.day-switch,.timetable-switch,.iconbtn,.nav-w,.panel,.blk,.tt .empty,.now-panel,.now-item,.course-live,.exam-card,.notice-list li,.handouts,.wk,.notice,.sidenote,.preset-card,.preset-lens,select,input:not([type="file"]):not([type="hidden"]),.attendance-editor,summary';
+  const textControls = 'select,input:not([type="file"]):not([type="hidden"]):not([type="range"])';
+  const selectors='.masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head,.tabs,.langswitch,.picker button,.day-switch,.timetable-switch,.iconbtn,.nav-w,.panel,.blk,.tt .empty,.now-panel,.now-item,.course-live,.exam-card,.notice-list li,.handouts,.wk,.notice,.sidenote,.preset-card,.preset-lens,.attendance-editor,summary,'+textControls;
   const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
   let gl,programs,photo=document.querySelector('#wallpaper img'),rainImage=null,raf=0,settleUntil=0,suspended=false;
   let width=0,height=0,left=0,top=0,dpr=1,sourceDirty=true,targets=[],capacity=8;
   let asciiActive=false;
+  let scrollTimer=0;
   const fb={};
   try{ gl=canvas.getContext('webgl2',{antialias:false,alpha:false,premultipliedAlpha:false,preserveDrawingBuffer:false}); }catch(_){}
   if(!gl){ root.dataset.optics='fallback'; return; }
@@ -366,7 +368,11 @@
     // including the final settled geometry, with or without animated rain.
     if(performance.now()<settleUntil || document.getAnimations().some(animation=>animation.playState==='running'))invalidate();
   }
-  function invalidate(animate=false){if(animate && motionEnabled())settleUntil=performance.now()+450;if(!raf)raf=requestAnimationFrame(render);}
+  function invalidate(animate=false){
+    if(scrollTimer)return;
+    if(animate && motionEnabled())settleUntil=performance.now()+450;
+    if(!raf)raf=requestAnimationFrame(render);
+  }
   function refreshTargets(){
     targets=[...document.querySelectorAll(selectors)];
     for(const el of targets)if(!el.hasAttribute('data-glass-surface'))el.setAttribute('data-glass-surface','');
@@ -377,7 +383,7 @@
       if(!text.has(el))text.set(el,{el,nodes:[]});
       text.get(el).nodes.push(node);
     }
-    for(const el of document.querySelectorAll('.ui-icon,select,input:not([type="file"]):not([type="hidden"])'))text.set(el,{el,nodes:[]});
+    for(const el of document.querySelectorAll('.ui-icon,'+textControls))text.set(el,{el,nodes:[]});
     labels=[...text.values()];resetLabelContrast();
     invalidate();
   }
@@ -416,11 +422,31 @@
     requestAnimationFrame(()=>requestRainBitmap());
   });
   function layoutChanged(){resetLabelContrast();invalidate();}
+  function duringScroll(){
+    if(!scrollTimer){
+      if(root.dataset.optics!=='ready' && root.dataset.optics!=='scrolling')return;
+      // Native scrolling can present the DOM before a fixed WebGL image is ready.
+      // CSS glass belongs to each element and moves with it on the same frame.
+      root.dataset.optics='scrolling';
+      cancelAnimationFrame(raf);raf=0;
+      clearTimeout(contrastTimer);contrastTimer=0;
+    }
+    clearTimeout(scrollTimer);
+    scrollTimer=setTimeout(()=>{
+      scrollTimer=0;
+      layoutChanged();
+    },140);
+  }
   function hoveredLabelChanged(){labelLayoutDirty=true;contrastUrgent=true;invalidate();}
   window.addEventListener('resize',layoutChanged);
   new ResizeObserver(layoutChanged).observe(canvas);
-  window.addEventListener('scroll',layoutChanged,{passive:true});
-  document.addEventListener('scroll',layoutChanged,{passive:true,capture:true});
+  document.addEventListener('scroll',duringScroll,{passive:true,capture:true});
+  document.addEventListener('wheel',event=>{
+    if(!event.ctrlKey && (event.deltaX || event.deltaY))duringScroll();
+  },{passive:true,capture:true});
+  document.addEventListener('touchmove',event=>{
+    if(event.touches.length===1 && !event.target.closest('input[type="range"]'))duringScroll();
+  },{passive:true,capture:true});
   document.addEventListener('pointerover',hoveredLabelChanged,{passive:true});
   document.addEventListener('pointerout',hoveredLabelChanged,{passive:true});
   document.addEventListener('click',()=>invalidate(true));

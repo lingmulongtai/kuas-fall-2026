@@ -735,6 +735,9 @@ const T = {
   effectOff:{ja:"エフェクトなし", en:"No effect"},
   asciiAnimal:{ja:"ASCIIの動物", en:"ASCII animal"},
   nextAsciiAnimal:{ja:"次の動物に切り替える", en:"Show the next animal"},
+  asciiSize:{ja:"動物の大きさ", en:"Animal size"},
+  asciiDensity:{ja:"動物の数", en:"Animal density"},
+  asciiSpeed:{ja:"動く速さ", en:"Movement speed"},
   motionOn:{ja:"雨を一時停止", en:"Pause rain"},
   motionOff:{ja:"雨を再開", en:"Resume rain"},
   motionReduced:{ja:"動き：控えめ", en:"Reduced motion"},
@@ -1108,6 +1111,17 @@ const savedEffect = store.get('background-effect');
 let BACKGROUND_EFFECT = BACKGROUND_EFFECTS.includes(savedEffect) ? savedEffect : store.get('rain')==='off' ? 'off' : 'rain';
 const savedAnimal = store.get('ascii-animal');
 let ASCII_ANIMAL = Object.hasOwn(ASCII_ANIMALS,savedAnimal) ? savedAnimal : 'butterflies';
+const ASCII_TUNING_KEYS = ['size','density','speed'];
+const ASCII_TUNING = {size:1,density:1,speed:1};
+try{
+  const saved=JSON.parse(store.get('ascii-tuning'));
+  for(const key of ASCII_TUNING_KEYS){
+    if(!Number.isFinite(saved?.[key]))continue;
+    const control=$('ascii-'+key);
+    control.value=saved[key];
+    ASCII_TUNING[key]=control.valueAsNumber;
+  }
+}catch(_){ /* Use the default scene tuning when storage is invalid. */ }
 let RAIN = BACKGROUND_EFFECT==='rain';
 const runningMotion = new Map();
 let printing = false;
@@ -1143,6 +1157,16 @@ function setAsciiAnimal(animal){
   ASCII_ANIMAL=animal;
   store.set('ascii-animal',animal);
   setBackgroundEffect('ascii');
+}
+function renderAsciiTuning(){
+  for(const key of ASCII_TUNING_KEYS){
+    const control=$('ascii-'+key);
+    const value=ASCII_TUNING[key];
+    control.value=value;
+    const label=Number(value.toFixed(2)).toLocaleString(LANG)+'×';
+    $('ascii-'+key+'-value').value=label;
+    control.setAttribute('aria-valuetext',label);
+  }
 }
 function stopMotion(){
   runningMotion.forEach(animation=>animation.cancel());
@@ -2117,6 +2141,10 @@ function renderSettings(){
   for(const [i,key] of ['effectRain','effectAscii','effectOff'].entries())$('background-effect').options[i].textContent=t(key);
   $('ascii-animal').innerHTML=Object.entries(ASCII_ANIMALS).map(([id,name])=>'<option value="'+id+'">'+L(name)+'</option>').join('');
   $('ascii-animal').value=ASCII_ANIMAL;
+  $('ascii-size-label').textContent=t('asciiSize');
+  $('ascii-density-label').textContent=t('asciiDensity');
+  $('ascii-speed-label').textContent=t('asciiSpeed');
+  renderAsciiTuning();
   $('glass-title').textContent=t('glassTitle');
   $('glass-hint').textContent=t('glassHint');
   $('appearance-title').textContent=t('appearanceTitle');
@@ -2322,6 +2350,14 @@ $('shuffle-btn').addEventListener('click',()=>{
 $('rain-btn').addEventListener('click',()=>setBackgroundEffect(BACKGROUND_EFFECTS[(BACKGROUND_EFFECTS.indexOf(BACKGROUND_EFFECT)+1)%BACKGROUND_EFFECTS.length]));
 $('background-effect').addEventListener('change',event=>setBackgroundEffect(event.target.value));
 $('ascii-animal').addEventListener('change',event=>setAsciiAnimal(event.target.value));
+for(const key of ASCII_TUNING_KEYS){
+  $('ascii-'+key).addEventListener('input',event=>{
+    ASCII_TUNING[key]=event.target.valueAsNumber;
+    renderAsciiTuning();
+    window.dispatchEvent(new Event('asciituningchange'));
+  });
+  $('ascii-'+key).addEventListener('change',()=>store.set('ascii-tuning',JSON.stringify(ASCII_TUNING)));
+}
 document.addEventListener("keydown", e=>{
   const tab = e.target.closest('[role="tab"]');
   if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
