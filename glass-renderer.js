@@ -90,14 +90,50 @@ void main(){
     // at an integer LOD so rounding in the shader cannot expose stale pixels.
     return Math.min(levels,Math.floor(maxLod)+2);
   }
-  function buildPyramid(material){
+  function blurSampleRegion(shapes){
+    const {m}=shapes[0];
+    // A magnifying lens can sample toward a distant shape in the same batch.
+    // The current blurred presets have unit magnification.
+    if(m.magnify!==1)return {x:0,y:0,right:canvas.width,bottom:canvas.height};
+    // The refracted ray has |T.z| >= 2/3 at IOR 1.5, so its displacement
+    // per unit of thickness is at most sqrt(5)/2. Include dispersion, size
+    // scale and the antialiased coverage outside the smooth-min field.
+    const reach=Math.sqrt(5)/2*m.refraction*(m.sizeScale?1.7:1)*(1+0.45*m.dispersion);
+    return batchRegion(shapes,false,reach+0.75/(canvas.width/width));
+  }
+  function pyramidRegions(region,bw,bh,levels){
+    const regions=[];
+    function scaleRect(rect,fromW,fromH,toW,toH){
+      // Include both texels of every bilinear lookup, including at clamped edges.
+      return {x:Math.max(0,Math.floor(rect.x*toW/fromW)-1),y:Math.max(0,Math.floor(rect.y*toH/fromH)-1),
+        right:Math.min(toW,Math.ceil(rect.right*toW/fromW)+1),bottom:Math.min(toH,Math.ceil(rect.bottom*toH/fromH)+1)};
+    }
+    function union(a,b){
+      return {x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),right:Math.max(a.right,b.right),bottom:Math.max(a.bottom,b.bottom)};
+    }
+    let dependency;
+    for(let i=levels-1;i>=0;i--){
+      const w=Math.max(1,bw>>i),h=Math.max(1,bh>>i);
+      const output=scaleRect(region,canvas.width,canvas.height,w,h);
+      const vertical=dependency?union(output,scaleRect(dependency.rect,dependency.w,dependency.h,w,h)):output;
+      const halo=i?4:5; // ceil(3 × sigma) on either side of a same-level output texel.
+      const horizontal={x:vertical.x,y:Math.max(0,vertical.y-halo),right:vertical.right,bottom:Math.min(h,vertical.bottom+halo)};
+      regions[i]={w,h,horizontal,vertical};
+      dependency={rect:{...horizontal,x:horizontal.x-halo,right:horizontal.right+halo},w,h};
+    }
+    return regions;
+  }
+  function buildPyramid(shapes){
+    const material=shapes[0].m;
     const cw=canvas.width,ch=canvas.height,bw=Math.max(1,Math.ceil(cw/2)),bh=Math.max(1,Math.ceil(ch/2));
     const levels=Math.min(PYR_MAX,mipLevels(bw,bh)),P=rtex('pyr',bw,bh,levels),T=rtex('pyrTmp',bw,bh,levels);
     const sampled=sampledPyramidLevels(material,dpr,levels);
-    for(let i=0;i<sampled;i++){
-      const w=Math.max(1,bw>>i),h=Math.max(1,bh>>i),sig=i?1.3:1.5;
-      drawTo(programs.blur,T.fbos[i],w,h,L=>{bindTex(0,i?P.tex:fb.scene.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,1/w,0);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i?i-1:1);});
-      drawTo(programs.blur,P.fbos[i],w,h,L=>{bindTex(0,T.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,0,1/h);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i);});
+    let i=0;
+    for(const {w,h,horizontal,vertical} of pyramidRegions(blurSampleRegion(shapes),bw,bh,sampled)){
+      const sig=i?1.3:1.5;
+      drawRegion(horizontal,programs.blur,T.fbos[i],L=>{bindTex(0,i?P.tex:fb.scene.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,1/w,0);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i?i-1:1);},w,h);
+      drawRegion(vertical,programs.blur,P.fbos[i],L=>{bindTex(0,T.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,0,1/h);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i);},w,h);
+      i++;
     }
   }
   const source=document.createElement('canvas'),cx=source.getContext('2d',{willReadFrequently:true});
@@ -388,12 +424,11 @@ void main(){
     copyFrame(fb.output,fb.scene,region);
     bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
   }
-  function batchRegion(shapes,dim){
+  function batchRegion(shapes,dim,reach=dim>0?96:Math.max(31,0.75/(canvas.width/width))){
     const sx=canvas.width/width,sy=canvas.height/height;
     // The unchanged shader stops affecting pixels 96 CSS px outside its field.
     // Without dimming, only the antialiased rim and the 26 px shadow offset by
     // 5 px contribute. Each smooth-min can extend that field by at most k/4.
-    const reach=dim>0?96:Math.max(31,0.75/sx);
     const margin=reach+shapes.slice(1).reduce((sum,shape)=>sum+shape.m.merge/4,0);
     let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
     for(const {rect} of shapes){
@@ -408,15 +443,15 @@ void main(){
     };
   }
   function hasPixels({x,y,right,bottom}){return right>x&&bottom>y;}
-  function drawRegion(region,program,fbo,setup){
+  function drawRegion(region,program,fbo,setup,w=canvas.width,h=canvas.height){
     const {x,y,right,bottom}=region;
-    if(x===0&&y===0&&right===canvas.width&&bottom===canvas.height){
-      drawTo(program,fbo,canvas.width,canvas.height,setup);
+    if(x===0&&y===0&&right===w&&bottom===h){
+      drawTo(program,fbo,w,h,setup);
       return;
     }
     gl.enable(gl.SCISSOR_TEST);
-    gl.scissor(x,canvas.height-bottom,right-x,bottom-y);
-    try{drawTo(program,fbo,canvas.width,canvas.height,setup);}
+    gl.scissor(x,h-bottom,right-x,bottom-y);
+    try{drawTo(program,fbo,w,h,setup);}
     finally{gl.disable(gl.SCISSOR_TEST);}
   }
   function copyFrame(from,to,rect={x:0,y:0,right:canvas.width,bottom:canvas.height}){
@@ -430,7 +465,7 @@ void main(){
   function renderGroup(layers){
     for(const [,shapes] of [...layers].sort((a,b)=>a[0]-b[0])){
       for(const batch of batchSurfaces(shapes,capacity)){
-        if(materialNeedsPyramid(batch[0].m))buildPyramid(batch[0].m);
+        if(materialNeedsPyramid(batch[0].m))buildPyramid(batch);
         drawLayer(batch);
       }
     }
