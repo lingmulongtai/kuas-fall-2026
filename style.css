@@ -107,6 +107,9 @@ button:disabled{cursor:default}
 .wallpaper::after{content:"";position:absolute;inset:0;background:var(--wallpaper-wash)}
 .rain-layer{position:fixed;inset:0;width:100%;z-index:-2;pointer-events:none}
 .rain-layer iframe{display:block;width:100%;height:100%;border:0}
+.ascii-background{position:fixed;inset:0;width:100%;height:100vh;height:100lvh;z-index:-2;pointer-events:none}
+@font-face{font-family:"Geist Mono";src:url("ascii-animals/GeistMono-Variable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+[data-background-effect="ascii"] :is(#photo-credit,#background-status){display:none}
 .glass-filters{position:absolute;width:0;height:0;pointer-events:none;overflow:hidden}
 
 /* Blur only the outer material; nested content is an etched, transparent inlay. */
@@ -607,7 +610,7 @@ ul.goals li{margin-bottom:8px}
 @media(prefers-reduced-transparency:reduce),(prefers-contrast:more){
   :root,[data-theme="dark"]{--frost:var(--surface);--glass:var(--surface);--cell:var(--surface);--inlay:var(--surface-2);--shine:var(--rule);--reflection:transparent}
   .masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head,.tabs,.picker button{backdrop-filter:none;-webkit-backdrop-filter:none}
-  .rain-layer,.wallpaper,.tabs::after,.segmented::before{display:none!important}
+  .rain-layer,.ascii-background,.wallpaper,.tabs::after,.segmented::before{display:none!important}
   .tabs.segmented button[aria-selected="true"],.day-switch.segmented button[aria-pressed="true"],.timetable-switch.segmented button[aria-pressed="true"]{background:var(--hl)}
 }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
@@ -642,6 +645,10 @@ ul.goals li{margin-bottom:8px}
 .header-tools #background-status{grid-column:1/-1;grid-row:2;max-width:320px}
 #background-status:empty{display:none}
 .settings-columns{grid-template-columns:1fr}
+.background-options{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px}
+.background-options select{max-width:100%;min-height:44px;border:1px solid var(--rule);border-radius:14px;padding:8px 12px;background:var(--cell);color:var(--ink);font:inherit}
+.background-options option{background:var(--surface);color:var(--ink)}
+.background-options .calendar-control{margin:0}
 @media screen and (max-width:1050px){.masthead-in{grid-template-columns:1fr}.header-tools{justify-content:end}}
 @media screen and (max-width:700px){
   .settings-heading{padding:24px 20px}
@@ -778,7 +785,7 @@ ul.goals li{margin-bottom:8px}
   }
   @page{size:A4 landscape;margin:12mm}
   body{background:#FFF;font-size:10px}
-  .wallpaper,.rain-layer,.photo-credit,.masthead,.tabs,.switches,.ambience,.weekbar,.picker,.day-switch,.timetable-switch{display:none!important}
+  .wallpaper,.rain-layer,.ascii-background,.photo-credit,.masthead,.tabs,.switches,.ambience,.weekbar,.picker,.day-switch,.timetable-switch{display:none!important}
   main{padding:0;max-width:none}
   .view[hidden]{display:block!important}
   .view+.view{break-before:page}

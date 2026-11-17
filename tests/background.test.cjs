@@ -35,6 +35,22 @@ function setup(storage=new Map()){
 }
 const flush = ()=>new Promise(resolve=>setImmediate(resolve));
 
+test('a pending photograph does not disable next-animal navigation',async()=>{
+  const {api,context,elements,pending}=setup();
+  elements['background-effect']={value:'rain'};
+  const loading=api.updateWallpaper();
+  assert.equal(elements['shuffle-btn'].disabled,true);
+  elements['background-effect'].value='ascii';
+  context.renderShuffleAvailability();
+  assert.equal(elements['shuffle-btn'].disabled,false);
+  elements['background-effect'].value='rain';
+  context.renderShuffleAvailability();
+  assert.equal(elements['shuffle-btn'].disabled,true);
+  pending[0].onload();
+  await loading;
+  assert.equal(elements['shuffle-btn'].disabled,false);
+});
+
 test('each theme cycles through its photographs and never immediately repeats across reloads',()=>{
   const storage = new Map();
   for(const theme of ['light','dark']){
