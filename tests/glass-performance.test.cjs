@@ -75,3 +75,31 @@ test('successive full-resolution frames reuse storage and reallocate only after 
   viewport.pixelWidth=1704;viewport.pixelHeight=786;c.uploadSource();
   assert.deepEqual(calls,{allocate:2,update:1,mipmap:3,resize:4,paint:3});
 });
+
+test('animated statistics gather the original global and local texels from the same uploaded frame',()=>{
+  const reads=[];let coords;
+  const c=vm.createContext({
+    sampleRows:0,sampleWidth:256,samplePoints:{},source:{width:787,height:1703},sourceStatisticsCurrent:false,meanLum:0,
+    left:-192,top:-256,dpr:2,viewport:{left:0,top:0},clamp:(n,min,max)=>Math.max(min,Math.min(max,n)),
+    bindTex(){},rtex:()=>({}),drawTo(){},programs:{samples:{}},gl:{
+      texImage2D(){},texParameteri(){},texSubImage2D(...args){coords=args.at(-1).slice();},
+      readPixels(x,y,w,h,format,type,pixels){
+        reads.push(w*h);
+        for(let i=0;i<w*h;i++){
+          const white=coords[i*2]>300?255:0;
+          pixels.set([white,white,white,255],i*4);
+        }
+      },
+    },
+  });
+  vm.runInContext(source.slice(source.indexOf('  function readAnimatedSourceStatistics('),source.indexOf('  const toneMemory=')),c);
+  const adaptive=[{rect:{left:350,top:290,width:30,height:28}}];
+  c.readAnimatedSourceStatistics(adaptive);
+  assert.deepEqual([...coords.slice(0,4)],[16,35,49,35]);
+  assert.deepEqual([...coords.slice(24*24*2,24*24*2+4)],[319,70,325,70]);
+  assert.ok(c.meanLum>.5&&c.meanLum<.7);
+  assert.equal(adaptive[0].lum,1);
+  c.readAnimatedSourceStatistics(adaptive);
+  assert.deepEqual(reads,[768,256],'Only local tones need a read when the current source is unchanged');
+  assert.equal(adaptive[0].lum,1);
+});
