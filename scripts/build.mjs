@@ -12,4 +12,5 @@ await mkdir(output,{recursive:true});
 for(const name of ['index.html','style.css','app.js','effects.js','glass-materials.js','glass-renderer.js','rain.html'])
   await copyFile(path.join(root,name),path.join(output,name));
 await cp(path.join(root,'handouts'),path.join(output,'handouts'),{recursive:true});
+await cp(path.join(root,'ascii-animals'),path.join(output,'ascii-animals'),{recursive:true});
 console.log('Static dashboard built in dist/');

@@ -30,7 +30,7 @@ test('successive full-resolution frames reuse storage and reallocate only after 
   const sourceCanvas={get width(){return width;},set width(value){width=value;calls.resize++;},get height(){return height;},set height(value){height=value;calls.resize++;}};
   const canvas={width:786,height:1704};
   const gl={texImage2D(...args){assert.equal(args.at(-1),sourceCanvas);calls.allocate++;},texSubImage2D(...args){assert.equal(args.at(-1),sourceCanvas);calls.update++;},generateMipmap(){calls.mipmap++;},pixelStorei(){},texParameteri(){}};
-  const c=vm.createContext({canvas,source:sourceCanvas,gl,cx:{fillRect(){calls.paint++;},drawImage(){}},RAIN:false,photo:null,root:{dataset:{theme:'dark'}},bindTex(){},imageTex:{},imageWidth:0,imageHeight:0,sourceStatisticsCurrent:true,sourceDirty:true});
+  const c=vm.createContext({canvas,source:sourceCanvas,gl,cx:{fillRect(){calls.paint++;},drawImage(){}},asciiActive:false,RAIN:false,photo:null,root:{dataset:{theme:'dark'}},bindTex(){},imageTex:{},imageWidth:0,imageHeight:0,sourceStatisticsCurrent:true,sourceDirty:true});
   vm.runInContext(source.slice(source.indexOf('  function uploadSource('),source.indexOf('  function updateSourceStatistics(')),c);
   c.uploadSource();c.uploadSource();
   assert.deepEqual(calls,{allocate:1,update:1,mipmap:2,resize:2,paint:2});
