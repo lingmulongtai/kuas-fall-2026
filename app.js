@@ -691,7 +691,7 @@ const T = {
   tabMats:{ja:"教材", en:"Materials"},
   tabSettings:{ja:"設定", en:"Settings"},
   settingsTitle:{ja:"自分の見やすさに合わせる", en:"Make yourself at home"},
-  settingsIntro:{ja:"ガラスの表情と言語をここで。選択はこのブラウザーに保存されます。", en:"Choose your glass and language. Your preferences are saved in this browser."},
+  settingsIntro:{ja:"背景・ガラス・言語を選べます。選択はこのブラウザーに保存されます。", en:"Choose your background, glass and language. Your preferences are saved in this browser."},
   glassTitle:{ja:"ガラスのプリセット", en:"Glass material"},
   glassHint:{ja:"タップすると、すべての画面に適用されます。", en:"Choose a material to apply it across every view."},
   appearanceTitle:{ja:"言語", en:"Language"},
@@ -728,6 +728,13 @@ const T = {
   rainOn:{ja:"雨：オン", en:"Rain: on"},
   rainReduced:{ja:"雨：静止（OS設定）", en:"Rain: Still (OS setting)"},
   rainOff:{ja:"雨：オフ", en:"Rain: off"},
+  backgroundEffect:{ja:"背景エフェクト", en:"Background effect"},
+  cycleBackgroundEffect:{ja:"背景エフェクトを切り替える", en:"Switch background effect"},
+  effectRain:{ja:"雨", en:"Rain"},
+  effectAscii:{ja:"ASCIIの動物", en:"ASCII Animals"},
+  effectOff:{ja:"エフェクトなし", en:"No effect"},
+  asciiAnimal:{ja:"ASCIIの動物", en:"ASCII animal"},
+  nextAsciiAnimal:{ja:"次の動物に切り替える", en:"Show the next animal"},
   motionOn:{ja:"雨を一時停止", en:"Pause rain"},
   motionOff:{ja:"雨を再開", en:"Resume rain"},
   motionReduced:{ja:"動き：控えめ", en:"Reduced motion"},
@@ -967,6 +974,11 @@ let wallpaperRequest = 0;
 let wallpaperPhoto = null;
 let wallpaperImage = null;
 let wallpaperResizeTimer = 0;
+let wallpaperLoading = false;
+
+function renderShuffleAvailability(){
+  $('shuffle-btn').disabled=wallpaperLoading && $('background-effect')?.value!=='ascii';
+}
 
 function nextWallpaper(theme){
   const photos = WALLPAPERS[theme];
@@ -1046,12 +1058,14 @@ async function updateWallpaper(force=false){
   wallpaperImage = null;
   renderPhotoCredit();
   window.dispatchEvent(new CustomEvent('wallpaperchange',{detail:null}));
-  $('shuffle-btn').disabled = true;
+  wallpaperLoading = true;
+  renderShuffleAvailability();
   $('background-status').textContent = t('backgroundLoading');
   if(force || !wallpaperCache[theme]) wallpaperCache[theme] = loadThemeWallpaper(theme);
   const result = await wallpaperCache[theme];
   if(request!==wallpaperRequest) return;
-  $('shuffle-btn').disabled = false;
+  wallpaperLoading = false;
+  renderShuffleAvailability();
   $('background-status').textContent = result ? '' : t('backgroundFailed');
   if(!result) return;
   layer.replaceChildren(result.image);
@@ -1085,19 +1099,50 @@ window.addEventListener('resize',()=>{
 
 /* Motion never delays state changes, focus, or interaction. */
 const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-let RAIN = store.get('rain')!=='off';
+const BACKGROUND_EFFECTS = ['rain','ascii','off'];
+const ASCII_ANIMALS = {
+  butterflies:{ja:'蝶',en:'Butterflies'}, koi:{ja:'鯉',en:'Koi'}, jellyfish:{ja:'クラゲ',en:'Jellyfish'},
+  dragonflies:{ja:'トンボ',en:'Dragonflies'}, frogs:{ja:'カエル',en:'Frogs'}, cranes:{ja:'鶴',en:'Cranes'}, crabs:{ja:'カニ',en:'Crabs'}
+};
+const savedEffect = store.get('background-effect');
+let BACKGROUND_EFFECT = BACKGROUND_EFFECTS.includes(savedEffect) ? savedEffect : store.get('rain')==='off' ? 'off' : 'rain';
+const savedAnimal = store.get('ascii-animal');
+let ASCII_ANIMAL = Object.hasOwn(ASCII_ANIMALS,savedAnimal) ? savedAnimal : 'butterflies';
+let RAIN = BACKGROUND_EFFECT==='rain';
 const runningMotion = new Map();
 let printing = false;
 function motionEnabled(){ return !(motionPreference && motionPreference.matches); }
 function rainMotionEnabled(){ return RAIN && motionEnabled(); }
 function renderAmbience(){
-  document.documentElement.dataset.motion = motionEnabled()?'on':'off';
-  const label=t(RAIN?(motionEnabled()?'rainOn':'rainReduced'):'rainOff');
-  $('rain-btn').innerHTML = uiIcon(RAIN?'rain':'rain-off');
-  $('rain-btn').setAttribute('aria-label',label);
-  $('rain-btn').title=label;
-  $('rain-btn').setAttribute('aria-pressed',RAIN);
+  const root=document.documentElement;
+  root.dataset.motion = motionEnabled()?'on':'off';
+  root.dataset.backgroundEffect = BACKGROUND_EFFECT;
+  const label=t(RAIN?(motionEnabled()?'rainOn':'rainReduced'):BACKGROUND_EFFECT==='ascii'?'effectAscii':'effectOff');
+  const button=$('rain-btn');
+  button.innerHTML = uiIcon(RAIN?'rain':BACKGROUND_EFFECT==='ascii'?'ascii':'rain-off');
+  button.title=label+' · '+t('cycleBackgroundEffect');
+  button.setAttribute('aria-label',button.title);
+  const shuffle=$('shuffle-btn');
+  shuffle.title=t(BACKGROUND_EFFECT==='ascii'?'nextAsciiAnimal':'shuffleBackground');
+  shuffle.setAttribute('aria-label',shuffle.title);
+  $('background-effect').value=BACKGROUND_EFFECT;
+  $('ascii-animal').value=ASCII_ANIMAL;
+  renderShuffleAvailability();
   window.dispatchEvent(new Event('ambiencechange'));
+}
+function setBackgroundEffect(effect){
+  if(!BACKGROUND_EFFECTS.includes(effect))return;
+  BACKGROUND_EFFECT=effect;
+  RAIN=effect==='rain';
+  store.set('background-effect',effect);
+  store.set('rain',RAIN?'on':'off');
+  renderAmbience();
+}
+function setAsciiAnimal(animal){
+  if(!Object.hasOwn(ASCII_ANIMALS,animal))return;
+  ASCII_ANIMAL=animal;
+  store.set('ascii-animal',animal);
+  setBackgroundEffect('ascii');
 }
 function stopMotion(){
   runningMotion.forEach(animation=>animation.cancel());
@@ -1192,6 +1237,7 @@ function uiIcon(name){
     shuffle:'<path d="m17 3 4 4-4 4m0 2 4 4-4 4M3 7h3c5 0 7 10 12 10h3M3 17h3c2 0 4-3 6-6s4-4 6-4h3"/>',
     rain:'<path d="M8 16H6a4 4 0 1 1 1-7 5 5 0 0 1 10-1 4 4 0 1 1 1 8M10 16l-1 4m5-4-1 4m5-1-1 3"/>',
     'rain-off':'<path d="m3 3 18 18M5 8a4 4 0 0 0 1 8h2m2-10a5 5 0 0 1 7 2 4 4 0 0 1 3 7M10 16l-1 4m5-4-1 4"/>',
+    ascii:'<path d="m8 6-5 6 5 6m8-12 5 6-5 6m-2-14-4 16"/>',
     pause:'<path d="M8 5v14M16 5v14"/>',
     play:'<path d="m8 4 12 8-12 8Z"/>'
   };
@@ -2066,6 +2112,11 @@ function renderSettings(){
   if(!$('glass-presets')) return;
   $('settings-title').textContent=t('settingsTitle');
   $('settings-intro').textContent=t('settingsIntro');
+  $('background-effect-title').textContent=t('backgroundEffect');
+  $('ascii-animal-label').textContent=t('asciiAnimal');
+  for(const [i,key] of ['effectRain','effectAscii','effectOff'].entries())$('background-effect').options[i].textContent=t(key);
+  $('ascii-animal').innerHTML=Object.entries(ASCII_ANIMALS).map(([id,name])=>'<option value="'+id+'">'+L(name)+'</option>').join('');
+  $('ascii-animal').value=ASCII_ANIMAL;
   $('glass-title').textContent=t('glassTitle');
   $('glass-hint').textContent=t('glassHint');
   $('appearance-title').textContent=t('appearanceTitle');
@@ -2145,9 +2196,7 @@ function renderAll(){
   });
   $("foot").textContent = t("foot");
   $('shuffle-btn').innerHTML = uiIcon('shuffle');
-  $('shuffle-btn').setAttribute('aria-label',t('shuffleBackground'));
-  $('shuffle-btn').title=t('shuffleBackground');
-  if($('background-status').textContent) $('background-status').textContent = t($('shuffle-btn').disabled?'backgroundLoading':'backgroundFailed');
+  if($('background-status').textContent) $('background-status').textContent = t(wallpaperLoading?'backgroundLoading':'backgroundFailed');
   document.querySelector('.ambience').setAttribute('aria-label',t('backgroundSettings'));
   renderAmbience();
   document.querySelector('.tabs').setAttribute('aria-label', t("navigation"));
@@ -2265,8 +2314,14 @@ $("btn-ja").addEventListener("click", ()=>setLang("ja"));
 $("btn-en").addEventListener("click", ()=>setLang("en"));
 $("theme-btn").addEventListener("click", cycleTheme);
 $('text-color-btn').addEventListener('click',cycleTextColor);
-$('shuffle-btn').addEventListener('click',()=>updateWallpaper(true));
-$('rain-btn').addEventListener('click',()=>{ RAIN=!RAIN; store.set('rain',RAIN?'on':'off'); renderAmbience(); });
+$('shuffle-btn').addEventListener('click',()=>{
+  if(BACKGROUND_EFFECT!=='ascii'){updateWallpaper(true);return;}
+  const animals=Object.keys(ASCII_ANIMALS);
+  setAsciiAnimal(animals[(animals.indexOf(ASCII_ANIMAL)+1)%animals.length]);
+});
+$('rain-btn').addEventListener('click',()=>setBackgroundEffect(BACKGROUND_EFFECTS[(BACKGROUND_EFFECTS.indexOf(BACKGROUND_EFFECT)+1)%BACKGROUND_EFFECTS.length]));
+$('background-effect').addEventListener('change',event=>setBackgroundEffect(event.target.value));
+$('ascii-animal').addEventListener('change',event=>setAsciiAnimal(event.target.value));
 document.addEventListener("keydown", e=>{
   const tab = e.target.closest('[role="tab"]');
   if(tab && ["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){
