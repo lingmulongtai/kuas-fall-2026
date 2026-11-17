@@ -4,12 +4,28 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const materials=require('../glass-materials.js');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../glass-renderer.js'),'utf8');
-const context=vm.createContext({window:{GlassMaterials:materials},root:{dataset:{material:'prism'}},targets:[]});
+const context=vm.createContext({window:{GlassMaterials:materials},root:{dataset:{material:'prism'}},targets:[],PICK_SIGMA:12,SIGMA0:3});
 vm.runInContext(source.slice(source.indexOf('  function materialNeedsPyramid('),source.indexOf('  function buildPyramid(')),context);
 vm.runInContext(source.slice(source.indexOf('  function sourceLuminanceNeeded('),source.indexOf('  function uploadSource(')),context);
 test('only materials that use Gaussian output build its pyramid',()=>{
   assert.deepEqual(materials.presets.filter(p=>context.materialNeedsPyramid(p.p)).map(p=>p.id),['apple','apple-clear','frosted']);
   for(const key of ['blur','frost','pickup'])assert.equal(context.materialNeedsPyramid({blur:0,frost:0,pickup:0,[key]:.001}),true);
+});
+test('the pyramid keeps the highest sampled LOD and its interpolation neighbor',()=>{
+  const apple=materials.presets.find(p=>p.id==='apple').p;
+  const frosted=materials.presets.find(p=>p.id==='frosted').p;
+  assert.equal(context.sampledPyramidLevels(apple,1,10),4);
+  assert.equal(context.sampledPyramidLevels(apple,2,10),5);
+  assert.equal(context.sampledPyramidLevels(frosted,2,10),5);
+  assert.equal(context.sampledPyramidLevels(frosted,2,2),2);
+});
+test('batch clips keep the full shadow, dimming, and smooth-merge reach',()=>{
+  const c=vm.createContext({canvas:{width:2000,height:1600},width:1000,height:800,clamp:(n,min,max)=>Math.max(min,Math.min(max,n))});
+  vm.runInContext(source.slice(source.indexOf('  function batchRegion('),source.indexOf('  function hasPixels(')),c);
+  const rect={left:200,top:200,width:40,height:40},m={merge:20};
+  const batch=[{rect,m},{rect:{...rect,left:265},m}];
+  assert.deepEqual({...c.batchRegion(batch,0)},{x:327,y:327,right:683,bottom:553});
+  assert.deepEqual({...c.batchRegion(batch,0.2)},{x:197,y:197,right:813,bottom:683});
 });
 test('source luminance is needed only for adaptive appearance or background dimming',()=>{
   assert.deepEqual(materials.presets.filter(p=>context.materialNeedsStatistics(p.p)).map(p=>p.id),['apple','apple-clear','frosted']);
