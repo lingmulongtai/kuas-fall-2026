@@ -24,11 +24,11 @@ test('a resized calendar uses the new content width instead of the previous canv
   const content=source.slice(source.indexOf('  function scrollContent('),source.indexOf('  function presentGroups('));
   vm.runInContext(content,context);
   const host={
-    clientLeft:0,clientTop:0,clientWidth:662,clientHeight:420,scrollWidth:863,
-    querySelector:()=>({getBoundingClientRect:()=>({right:659,bottom:390})}),
+    clientWidth:662,clientHeight:420,scrollWidth:863,scrollLeft:100,scrollTop:90,
+    querySelector:()=>({getBoundingClientRect:()=>({right:559,bottom:300})}),
   };
-  const extent=context.scrollContent(host,{left:0,top:0},{left:0,top:0});
-  assert.deepEqual({...extent},{right:662,bottom:420});
+  const extent=context.scrollContent(host,{left:-host.scrollLeft,top:-host.scrollTop});
+  assert.deepEqual({...extent},{right:562,bottom:330});
 });
 
 test('nested glass restores only the pixels it painted outside the scrollport',()=>{

@@ -629,14 +629,14 @@ void main(){
     if(plane.position!==position){surface.style.cssText=position;plane.position=position;}
     surface.hidden=false;
   }
-  function scrollContent(host,rect,origin){
+  function scrollContent(host,origin){
     // Size to the real table or calendar board. Counting the previous canvas
     // in scrollWidth/Height would keep an old extent after the content shrinks.
     const content=host.querySelector(':scope > table,:scope > .week-board');
     const bounds=content?.getBoundingClientRect(),style=getComputedStyle(host);
     return {
-      right:Math.max(rect.left+host.clientLeft+host.clientWidth,(bounds?.right??origin.left)+parseFloat(style.paddingRight)),
-      bottom:Math.max(rect.top+host.clientTop+host.clientHeight,(bounds?.bottom??origin.top)+parseFloat(style.paddingBottom))
+      right:Math.max(origin.left+host.clientWidth,(bounds?.right??origin.left)+parseFloat(style.paddingRight)),
+      bottom:Math.max(origin.top+host.clientHeight,(bounds?.bottom??origin.top)+parseFloat(style.paddingBottom))
     };
   }
   function presentGroups(groups,base){
@@ -654,7 +654,7 @@ void main(){
       let region;
       if(host===dock)region=pixelBounds(Math.max(x,rect.left-96),Math.max(y,rect.top-96),Math.min(x+w,rect.right+96),Math.min(y+h,rect.bottom+96));
       else{
-        const content=scrollContent(host,rect,origin);
+        const content=scrollContent(host,origin);
         region=pixelBounds(origin.left,origin.top,content.right,content.bottom);
       }
       const {passes,affected}=groupPasses(groups.get(host));
@@ -696,7 +696,7 @@ void main(){
         if(!el.clientWidth)return false;
         const rect=el.getBoundingClientRect();
         const origin={left:rect.left+el.clientLeft-el.scrollLeft,top:rect.top+el.clientTop-el.scrollTop};
-        return scrollContent(el,rect,origin).right-origin.left>el.clientWidth+0.5;
+        return scrollContent(el,origin).right-origin.left>el.clientWidth+0.5;
       });
       const padX=horizontal?Math.min(192,Math.floor((textureLimit/ratio-box.width)/2)):0;
       const padY=Math.min(256,Math.floor((textureLimit/ratio-box.height)/2));
