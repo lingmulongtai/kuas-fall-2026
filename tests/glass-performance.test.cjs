@@ -11,6 +11,14 @@ test('only materials that use Gaussian output build its pyramid',()=>{
   assert.deepEqual(materials.presets.filter(p=>context.materialNeedsPyramid(p.p)).map(p=>p.id),['apple','apple-clear','frosted']);
   for(const key of ['blur','frost','pickup'])assert.equal(context.materialNeedsPyramid({blur:0,frost:0,pickup:0,[key]:.001}),true);
 });
+test('batch clips keep the full shadow, dimming, and smooth-merge reach',()=>{
+  const c=vm.createContext({canvas:{width:2000,height:1600},width:1000,height:800,clamp:(n,min,max)=>Math.max(min,Math.min(max,n))});
+  vm.runInContext(source.slice(source.indexOf('  function batchRegion('),source.indexOf('  function hasPixels(')),c);
+  const rect={left:200,top:200,width:40,height:40},m={merge:20};
+  const batch=[{rect,m},{rect:{...rect,left:265},m}];
+  assert.deepEqual({...c.batchRegion(batch,0)},{x:327,y:327,right:683,bottom:553});
+  assert.deepEqual({...c.batchRegion(batch,0.2)},{x:197,y:197,right:813,bottom:683});
+});
 test('source luminance is needed only for adaptive appearance or background dimming',()=>{
   assert.deepEqual(materials.presets.filter(p=>context.materialNeedsStatistics(p.p)).map(p=>p.id),['apple','apple-clear','frosted']);
   for(const preset of materials.presets){

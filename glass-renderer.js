@@ -308,6 +308,10 @@ void main(){
   }
   function drawLayer(shapes){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
+    const q=clamp((meanLum-.12)/.25,0,1);
+    const dim=material.dim*q*q*(3-2*q);
+    const region=batchRegion(shapes,dim);
+    if(!hasPixels(region))return;
     for(let i=0;i<shapes.length;i++){
       const {rect:r,m,tone}=shapes[i],o=i*4;
       s0.set([r.left+r.width/2,r.top+r.height/2,r.width/2,r.height/2],o);
@@ -318,7 +322,7 @@ void main(){
       const rgb=m.tint.match(/[0-9a-f]{2}/gi).map(h=>parseInt(h,16)/255);
       m2.set([...rgb,m.tintAmount],o);m3.set([m.pickup,m.specular,m.rimWidth,m.shadow],o);
     }
-    drawTo(programs.glass,fb.output.fbo,canvas.width,canvas.height,L=>{
+    drawRegion(region,programs.glass,fb.output.fbo,L=>{
       bindTex(0,fb.scene.tex);gl.uniform1i(L.u_scene,0);bindTex(1,materialNeedsPyramid(material)?fb.pyr.tex:fb.scene.tex);gl.uniform1i(L.u_blur,1);
       gl.uniform2f(L.u_res,canvas.width,canvas.height);gl.uniform2f(L.u_dpr,canvas.width/width,canvas.height/height);
       gl.uniform2f(L.u_texel,1/canvas.width,1/canvas.height);gl.uniform4f(L.u_map,1/width,-1/height,0,1);gl.uniform1f(L.u_sceneLod,0);
@@ -327,11 +331,42 @@ void main(){
       gl.uniform4f(L.u_touch,touch.x,touch.y,material.interactive?touch.strength:0,46);
       gl.uniform1f(L.u_merge,material.merge);gl.uniform1f(L.u_zoom,1);
       const a=material.lightAngle*Math.PI/180;gl.uniform2f(L.u_light,Math.cos(a),Math.sin(a));
-      const q=clamp((meanLum-.12)/.25,0,1);gl.uniform1f(L.u_dimK,material.dim*q*q*(3-2*q));
+      gl.uniform1f(L.u_dimK,dim);
       gl.uniform1f(L.u_pickLod,Math.max(0,Math.log2(PICK_SIGMA*dpr/SIGMA0)));
     });
-    copyFrame(fb.output,fb.scene);
+    copyFrame(fb.output,fb.scene,region);
     bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
+  }
+  function batchRegion(shapes,dim){
+    const sx=canvas.width/width,sy=canvas.height/height;
+    // The unchanged shader stops affecting pixels 96 CSS px outside its field.
+    // Without dimming, only the antialiased rim and the 26 px shadow offset by
+    // 5 px contribute. Each smooth-min can extend that field by at most k/4.
+    const reach=dim>0?96:Math.max(31,0.75/sx);
+    const margin=reach+shapes.slice(1).reduce((sum,shape)=>sum+shape.m.merge/4,0);
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const {rect} of shapes){
+      minX=Math.min(minX,rect.left);minY=Math.min(minY,rect.top);
+      maxX=Math.max(maxX,rect.left+rect.width);maxY=Math.max(maxY,rect.top+rect.height);
+    }
+    return {
+      x:clamp(Math.floor((minX-margin)*sx)-1,0,canvas.width),
+      y:clamp(Math.floor((minY-margin)*sy)-1,0,canvas.height),
+      right:clamp(Math.ceil((maxX+margin)*sx)+1,0,canvas.width),
+      bottom:clamp(Math.ceil((maxY+margin)*sy)+1,0,canvas.height)
+    };
+  }
+  function hasPixels({x,y,right,bottom}){return right>x&&bottom>y;}
+  function drawRegion(region,program,fbo,setup){
+    const {x,y,right,bottom}=region;
+    if(x===0&&y===0&&right===canvas.width&&bottom===canvas.height){
+      drawTo(program,fbo,canvas.width,canvas.height,setup);
+      return;
+    }
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(x,canvas.height-bottom,right-x,bottom-y);
+    try{drawTo(program,fbo,canvas.width,canvas.height,setup);}
+    finally{gl.disable(gl.SCISSOR_TEST);}
   }
   function copyFrame(from,to,rect={x:0,y:0,right:canvas.width,bottom:canvas.height}){
     const {x,y,right,bottom}=rect;
@@ -375,7 +410,7 @@ void main(){
     if(w<=0 || h<=0)return;
     const plane=planeFor(host),{surface,context}=plane;
     const sx=canvas.width/width,sy=canvas.height/height;
-    drawTo(programs.overlay,null,canvas.width,canvas.height,L=>{
+    drawRegion(region,programs.overlay,null,L=>{
       bindTex(0,fb.scene.tex);gl.uniform1i(L.u_result,0);
       bindTex(1,under.tex);gl.uniform1i(L.u_under,1);
       if(plate){
@@ -423,8 +458,9 @@ void main(){
         present(host,under,region,origin);
         // Shapes carried outside the scrollport are buffered in the DOM canvas.
         // Only the visible portion participates in subsequent glass and ink.
+        const visible=pixelBounds(rect.left+host.clientLeft,rect.top+host.clientTop,rect.left+host.clientLeft+host.clientWidth,rect.top+host.clientTop+host.clientHeight);
+        copyFrame(fb.scene,under,visible);
         copyFrame(under,fb.scene);
-        copyFrame(fb.output,fb.scene,pixelBounds(rect.left+host.clientLeft,rect.top+host.clientTop,rect.left+host.clientLeft+host.clientWidth,rect.top+host.clientTop+host.clientHeight));
         bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
       }
     }
