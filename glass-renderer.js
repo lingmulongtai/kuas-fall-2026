@@ -57,7 +57,17 @@ void main(){
   }
   o=vec4(clamp(after-before*(1.0-alpha),0.0,alpha),alpha);
 }`;
-  try{ programs={cover:compile(shaders.COVER),blur:compile(shaders.BLUR),glass:compile(shaders.GLASS),overlay:compile(overlayShader)}; }
+  const samplesShader=`#version 300 es
+precision highp float;
+precision highp isampler2D;
+uniform highp sampler2D u_image;
+uniform isampler2D u_points;
+out vec4 o;
+void main(){
+  ivec2 point=texelFetch(u_points,ivec2(gl_FragCoord.xy),0).rg;
+  o=texelFetch(u_image,point,0);
+}`;
+  try{ programs={cover:compile(shaders.COVER),blur:compile(shaders.BLUR),glass:compile(shaders.GLASS),overlay:compile(overlayShader),samples:compile(samplesShader)}; }
   catch(error){ console.error('Glass shader:',error);root.dataset.optics='fallback';return; }
   const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
@@ -90,14 +100,50 @@ void main(){
     // at an integer LOD so rounding in the shader cannot expose stale pixels.
     return Math.min(levels,Math.floor(maxLod)+2);
   }
-  function buildPyramid(material){
+  function blurSampleRegion(shapes){
+    const {m}=shapes[0];
+    // A magnifying lens can sample toward a distant shape in the same batch.
+    // The current blurred presets have unit magnification.
+    if(m.magnify!==1)return {x:0,y:0,right:canvas.width,bottom:canvas.height};
+    // The refracted ray has |T.z| >= 2/3 at IOR 1.5, so its displacement
+    // per unit of thickness is at most sqrt(5)/2. Include dispersion, size
+    // scale and the antialiased coverage outside the smooth-min field.
+    const reach=Math.sqrt(5)/2*m.refraction*(m.sizeScale?1.7:1)*(1+0.45*m.dispersion);
+    return batchRegion(shapes,false,reach+0.75/(canvas.width/width));
+  }
+  function pyramidRegions(region,bw,bh,levels){
+    const regions=[];
+    function scaleRect(rect,fromW,fromH,toW,toH){
+      // Include both texels of every bilinear lookup, including at clamped edges.
+      return {x:Math.max(0,Math.floor(rect.x*toW/fromW)-1),y:Math.max(0,Math.floor(rect.y*toH/fromH)-1),
+        right:Math.min(toW,Math.ceil(rect.right*toW/fromW)+1),bottom:Math.min(toH,Math.ceil(rect.bottom*toH/fromH)+1)};
+    }
+    function union(a,b){
+      return {x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),right:Math.max(a.right,b.right),bottom:Math.max(a.bottom,b.bottom)};
+    }
+    let dependency;
+    for(let i=levels-1;i>=0;i--){
+      const w=Math.max(1,bw>>i),h=Math.max(1,bh>>i);
+      const output=scaleRect(region,canvas.width,canvas.height,w,h);
+      const vertical=dependency?union(output,scaleRect(dependency.rect,dependency.w,dependency.h,w,h)):output;
+      const halo=i?4:5; // ceil(3 × sigma) on either side of a same-level output texel.
+      const horizontal={x:vertical.x,y:Math.max(0,vertical.y-halo),right:vertical.right,bottom:Math.min(h,vertical.bottom+halo)};
+      regions[i]={w,h,horizontal,vertical};
+      dependency={rect:{...horizontal,x:horizontal.x-halo,right:horizontal.right+halo},w,h};
+    }
+    return regions;
+  }
+  function buildPyramid(shapes){
+    const material=shapes[0].m;
     const cw=canvas.width,ch=canvas.height,bw=Math.max(1,Math.ceil(cw/2)),bh=Math.max(1,Math.ceil(ch/2));
     const levels=Math.min(PYR_MAX,mipLevels(bw,bh)),P=rtex('pyr',bw,bh,levels),T=rtex('pyrTmp',bw,bh,levels);
     const sampled=sampledPyramidLevels(material,dpr,levels);
-    for(let i=0;i<sampled;i++){
-      const w=Math.max(1,bw>>i),h=Math.max(1,bh>>i),sig=i?1.3:1.5;
-      drawTo(programs.blur,T.fbos[i],w,h,L=>{bindTex(0,i?P.tex:fb.scene.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,1/w,0);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i?i-1:1);});
-      drawTo(programs.blur,P.fbos[i],w,h,L=>{bindTex(0,T.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,0,1/h);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i);});
+    let i=0;
+    for(const {w,h,horizontal,vertical} of pyramidRegions(blurSampleRegion(shapes),bw,bh,sampled)){
+      const sig=i?1.3:1.5;
+      drawRegion(horizontal,programs.blur,T.fbos[i],L=>{bindTex(0,i?P.tex:fb.scene.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,1/w,0);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i?i-1:1);},w,h);
+      drawRegion(vertical,programs.blur,P.fbos[i],L=>{bindTex(0,T.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,0,1/h);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i);},w,h);
+      i++;
     }
   }
   const source=document.createElement('canvas'),cx=source.getContext('2d',{willReadFrequently:true});
@@ -107,6 +153,8 @@ void main(){
   document.body.prepend(source,pageLayer);
   const presentations=new Map();
   const imageTex=gl.createTexture();
+  const samplePoints=gl.createTexture(),sampleWidth=256;
+  let sampleRows=0,sampleCoords,samplePixels;
   let meanLum=.6,pixels=null,sourceStatisticsCurrent=false,imageWidth=0,imageHeight=0;
   function sourceLuminanceNeeded(){
     const presets=window.GlassMaterials.presets;
@@ -145,16 +193,70 @@ void main(){
     }
     meanLum=sum/(24*24);sourceStatisticsCurrent=true;
   }
+  function readAnimatedSourceStatistics(adaptive){
+    const wholeFrame=!sourceStatisticsCurrent;
+    const firstLocal=wholeFrame?24*24:0;
+    const count=firstLocal+adaptive.length*100;
+    if(!count)return;
+    const rows=Math.ceil(count/sampleWidth);
+    if(rows>sampleRows){
+      sampleRows=rows;
+      sampleCoords=new Int32Array(sampleWidth*rows*2);
+      samplePixels=new Uint8Array(sampleWidth*rows*4);
+      bindTex(1,samplePoints);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RG32I,sampleWidth,rows,0,gl.RG_INTEGER,gl.INT,null);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+    }
+    let offset=0;
+    if(wholeFrame){
+      for(let y=0;y<24;y++)for(let x=0;x<24;x++){
+        sampleCoords[offset++]=Math.floor((x+.5)*source.width/24);
+        sampleCoords[offset++]=Math.floor((y+.5)*source.height/24);
+      }
+    }
+    for(const {rect} of adaptive){
+      for(let y=0;y<10;y++)for(let x=0;x<10;x++){
+        sampleCoords[offset++]=localSampleX(rect,x);
+        sampleCoords[offset++]=localSampleY(rect,y);
+      }
+    }
+    // Gather the exact source texels into a small readback. The moving
+    // backdrop, the dimming and all local tones use the same frame.
+    bindTex(1,samplePoints);
+    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,sampleWidth,rows,gl.RG_INTEGER,gl.INT,sampleCoords);
+    const output=rtex('sourceSamples',sampleWidth,sampleRows);
+    drawTo(programs.samples,output.fbo,sampleWidth,rows,L=>{
+      bindTex(0,imageTex);gl.uniform1i(L.u_image,0);
+      bindTex(1,samplePoints);gl.uniform1i(L.u_points,1);
+    });
+    gl.readPixels(0,0,sampleWidth,rows,gl.RGBA,gl.UNSIGNED_BYTE,samplePixels);
+    if(wholeFrame){
+      meanLum=meanSamples(samplePixels,0,firstLocal);
+      sourceStatisticsCurrent=true;
+    }
+    for(let i=0;i<adaptive.length;i++)adaptive[i].lum=meanSamples(samplePixels,firstLocal+i*100,100);
+  }
   const lin=c=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;};
   const luminance=c=>.2126*lin(c[0])+.7152*lin(c[1])+.0722*lin(c[2]);
+  const linearByte=Float64Array.from({length:256},(_,i)=>lin(i));
+  const pixelLuminance=(data,i)=>.2126*linearByte[data[i]]+.7152*linearByte[data[i+1]]+.0722*linearByte[data[i+2]];
+  function meanSamples(data,start,count){
+    let sum=0;
+    for(let i=start;i<start+count;i++)sum+=pixelLuminance(data,i*4);
+    return sum/count;
+  }
+  function localSampleX(rect,x){
+    return clamp(Math.floor((rect.left+left-viewport.left+(x+.5)*rect.width/10)*dpr),0,source.width-1);
+  }
+  function localSampleY(rect,y){
+    return clamp(Math.floor((rect.top+top-viewport.top+(y+.5)*rect.height/10)*dpr),0,source.height-1);
+  }
   function measure(rect){
     // The reference measures linear luminance on a 10×10 grid, with hysteresis.
     let sum=0;
     for(let y=0;y<10;y++)for(let x=0;x<10;x++){
-      const px=clamp(Math.floor((rect.left+left-viewport.left+(x+.5)*rect.width/10)*dpr),0,source.width-1);
-      const py=clamp(Math.floor((rect.top+top-viewport.top+(y+.5)*rect.height/10)*dpr),0,source.height-1);
-      const i=(py*source.width+px)*4;
-      sum+=luminance(pixels.subarray(i,i+3));
+      sum+=pixelLuminance(pixels,(localSampleY(rect,y)*source.width+localSampleX(rect,x))*4);
     }
     return sum/100;
   }
@@ -175,6 +277,7 @@ void main(){
   }
   function collect(){
     const groups=new Map([[pageLayer,new Map()]]);
+    const adaptive=[];
     for(const el of targets){
       const bounds=el.getBoundingClientRect();
       if(!bounds.width || !bounds.height || bounds.bottom<top-96 || bounds.top>top+height+96 || bounds.right<left-96 || bounds.left>left+width+96 || !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))continue;
@@ -187,18 +290,32 @@ void main(){
       if(el.closest('.tabs'))depth+=30;
       if(!layers.has(depth))layers.set(depth,[]);
       const style=getComputedStyle(el),m=window.GlassMaterials.presets.find(p=>p.id===(el.dataset.materialPreview||root.dataset.material))?.p||window.GlassMaterials.presets[5].p;
-      const L=m.appearance==='auto'?measure(rect):0,old=toneMemory.get(el)||0;
-      const tone=m.appearance==='light'?0:m.appearance==='dark'?1:Math.min(rect.width,rect.height)<=96?(old>.5?(L<.22?1:0):(L<.14?1:0)):0;
-      toneMemory.set(el,tone);
-      layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone});
+      const shape={rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone:m.appearance==='dark'?1:0};
+      let segment;
+      layers.get(depth).push(shape);
       if(el.classList.contains('segmented')){
         const selected=el.querySelector('[aria-selected="true"],[aria-pressed="true"]');
         if(selected){
           const level=depth+1;
           if(!layers.has(level))layers.set(level,[]);
           const selectedRect=selected.getBoundingClientRect();
-          layers.get(level).push({rect:{left:selectedRect.left-left,top:selectedRect.top-top,width:selectedRect.width,height:selectedRect.height},r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone});
+          segment={rect:{left:selectedRect.left-left,top:selectedRect.top-top,width:selectedRect.width,height:selectedRect.height},r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone:shape.tone};
+          layers.get(level).push(segment);
         }
+      }
+      if(m.appearance==='auto'&&Math.min(rect.width,rect.height)<=96)adaptive.push({el,rect,shape,segment,lum:0});
+      else toneMemory.set(el,shape.tone);
+    }
+    if(adaptive.length||(!sourceStatisticsCurrent&&sourceLuminanceNeeded())){
+      if(asciiActive||(RAIN&&rainImage))readAnimatedSourceStatistics(adaptive);
+      else{
+        if(!sourceStatisticsCurrent)updateSourceStatistics();
+        for(const lens of adaptive)lens.lum=measure(lens.rect);
+      }
+      for(const {el,shape,segment,lum} of adaptive){
+        shape.tone=lum<((toneMemory.get(el)||0)>.5?.22:.14)?1:0;
+        if(segment)segment.tone=shape.tone;
+        toneMemory.set(el,shape.tone);
       }
     }
     return groups;
@@ -357,12 +474,8 @@ void main(){
     }
     if(waiting&&!contrastTimer)contrastTimer=setTimeout(()=>{contrastTimer=0;invalidate();},120);
   }
-  function drawLayer(shapes){
+  function drawLayer({shapes,dim,region}){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
-    const q=clamp((meanLum-.12)/.25,0,1);
-    const dim=material.dim*q*q*(3-2*q);
-    const region=batchRegion(shapes,dim);
-    if(!hasPixels(region))return;
     for(let i=0;i<shapes.length;i++){
       const {rect:r,m,tone}=shapes[i],o=i*4;
       s0.set([r.left+r.width/2,r.top+r.height/2,r.width/2,r.height/2],o);
@@ -388,12 +501,11 @@ void main(){
     copyFrame(fb.output,fb.scene,region);
     bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
   }
-  function batchRegion(shapes,dim){
+  function batchRegion(shapes,dim,reach=dim>0?96:Math.max(31,0.75/(canvas.width/width))){
     const sx=canvas.width/width,sy=canvas.height/height;
     // The unchanged shader stops affecting pixels 96 CSS px outside its field.
     // Without dimming, only the antialiased rim and the 26 px shadow offset by
     // 5 px contribute. Each smooth-min can extend that field by at most k/4.
-    const reach=dim>0?96:Math.max(31,0.75/sx);
     const margin=reach+shapes.slice(1).reduce((sum,shape)=>sum+shape.m.merge/4,0);
     let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
     for(const {rect} of shapes){
@@ -408,15 +520,15 @@ void main(){
     };
   }
   function hasPixels({x,y,right,bottom}){return right>x&&bottom>y;}
-  function drawRegion(region,program,fbo,setup){
+  function drawRegion(region,program,fbo,setup,w=canvas.width,h=canvas.height){
     const {x,y,right,bottom}=region;
-    if(x===0&&y===0&&right===canvas.width&&bottom===canvas.height){
-      drawTo(program,fbo,canvas.width,canvas.height,setup);
+    if(x===0&&y===0&&right===w&&bottom===h){
+      drawTo(program,fbo,w,h,setup);
       return;
     }
     gl.enable(gl.SCISSOR_TEST);
-    gl.scissor(x,canvas.height-bottom,right-x,bottom-y);
-    try{drawTo(program,fbo,canvas.width,canvas.height,setup);}
+    gl.scissor(x,h-bottom,right-x,bottom-y);
+    try{drawTo(program,fbo,w,h,setup);}
     finally{gl.disable(gl.SCISSOR_TEST);}
   }
   function copyFrame(from,to,rect={x:0,y:0,right:canvas.width,bottom:canvas.height}){
@@ -427,13 +539,46 @@ void main(){
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,to.fbo);
     gl.blitFramebuffer(x,low,right,high,x,low,right,high,gl.COLOR_BUFFER_BIT,gl.NEAREST);
   }
-  function renderGroup(layers){
+  function groupPasses(layers){
+    const passes=[];
+    let affected={x:0,y:0,right:0,bottom:0};
+    const q=clamp((meanLum-.12)/.25,0,1);
     for(const [,shapes] of [...layers].sort((a,b)=>a[0]-b[0])){
       for(const batch of batchSurfaces(shapes,capacity)){
-        if(materialNeedsPyramid(batch[0].m))buildPyramid(batch[0].m);
-        drawLayer(batch);
+        const dim=batch[0].m.dim*q*q*(3-2*q);
+        const region=batchRegion(batch,dim);
+        if(hasPixels(region)){
+          passes.push({shapes:batch,dim,region});
+          affected=unionRegion(affected,region);
+        }
       }
     }
+    return {passes,affected};
+  }
+  function renderGroup(passes){
+    for(const pass of passes){
+      if(materialNeedsPyramid(pass.shapes[0].m))buildPyramid(pass.shapes);
+      drawLayer(pass);
+    }
+  }
+  function unionRegion(a,b){
+    if(!hasPixels(a))return b;
+    if(!hasPixels(b))return a;
+    return {x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),right:Math.max(a.right,b.right),bottom:Math.max(a.bottom,b.bottom)};
+  }
+  function expandRegion({x,y,right,bottom},halo=1){
+    return {x:Math.max(0,x-halo),y:Math.max(0,y-halo),right:Math.min(canvas.width,right+halo),bottom:Math.min(canvas.height,bottom+halo)};
+  }
+  function outsideVisible(region,visible){
+    const {x,y,right,bottom}=region;
+    const inner={x:Math.max(x,visible.x),y:Math.max(y,visible.y),right:Math.min(right,visible.right),bottom:Math.min(bottom,visible.bottom)};
+    if(!hasPixels(inner))return [region];
+    return [
+      {x,y,right,bottom:inner.y},
+      {x,y:inner.bottom,right,bottom},
+      {x,y:inner.y,right:inner.x,bottom:inner.bottom},
+      {x:inner.right,y:inner.y,right,bottom:inner.bottom}
+    ].filter(hasPixels);
   }
   function pixelBounds(l,t,r,b){
     const sx=canvas.width/width,sy=canvas.height/height;
@@ -455,64 +600,77 @@ void main(){
     }
     return plane;
   }
-  function present(host,under,region,origin,plate){
+  function present(host,under,region,origin,affected,plate){
     const {x,y,right,bottom}=region;
     const w=right-x,h=bottom-y;
     if(w<=0 || h<=0)return;
     const plane=planeFor(host),{surface,context}=plane;
     const sx=canvas.width/width,sy=canvas.height/height;
-    drawRegion(region,programs.overlay,null,L=>{
-      bindTex(0,fb.scene.tex);gl.uniform1i(L.u_result,0);
-      bindTex(1,under.tex);gl.uniform1i(L.u_under,1);
-      if(plate){
-        gl.uniform4f(L.u_plate,(plate.left-left+plate.width/2)*sx,canvas.height-(plate.top-top+plate.height/2)*sy,plate.width*sx/2,plate.height*sy/2);
-        gl.uniform1f(L.u_radius,Math.min(parseFloat(getComputedStyle(host).borderTopLeftRadius),plate.height/2)*sy);
-      }else gl.uniform1f(L.u_radius,0);
-    });
     if(surface.width!==w)surface.width=w;
     if(surface.height!==h)surface.height=h;
-    context.globalCompositeOperation='copy';
-    context.drawImage(canvas,x,y,w,h,0,0,w,h);
+    // Keep the plane's content coordinates, but transfer only the part that
+    // differs from its underlay. The fixed dock also paints an opaque plate.
+    const bounds=hasPixels(affected)?expandRegion(affected):affected;
+    const paint=plate?region:{x:Math.max(x,bounds.x),y:Math.max(y,bounds.y),right:Math.min(right,bounds.right),bottom:Math.min(bottom,bounds.bottom)};
+    if(hasPixels(paint)){
+      drawRegion(paint,programs.overlay,null,L=>{
+        bindTex(0,fb.scene.tex);gl.uniform1i(L.u_result,0);
+        bindTex(1,under.tex);gl.uniform1i(L.u_under,1);
+        if(plate){
+          gl.uniform4f(L.u_plate,(plate.left-left+plate.width/2)*sx,canvas.height-(plate.top-top+plate.height/2)*sy,plate.width*sx/2,plate.height*sy/2);
+          gl.uniform1f(L.u_radius,Math.min(parseFloat(getComputedStyle(host).borderTopLeftRadius),plate.height/2)*sy);
+        }else gl.uniform1f(L.u_radius,0);
+      });
+      const dw=paint.right-paint.x,dh=paint.bottom-paint.y;
+      context.globalCompositeOperation='copy';
+      context.drawImage(canvas,paint.x,paint.y,dw,dh,paint.x-x,paint.y-y,dw,dh);
+    }else context.clearRect(0,0,w,h);
     const position=`left:${left+x/sx-origin.left}px;top:${top+y/sy-origin.top}px;width:${w/sx}px;height:${h/sy}px`;
     if(plane.position!==position){surface.style.cssText=position;plane.position=position;}
     surface.hidden=false;
   }
-  function scrollContent(host,rect,origin){
+  function scrollContent(host,origin){
     // Size to the real table or calendar board. Counting the previous canvas
     // in scrollWidth/Height would keep an old extent after the content shrinks.
     const content=host.querySelector(':scope > table,:scope > .week-board');
     const bounds=content?.getBoundingClientRect(),style=getComputedStyle(host);
     return {
-      right:Math.max(rect.left+host.clientLeft+host.clientWidth,(bounds?.right??origin.left)+parseFloat(style.paddingRight)),
-      bottom:Math.max(rect.top+host.clientTop+host.clientHeight,(bounds?.bottom??origin.top)+parseFloat(style.paddingBottom))
+      right:Math.max(origin.left+host.clientWidth,(bounds?.right??origin.left)+parseFloat(style.paddingRight)),
+      bottom:Math.max(origin.top+host.clientHeight,(bounds?.bottom??origin.top)+parseFloat(style.paddingBottom))
     };
   }
   function presentGroups(groups,base){
     const {left:x,top:y,width:w,height:h}=viewport;
-    renderGroup(groups.get(pageLayer));
-    present(pageLayer,base,pixelBounds(x,top,x+w,top+height),pageLayer.getBoundingClientRect());
+    const page=groupPasses(groups.get(pageLayer));
+    renderGroup(page.passes);
+    present(pageLayer,base,pixelBounds(x,top,x+w,top+height),pageLayer.getBoundingClientRect(),page.affected);
     // Keep the dock above document content even when its labels stay fixed.
     const hosts=[...groups.keys()].filter(host=>host!==pageLayer&&host!==dock);
     if(dock&&groups.has(dock))hosts.push(dock);
     for(const host of hosts){
       const rect=host.getBoundingClientRect();
       const under=rtex('under',canvas.width,canvas.height);
-      copyFrame(fb.scene,under);
-      renderGroup(groups.get(host));
       const origin={left:rect.left+host.clientLeft-host.scrollLeft,top:rect.top+host.clientTop-host.scrollTop};
-      if(host===dock){
-        const region=pixelBounds(Math.max(x,rect.left-96),Math.max(y,rect.top-96),Math.min(x+w,rect.right+96),Math.min(y+h,rect.bottom+96));
-        present(host,under,region,origin,rect);
-      }else{
-        const content=scrollContent(host,rect,origin);
-        const region=pixelBounds(origin.left,origin.top,content.right,content.bottom);
-        present(host,under,region,origin);
+      let region;
+      if(host===dock)region=pixelBounds(Math.max(x,rect.left-96),Math.max(y,rect.top-96),Math.min(x+w,rect.right+96),Math.min(y+h,rect.bottom+96));
+      else{
+        const content=scrollContent(host,origin);
+        region=pixelBounds(origin.left,origin.top,content.right,content.bottom);
+      }
+      const {passes,affected}=groupPasses(groups.get(host));
+      // The overlay samples the underlay 1:1 with linear filtering. Save its
+      // one-texel halo as well as any pixels the glass will overwrite.
+      const overlay=host===dock?expandRegion(region):hasPixels(affected)?expandRegion(affected,2):affected;
+      copyFrame(fb.scene,under,overlay);
+      renderGroup(passes);
+      present(host,under,region,origin,affected,host===dock?rect:null);
+      if(host!==dock&&hasPixels(affected)){
         // Shapes carried outside the scrollport are buffered in the DOM canvas.
         // Only the visible portion participates in subsequent glass and ink.
         const visible=pixelBounds(rect.left+host.clientLeft,rect.top+host.clientTop,rect.left+host.clientLeft+host.clientWidth,rect.top+host.clientTop+host.clientHeight);
-        copyFrame(fb.scene,under,visible);
-        copyFrame(under,fb.scene);
-        bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
+        const restore=outsideVisible(affected,visible);
+        for(const rect of restore)copyFrame(under,fb.scene,rect);
+        if(restore.length){bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);}
       }
     }
     for(const [host,{surface}] of presentations){
@@ -538,7 +696,7 @@ void main(){
         if(!el.clientWidth)return false;
         const rect=el.getBoundingClientRect();
         const origin={left:rect.left+el.clientLeft-el.scrollLeft,top:rect.top+el.clientTop-el.scrollTop};
-        return scrollContent(el,rect,origin).right-origin.left>el.clientWidth+0.5;
+        return scrollContent(el,origin).right-origin.left>el.clientWidth+0.5;
       });
       const padX=horizontal?Math.min(192,Math.floor((textureLimit/ratio-box.width)/2)):0;
       const padY=Math.min(256,Math.floor((textureLimit/ratio-box.height)/2));
@@ -551,7 +709,7 @@ void main(){
       if(canvas.height!==bufferHeight)canvas.height=bufferHeight;
       const changedSource=sourceDirty;
       if(changedSource)uploadSource();
-      if(!sourceStatisticsCurrent && sourceLuminanceNeeded())updateSourceStatistics();
+      const groups=collect();
       rtex('scene',canvas.width,canvas.height,mipLevels(canvas.width,canvas.height));rtex('output',canvas.width,canvas.height);
       const base=rtex('base',canvas.width,canvas.height);
       const crop=[-padX/box.width,-padY/box.height,width/box.width,height/box.height];
@@ -564,7 +722,7 @@ void main(){
       }
       copyFrame(base,fb.scene);
       bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
-      presentGroups(collect(),base);
+      presentGroups(groups,base);
       root.dataset.optics='ready';
       updateLabelContrast();
     }catch(error){console.error('Glass render:',error);root.dataset.optics='fallback';return;}
@@ -611,7 +769,7 @@ void main(){
   function requestRainBitmap(once=false){
     const frame=document.querySelector('#rain iframe');
     if(RAIN && (once || rainMotionEnabled()) && !document.hidden && !suspended && photo?.naturalWidth && frame?.style.visibility!=='hidden')
-      frame?.contentWindow.postMessage({type:'rain-bitmap-request'},'*');
+      frame?.contentWindow.postMessage({type:'rain-bitmap-request',force:once},'*');
   }
   window.addEventListener('ambiencechange',()=>{if(!RAIN){rainImage?.close();rainImage=null;}sourceDirty=true;resetLabelContrast();invalidate();requestRainBitmap();});
   // The isolated rain document transfers a full resolution bitmap. No changes

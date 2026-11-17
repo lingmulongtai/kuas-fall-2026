@@ -27,6 +27,27 @@ test('batch clips keep the full shadow, dimming, and smooth-merge reach',()=>{
   assert.deepEqual({...c.batchRegion(batch,0)},{x:327,y:327,right:683,bottom:553});
   assert.deepEqual({...c.batchRegion(batch,0.2)},{x:197,y:197,right:813,bottom:683});
 });
+test('clipped Gaussian levels include lookup halos and all finer-level dependencies',()=>{
+  const c=vm.createContext({canvas:{width:1001,height:703}});
+  vm.runInContext(source.slice(source.indexOf('  function pyramidRegions('),source.indexOf('  function buildPyramid(')),c);
+  const levels=c.pyramidRegions({x:423,y:511,right:532,bottom:601},501,352,4);
+  assert.equal(levels.length,4);
+  for(let i=0;i<levels.length;i++){
+    const {w,h,horizontal,vertical}=levels[i];
+    assert.ok(vertical.x<=423*w/1001 && vertical.right>=532*w/1001);
+    assert.ok(vertical.y<=511*h/703 && vertical.bottom>=601*h/703);
+    assert.equal(horizontal.y,Math.max(0,vertical.y-(i?4:5)));
+    assert.equal(horizontal.bottom,Math.min(h,vertical.bottom+(i?4:5)));
+    if(i){
+      const previous=levels[i-1];
+      assert.ok(previous.vertical.x<=Math.max(0,(horizontal.x-4)*previous.w/w));
+      assert.ok(previous.vertical.right>=Math.min(previous.w,(horizontal.right+4)*previous.w/w));
+      assert.ok(previous.vertical.y<=horizontal.y*previous.h/h);
+      assert.ok(previous.vertical.bottom>=horizontal.bottom*previous.h/h);
+    }
+  }
+  assert.ok((levels[0].horizontal.right-levels[0].horizontal.x)<501);
+});
 test('source luminance is needed only for adaptive appearance or background dimming',()=>{
   assert.deepEqual(materials.presets.filter(p=>context.materialNeedsStatistics(p.p)).map(p=>p.id),['apple','apple-clear','frosted']);
   for(const preset of materials.presets){
@@ -53,4 +74,32 @@ test('successive full-resolution frames reuse storage and reallocate only after 
   assert.equal(c.sourceStatisticsCurrent,false);
   viewport.pixelWidth=1704;viewport.pixelHeight=786;c.uploadSource();
   assert.deepEqual(calls,{allocate:2,update:1,mipmap:3,resize:4,paint:3});
+});
+
+test('animated statistics gather the original global and local texels from the same uploaded frame',()=>{
+  const reads=[];let coords;
+  const c=vm.createContext({
+    sampleRows:0,sampleWidth:256,samplePoints:{},source:{width:787,height:1703},sourceStatisticsCurrent:false,meanLum:0,
+    left:-192,top:-256,dpr:2,viewport:{left:0,top:0},clamp:(n,min,max)=>Math.max(min,Math.min(max,n)),
+    bindTex(){},rtex:()=>({}),drawTo(){},programs:{samples:{}},gl:{
+      texImage2D(){},texParameteri(){},texSubImage2D(...args){coords=args.at(-1).slice();},
+      readPixels(x,y,w,h,format,type,pixels){
+        reads.push(w*h);
+        for(let i=0;i<w*h;i++){
+          const white=coords[i*2]>300?255:0;
+          pixels.set([white,white,white,255],i*4);
+        }
+      },
+    },
+  });
+  vm.runInContext(source.slice(source.indexOf('  function readAnimatedSourceStatistics('),source.indexOf('  const toneMemory=')),c);
+  const adaptive=[{rect:{left:350,top:290,width:30,height:28}}];
+  c.readAnimatedSourceStatistics(adaptive);
+  assert.deepEqual([...coords.slice(0,4)],[16,35,49,35]);
+  assert.deepEqual([...coords.slice(24*24*2,24*24*2+4)],[319,70,325,70]);
+  assert.ok(c.meanLum>.5&&c.meanLum<.7);
+  assert.equal(adaptive[0].lum,1);
+  c.readAnimatedSourceStatistics(adaptive);
+  assert.deepEqual(reads,[768,256],'Only local tones need a read when the current source is unchanged');
+  assert.equal(adaptive[0].lum,1);
 });

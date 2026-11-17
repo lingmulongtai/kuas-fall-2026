@@ -213,7 +213,7 @@ test('a resize burst creates only one frame and returning to the original size c
 
 function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true,standalone=false,createBitmap}={}){
   const handlers=new Map(),photoHandlers=new Map(),nativeFrames=new Map(),scripts=[],messages=[],shaders=[];
-  const uploads=[],uniforms=[],draws=[],painted=[],bindings=new Map();
+  const uploads=[],updates=[],uniforms=[],draws=[],painted=[],bindings=new Map();
   let id=0;
   const listen=(name,fn)=>{if(!handlers.has(name)) handlers.set(name,[]);handlers.get(name).push(fn);};
   const photo={complete:photoComplete,naturalWidth:photoComplete?2400:0,naturalHeight:photoComplete?1600:0,
@@ -232,6 +232,7 @@ function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true,s
     TEXTURE0:0x84C0,TEXTURE1:0x84C1,TEXTURE2:0x84C2,TEXTURE3:0x84C3,RGBA:0x1908,UNSIGNED_BYTE:0x1401,TRIANGLES:4,
     shaderSource(shader,source){assert.equal(this,gl);shaders.push({shader,source});},
     texImage2D(...args){assert.equal(this,gl);uploads.push({unit:active,texture:bindings.get(active)||null,args});},
+    texSubImage2D(...args){assert.equal(this,gl);updates.push({unit:active,texture:bindings.get(active)||null,args});},
     getParameter(name){
       if(name===this.ACTIVE_TEXTURE) return active;
       if(name===this.TEXTURE_BINDING_2D) return bindings.get(active)||null;
@@ -269,7 +270,7 @@ function setupFrame({webgl=true,width=1440,height=810,dpr=2,photoComplete=true,s
     gl.texImage2D(...args);return {args,bound};
   };
   return {window,photo,canvas,parent,scripts,messages,nativeFrames,message,tick,handlers,gl,shaders,
-    uploads,uniforms,draws,painted,bindings,boot,texture};
+    uploads,updates,uniforms,draws,painted,bindings,boot,texture};
 }
 
 test('both external animation loops freeze, resume without duplication, and support cancellation',()=>{
@@ -359,6 +360,24 @@ test('water and shine textures pass through exactly while both photo samplers us
   const allocation=[state.gl.TEXTURE_2D,0,state.gl.RGBA,16,16,0,state.gl.RGBA,state.gl.UNSIGNED_BYTE,null];
   state.gl.texImage2D(...allocation);
   assert.deepEqual(state.uploads.at(-1).args,allocation,'Allocation overloads are never treated as scenery');
+});
+
+test('water reuses same-size texture storage while preserving the source pixels and texture identity',()=>{
+  const state=setupFrame();state.boot();
+  const {gl}=state;
+  const water={width:2880,height:1620,getContext(){}};
+  const first=state.texture(gl.TEXTURE0,water);
+  state.texture(gl.TEXTURE0,water,first.bound);
+  assert.equal(state.uploads.length,1);
+  assert.deepEqual(state.updates,[{unit:gl.TEXTURE0,texture:first.bound,args:[gl.TEXTURE_2D,0,0,0,gl.RGBA,gl.UNSIGNED_BYTE,water]}]);
+  water.width=1440;
+  state.texture(gl.TEXTURE0,water,first.bound);
+  assert.equal(state.uploads.length,2,'Reallocate on resize');
+  state.texture(gl.TEXTURE0,water);
+  assert.equal(state.uploads.length,3,'New textures get their own storage');
+  state.texture(gl.TEXTURE1,water,first.bound);
+  state.texture(gl.TEXTURE0,water,first.bound);
+  assert.equal(state.uploads.length,5,'Redefinition on another unit invalidates the cached storage');
 });
 
 test('photo loading never falls back to the unrelated embedded image',()=>{
@@ -541,6 +560,27 @@ test('a temporary bitmap capture failure retries automatically',async()=>{
  const replies=state.messages.filter(m=>m.type==='rain-bitmap');
  assert.equal(replies.length,1);assert.equal(replies[0].image,bitmap);
  state.tick();await flushBitmap();assert.equal(attempts,2);
+});
+
+test('repeated capture requests wait for a fresh rain draw unless restoring a paused frame',async()=>{
+  let captures=0;
+  const state=setupFrame({createBitmap:()=>Promise.resolve({capture:++captures})});
+  const flush=()=>new Promise(resolve=>setImmediate(resolve));
+  state.boot();
+  state.gl.drawArrays();
+  await flush();
+  assert.equal(captures,1);
+  state.message({type:'rain-bitmap-request'});
+  state.message({type:'rain-bitmap-request'});
+  await flush();
+  assert.equal(captures,1);
+  state.gl.drawArrays();
+  await flush();
+  assert.equal(captures,2);
+  state.message({type:'rain-bitmap-request',force:true});
+  await flush();
+  assert.equal(captures,3);
+  assert.equal(state.messages.filter(m=>m.type==='rain-bitmap').length,3);
 });
 test('a changed photograph transfers a fresh bitmap without restarting paused simulation',async()=>{
  let state;state=setupFrame({createBitmap:()=>Promise.resolve({photo:state.photo.src})});
