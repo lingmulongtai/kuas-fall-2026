@@ -474,12 +474,8 @@ void main(){
     }
     if(waiting&&!contrastTimer)contrastTimer=setTimeout(()=>{contrastTimer=0;invalidate();},120);
   }
-  function drawLayer(shapes){
+  function drawLayer({shapes,dim,region}){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
-    const q=clamp((meanLum-.12)/.25,0,1);
-    const dim=material.dim*q*q*(3-2*q);
-    const region=batchRegion(shapes,dim);
-    if(!hasPixels(region))return;
     for(let i=0;i<shapes.length;i++){
       const {rect:r,m,tone}=shapes[i],o=i*4;
       s0.set([r.left+r.width/2,r.top+r.height/2,r.width/2,r.height/2],o);
@@ -543,13 +539,39 @@ void main(){
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,to.fbo);
     gl.blitFramebuffer(x,low,right,high,x,low,right,high,gl.COLOR_BUFFER_BIT,gl.NEAREST);
   }
-  function renderGroup(layers){
+  function groupPasses(layers){
+    const passes=[];
+    const q=clamp((meanLum-.12)/.25,0,1);
     for(const [,shapes] of [...layers].sort((a,b)=>a[0]-b[0])){
       for(const batch of batchSurfaces(shapes,capacity)){
-        if(materialNeedsPyramid(batch[0].m))buildPyramid(batch);
-        drawLayer(batch);
+        const dim=batch[0].m.dim*q*q*(3-2*q);
+        const region=batchRegion(batch,dim);
+        if(hasPixels(region))passes.push({shapes:batch,dim,region});
       }
     }
+    return passes;
+  }
+  function renderGroup(passes){
+    for(const pass of passes){
+      if(materialNeedsPyramid(pass.shapes[0].m))buildPyramid(pass.shapes);
+      drawLayer(pass);
+    }
+  }
+  function unionRegion(a,b){
+    if(!hasPixels(a))return b;
+    if(!hasPixels(b))return a;
+    return {x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),right:Math.max(a.right,b.right),bottom:Math.max(a.bottom,b.bottom)};
+  }
+  function outsideVisible(region,visible){
+    const {x,y,right,bottom}=region;
+    const inner={x:Math.max(x,visible.x),y:Math.max(y,visible.y),right:Math.min(right,visible.right),bottom:Math.min(bottom,visible.bottom)};
+    if(!hasPixels(inner))return [region];
+    return [
+      {x,y,right,bottom:inner.y},
+      {x,y:inner.bottom,right,bottom},
+      {x,y:inner.y,right:inner.x,bottom:inner.bottom},
+      {x:inner.right,y:inner.y,right,bottom:inner.bottom}
+    ].filter(hasPixels);
   }
   function pixelBounds(l,t,r,b){
     const sx=canvas.width/width,sy=canvas.height/height;
@@ -605,7 +627,7 @@ void main(){
   }
   function presentGroups(groups,base){
     const {left:x,top:y,width:w,height:h}=viewport;
-    renderGroup(groups.get(pageLayer));
+    renderGroup(groupPasses(groups.get(pageLayer)));
     present(pageLayer,base,pixelBounds(x,top,x+w,top+height),pageLayer.getBoundingClientRect());
     // Keep the dock above document content even when its labels stay fixed.
     const hosts=[...groups.keys()].filter(host=>host!==pageLayer&&host!==dock);
@@ -613,22 +635,28 @@ void main(){
     for(const host of hosts){
       const rect=host.getBoundingClientRect();
       const under=rtex('under',canvas.width,canvas.height);
-      copyFrame(fb.scene,under);
-      renderGroup(groups.get(host));
       const origin={left:rect.left+host.clientLeft-host.scrollLeft,top:rect.top+host.clientTop-host.scrollTop};
-      if(host===dock){
-        const region=pixelBounds(Math.max(x,rect.left-96),Math.max(y,rect.top-96),Math.min(x+w,rect.right+96),Math.min(y+h,rect.bottom+96));
-        present(host,under,region,origin,rect);
-      }else{
+      let region;
+      if(host===dock)region=pixelBounds(Math.max(x,rect.left-96),Math.max(y,rect.top-96),Math.min(x+w,rect.right+96),Math.min(y+h,rect.bottom+96));
+      else{
         const content=scrollContent(host,rect,origin);
-        const region=pixelBounds(origin.left,origin.top,content.right,content.bottom);
-        present(host,under,region,origin);
+        region=pixelBounds(origin.left,origin.top,content.right,content.bottom);
+      }
+      const passes=groupPasses(groups.get(host));
+      const affected=passes.reduce((bounds,pass)=>unionRegion(bounds,pass.region),{x:0,y:0,right:0,bottom:0});
+      // The overlay samples the underlay 1:1 with linear filtering. Save its
+      // one-texel halo as well as any pixels the glass will overwrite.
+      const overlay={x:Math.max(0,region.x-1),y:Math.max(0,region.y-1),right:Math.min(canvas.width,region.right+1),bottom:Math.min(canvas.height,region.bottom+1)};
+      copyFrame(fb.scene,under,host===dock?overlay:unionRegion(affected,overlay));
+      renderGroup(passes);
+      present(host,under,region,origin,host===dock?rect:null);
+      if(host!==dock&&hasPixels(affected)){
         // Shapes carried outside the scrollport are buffered in the DOM canvas.
         // Only the visible portion participates in subsequent glass and ink.
         const visible=pixelBounds(rect.left+host.clientLeft,rect.top+host.clientTop,rect.left+host.clientLeft+host.clientWidth,rect.top+host.clientTop+host.clientHeight);
-        copyFrame(fb.scene,under,visible);
-        copyFrame(under,fb.scene);
-        bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
+        const restore=outsideVisible(affected,visible);
+        for(const rect of restore)copyFrame(under,fb.scene,rect);
+        if(restore.length){bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);}
       }
     }
     for(const [host,{surface}] of presentations){
