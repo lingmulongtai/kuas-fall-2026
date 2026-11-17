@@ -17,6 +17,7 @@
   let width=0,height=0,left=0,top=0,dpr=1,sourceDirty=true,targets=[],capacity=8;
   let asciiActive=false;
   let viewport, textureLimit, dock;
+  let preparedBase, preparedCrop;
   const fb={};
   try{ gl=canvas.getContext('webgl2',{antialias:false,alpha:true,premultipliedAlpha:true,preserveDrawingBuffer:false}); }catch(_){}
   if(!gl){ root.dataset.optics='fallback'; return; }
@@ -505,14 +506,19 @@ void main(){
       const bufferWidth=Math.round(width*ratio),bufferHeight=Math.round(height*ratio);
       if(canvas.width!==bufferWidth)canvas.width=bufferWidth;
       if(canvas.height!==bufferHeight)canvas.height=bufferHeight;
-      if(sourceDirty)uploadSource();
+      const changedSource=sourceDirty;
+      if(changedSource)uploadSource();
       if(!sourceStatisticsCurrent && sourceLuminanceNeeded())updateSourceStatistics();
       rtex('scene',canvas.width,canvas.height,mipLevels(canvas.width,canvas.height));rtex('output',canvas.width,canvas.height);
       const base=rtex('base',canvas.width,canvas.height);
-      drawTo(programs.cover,base.fbo,canvas.width,canvas.height,L=>{
-        bindTex(0,imageTex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,1,0,0);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
-        gl.uniform4f(L.u_rect,-padX/box.width,-padY/box.height,width/box.width,height/box.height);
-      });
+      const crop=[-padX/box.width,-padY/box.height,width/box.width,height/box.height];
+      if(changedSource || base!==preparedBase || crop.some((value,i)=>value!==preparedCrop[i])){
+        drawTo(programs.cover,base.fbo,canvas.width,canvas.height,L=>{
+          bindTex(0,imageTex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,1,0,0);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
+          gl.uniform4f(L.u_rect,...crop);
+        });
+        preparedBase=base;preparedCrop=crop;
+      }
       copyFrame(base,fb.scene);
       bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
       presentGroups(collect(),base);
