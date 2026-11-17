@@ -83,10 +83,17 @@ void main(){
   const SIGMA0=3,PICK_SIGMA=12,PYR_MAX=10;
   function materialNeedsPyramid(material){return material.blur>0 || material.frost>0 || material.pickup>0;}
   function materialNeedsStatistics(material){return material.appearance==='auto' || material.dim>0;}
-  function buildPyramid(){
+  function sampledPyramidLevels(material,density,levels){
+    const maxLod=Math.max(0,Math.log2(Math.max(material.blur,PICK_SIGMA)*density/SIGMA0));
+    // Include both levels of the trilinear lookup, including its upper neighbor
+    // at an integer LOD so rounding in the shader cannot expose stale pixels.
+    return Math.min(levels,Math.floor(maxLod)+2);
+  }
+  function buildPyramid(material){
     const cw=canvas.width,ch=canvas.height,bw=Math.max(1,Math.ceil(cw/2)),bh=Math.max(1,Math.ceil(ch/2));
     const levels=Math.min(PYR_MAX,mipLevels(bw,bh)),P=rtex('pyr',bw,bh,levels),T=rtex('pyrTmp',bw,bh,levels);
-    for(let i=0;i<levels;i++){
+    const sampled=sampledPyramidLevels(material,dpr,levels);
+    for(let i=0;i<sampled;i++){
       const w=Math.max(1,bw>>i),h=Math.max(1,bh>>i),sig=i?1.3:1.5;
       drawTo(programs.blur,T.fbos[i],w,h,L=>{bindTex(0,i?P.tex:fb.scene.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,1/w,0);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i?i-1:1);});
       drawTo(programs.blur,P.fbos[i],w,h,L=>{bindTex(0,T.tex);gl.uniform1i(L.u_tex,0);gl.uniform2f(L.u_step,0,1/h);gl.uniform1f(L.u_sigma,sig);gl.uniform1f(L.u_lod,i);});
@@ -379,7 +386,7 @@ void main(){
   function renderGroup(layers){
     for(const [,shapes] of [...layers].sort((a,b)=>a[0]-b[0])){
       for(const batch of batchSurfaces(shapes,capacity)){
-        if(materialNeedsPyramid(batch[0].m))buildPyramid();
+        if(materialNeedsPyramid(batch[0].m))buildPyramid(batch[0].m);
         drawLayer(batch);
       }
     }
