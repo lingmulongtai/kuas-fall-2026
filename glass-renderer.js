@@ -205,6 +205,7 @@ void main(){
   }
   const touch={x:-1e4,y:-1e4,strength:0};
   let inkPixels=null,labels=[],labelLayout=[],labelLayoutDirty=true,inkHistory=new WeakMap(),inkCandidates=new WeakMap(),contrastUrgent=true,lastContrast=-Infinity,contrastTimer=0;
+  let inkRevision=0,inkTransfer=null,inkBuffer=null,inkBufferBytes=0,inkReadbackFailed=false;
   const colorCache=new Map(),colorCanvas=document.createElement('canvas');
   colorCanvas.width=colorCanvas.height=1;
   const colorContext=colorCanvas.getContext('2d',{willReadFrequently:true});
@@ -282,10 +283,12 @@ void main(){
     return samples;
   }
   function resetLabelContrast(){
+    inkRevision++;
     labelLayoutDirty=true;contrastUrgent=true;inkHistory=new WeakMap();inkCandidates=new WeakMap();
   }
   function updateLabelContrast(){
     if(['white','black'].includes(root.dataset.textColor)){clearTimeout(contrastTimer);contrastTimer=0;return;}
+    if(inkTransfer)return;
     const moving=document.getAnimations().some(animation=>animation.playState==='running');
     const elapsed=performance.now()-lastContrast;
     if(!contrastUrgent && !moving && elapsed<120){
@@ -299,20 +302,60 @@ void main(){
     drawTo(programs.cover,ink.fbo,w,h,L=>{
       bindTex(0,fb.scene.tex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,-1,0,0);gl.uniform4f(L.u_rect,0,0,1,1);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
     });
-    if(!inkPixels || inkPixels.length!==w*h*4)inkPixels=new Uint8Array(w*h*4);
-    gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,inkPixels);
     if(labelLayoutDirty || moving)measureLabels();
+    if(!inkPixels || inkPixels.length!==w*h*4)inkPixels=new Uint8Array(w*h*4);
+    const first=lastContrast===-Infinity;
+    contrastUrgent=false;lastContrast=performance.now();
+    const frame={w,h,layout:labelLayout,revision:inkRevision,left,top,width,height};
+    if(!first && !inkReadbackFailed && queueInkReadback(frame))return;
+    gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,inkPixels);
+    applyInkReadback(frame);
+  }
+  function queueInkReadback(frame){
+    inkBuffer??=gl.createBuffer();
+    if(!inkBuffer)return false;
+    // The sample moves to a GPU buffer. The next glass frame need not wait
+    // for the GPU to finish producing it or for the CPU to read it back.
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER,inkBuffer);
+    if(inkBufferBytes!==inkPixels.byteLength){
+      inkBufferBytes=inkPixels.byteLength;
+      gl.bufferData(gl.PIXEL_PACK_BUFFER,inkBufferBytes,gl.STREAM_READ);
+    }
+    gl.readPixels(0,0,frame.w,frame.h,gl.RGBA,gl.UNSIGNED_BYTE,0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+    const sync=gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE,0);
+    if(!sync)return false;
+    inkTransfer={frame,sync};
+    gl.flush();
+    requestAnimationFrame(finishInkReadback);
+    return true;
+  }
+  function finishInkReadback(){
+    const {frame,sync}=inkTransfer;
+    const status=gl.clientWaitSync(sync,0,0);
+    if(status===gl.TIMEOUT_EXPIRED){requestAnimationFrame(finishInkReadback);return;}
+    gl.deleteSync(sync);inkTransfer=null;
+    if(status===gl.WAIT_FAILED){inkReadbackFailed=true;contrastUrgent=true;}
+    else if(frame.revision===inkRevision && frame.left===left && frame.top===top && frame.width===width && frame.height===height &&
+      root.dataset.optics==='ready' && !['white','black'].includes(root.dataset.textColor)){
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER,inkBuffer);
+      gl.getBufferSubData(gl.PIXEL_PACK_BUFFER,0,inkPixels);
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+      applyInkReadback(frame);
+    }
+    if(contrastUrgent || labelLayoutDirty)invalidate();
+  }
+  function applyInkReadback({w,h,layout}){
     let waiting=false;
     const now=performance.now();
-    for(const {el,rects,backdrop} of labelLayout){
+    for(const {el,rects,backdrop} of layout){
       const previous=inkHistory.get(el),candidate=chooseLabelInk(sampleLabel(rects,backdrop,w,h),previous);
       const {color,pending}=stabiliseLabelInk(candidate,previous,inkCandidates.get(el),now);
       if(pending){inkCandidates.set(el,pending);waiting=true;}else inkCandidates.delete(el);
       inkHistory.set(el,color);
       if(el.dataset.autoInk!==color)el.dataset.autoInk=color;
     }
-    contrastUrgent=false;lastContrast=performance.now();
-    if(waiting)contrastTimer=setTimeout(()=>{contrastTimer=0;invalidate();},120);
+    if(waiting&&!contrastTimer)contrastTimer=setTimeout(()=>{contrastTimer=0;invalidate();},120);
   }
   function drawLayer(shapes){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
