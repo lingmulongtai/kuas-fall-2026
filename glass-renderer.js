@@ -541,15 +541,19 @@ void main(){
   }
   function groupPasses(layers){
     const passes=[];
+    let affected={x:0,y:0,right:0,bottom:0};
     const q=clamp((meanLum-.12)/.25,0,1);
     for(const [,shapes] of [...layers].sort((a,b)=>a[0]-b[0])){
       for(const batch of batchSurfaces(shapes,capacity)){
         const dim=batch[0].m.dim*q*q*(3-2*q);
         const region=batchRegion(batch,dim);
-        if(hasPixels(region))passes.push({shapes:batch,dim,region});
+        if(hasPixels(region)){
+          passes.push({shapes:batch,dim,region});
+          affected=unionRegion(affected,region);
+        }
       }
     }
-    return passes;
+    return {passes,affected};
   }
   function renderGroup(passes){
     for(const pass of passes){
@@ -561,6 +565,9 @@ void main(){
     if(!hasPixels(a))return b;
     if(!hasPixels(b))return a;
     return {x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),right:Math.max(a.right,b.right),bottom:Math.max(a.bottom,b.bottom)};
+  }
+  function expandRegion({x,y,right,bottom},halo=1){
+    return {x:Math.max(0,x-halo),y:Math.max(0,y-halo),right:Math.min(canvas.width,right+halo),bottom:Math.min(canvas.height,bottom+halo)};
   }
   function outsideVisible(region,visible){
     const {x,y,right,bottom}=region;
@@ -593,24 +600,31 @@ void main(){
     }
     return plane;
   }
-  function present(host,under,region,origin,plate){
+  function present(host,under,region,origin,affected,plate){
     const {x,y,right,bottom}=region;
     const w=right-x,h=bottom-y;
     if(w<=0 || h<=0)return;
     const plane=planeFor(host),{surface,context}=plane;
     const sx=canvas.width/width,sy=canvas.height/height;
-    drawRegion(region,programs.overlay,null,L=>{
-      bindTex(0,fb.scene.tex);gl.uniform1i(L.u_result,0);
-      bindTex(1,under.tex);gl.uniform1i(L.u_under,1);
-      if(plate){
-        gl.uniform4f(L.u_plate,(plate.left-left+plate.width/2)*sx,canvas.height-(plate.top-top+plate.height/2)*sy,plate.width*sx/2,plate.height*sy/2);
-        gl.uniform1f(L.u_radius,Math.min(parseFloat(getComputedStyle(host).borderTopLeftRadius),plate.height/2)*sy);
-      }else gl.uniform1f(L.u_radius,0);
-    });
     if(surface.width!==w)surface.width=w;
     if(surface.height!==h)surface.height=h;
-    context.globalCompositeOperation='copy';
-    context.drawImage(canvas,x,y,w,h,0,0,w,h);
+    // Keep the plane's content coordinates, but transfer only the part that
+    // differs from its underlay. The fixed dock also paints an opaque plate.
+    const bounds=hasPixels(affected)?expandRegion(affected):affected;
+    const paint=plate?region:{x:Math.max(x,bounds.x),y:Math.max(y,bounds.y),right:Math.min(right,bounds.right),bottom:Math.min(bottom,bounds.bottom)};
+    if(hasPixels(paint)){
+      drawRegion(paint,programs.overlay,null,L=>{
+        bindTex(0,fb.scene.tex);gl.uniform1i(L.u_result,0);
+        bindTex(1,under.tex);gl.uniform1i(L.u_under,1);
+        if(plate){
+          gl.uniform4f(L.u_plate,(plate.left-left+plate.width/2)*sx,canvas.height-(plate.top-top+plate.height/2)*sy,plate.width*sx/2,plate.height*sy/2);
+          gl.uniform1f(L.u_radius,Math.min(parseFloat(getComputedStyle(host).borderTopLeftRadius),plate.height/2)*sy);
+        }else gl.uniform1f(L.u_radius,0);
+      });
+      const dw=paint.right-paint.x,dh=paint.bottom-paint.y;
+      context.globalCompositeOperation='copy';
+      context.drawImage(canvas,paint.x,paint.y,dw,dh,paint.x-x,paint.y-y,dw,dh);
+    }else context.clearRect(0,0,w,h);
     const position=`left:${left+x/sx-origin.left}px;top:${top+y/sy-origin.top}px;width:${w/sx}px;height:${h/sy}px`;
     if(plane.position!==position){surface.style.cssText=position;plane.position=position;}
     surface.hidden=false;
@@ -627,8 +641,9 @@ void main(){
   }
   function presentGroups(groups,base){
     const {left:x,top:y,width:w,height:h}=viewport;
-    renderGroup(groupPasses(groups.get(pageLayer)));
-    present(pageLayer,base,pixelBounds(x,top,x+w,top+height),pageLayer.getBoundingClientRect());
+    const page=groupPasses(groups.get(pageLayer));
+    renderGroup(page.passes);
+    present(pageLayer,base,pixelBounds(x,top,x+w,top+height),pageLayer.getBoundingClientRect(),page.affected);
     // Keep the dock above document content even when its labels stay fixed.
     const hosts=[...groups.keys()].filter(host=>host!==pageLayer&&host!==dock);
     if(dock&&groups.has(dock))hosts.push(dock);
@@ -642,14 +657,13 @@ void main(){
         const content=scrollContent(host,rect,origin);
         region=pixelBounds(origin.left,origin.top,content.right,content.bottom);
       }
-      const passes=groupPasses(groups.get(host));
-      const affected=passes.reduce((bounds,pass)=>unionRegion(bounds,pass.region),{x:0,y:0,right:0,bottom:0});
+      const {passes,affected}=groupPasses(groups.get(host));
       // The overlay samples the underlay 1:1 with linear filtering. Save its
       // one-texel halo as well as any pixels the glass will overwrite.
-      const overlay={x:Math.max(0,region.x-1),y:Math.max(0,region.y-1),right:Math.min(canvas.width,region.right+1),bottom:Math.min(canvas.height,region.bottom+1)};
-      copyFrame(fb.scene,under,host===dock?overlay:unionRegion(affected,overlay));
+      const overlay=host===dock?expandRegion(region):hasPixels(affected)?expandRegion(affected,2):affected;
+      copyFrame(fb.scene,under,overlay);
       renderGroup(passes);
-      present(host,under,region,origin,host===dock?rect:null);
+      present(host,under,region,origin,affected,host===dock?rect:null);
       if(host!==dock&&hasPixels(affected)){
         // Shapes carried outside the scrollport are buffered in the DOM canvas.
         // Only the visible portion participates in subsequent glass and ink.
