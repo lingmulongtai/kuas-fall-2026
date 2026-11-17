@@ -27,6 +27,27 @@ test('batch clips keep the full shadow, dimming, and smooth-merge reach',()=>{
   assert.deepEqual({...c.batchRegion(batch,0)},{x:327,y:327,right:683,bottom:553});
   assert.deepEqual({...c.batchRegion(batch,0.2)},{x:197,y:197,right:813,bottom:683});
 });
+test('clipped Gaussian levels include lookup halos and all finer-level dependencies',()=>{
+  const c=vm.createContext({canvas:{width:1001,height:703}});
+  vm.runInContext(source.slice(source.indexOf('  function pyramidRegions('),source.indexOf('  function buildPyramid(')),c);
+  const levels=c.pyramidRegions({x:423,y:511,right:532,bottom:601},501,352,4);
+  assert.equal(levels.length,4);
+  for(let i=0;i<levels.length;i++){
+    const {w,h,horizontal,vertical}=levels[i];
+    assert.ok(vertical.x<=423*w/1001 && vertical.right>=532*w/1001);
+    assert.ok(vertical.y<=511*h/703 && vertical.bottom>=601*h/703);
+    assert.equal(horizontal.y,Math.max(0,vertical.y-(i?4:5)));
+    assert.equal(horizontal.bottom,Math.min(h,vertical.bottom+(i?4:5)));
+    if(i){
+      const previous=levels[i-1];
+      assert.ok(previous.vertical.x<=Math.max(0,(horizontal.x-4)*previous.w/w));
+      assert.ok(previous.vertical.right>=Math.min(previous.w,(horizontal.right+4)*previous.w/w));
+      assert.ok(previous.vertical.y<=horizontal.y*previous.h/h);
+      assert.ok(previous.vertical.bottom>=horizontal.bottom*previous.h/h);
+    }
+  }
+  assert.ok((levels[0].horizontal.right-levels[0].horizontal.x)<501);
+});
 test('source luminance is needed only for adaptive appearance or background dimming',()=>{
   assert.deepEqual(materials.presets.filter(p=>context.materialNeedsStatistics(p.p)).map(p=>p.id),['apple','apple-clear','frosted']);
   for(const preset of materials.presets){
