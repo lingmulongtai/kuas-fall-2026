@@ -57,7 +57,17 @@ void main(){
   }
   o=vec4(clamp(after-before*(1.0-alpha),0.0,alpha),alpha);
 }`;
-  try{ programs={cover:compile(shaders.COVER),blur:compile(shaders.BLUR),glass:compile(shaders.GLASS),overlay:compile(overlayShader)}; }
+  const samplesShader=`#version 300 es
+precision highp float;
+precision highp isampler2D;
+uniform highp sampler2D u_image;
+uniform isampler2D u_points;
+out vec4 o;
+void main(){
+  ivec2 point=texelFetch(u_points,ivec2(gl_FragCoord.xy),0).rg;
+  o=texelFetch(u_image,point,0);
+}`;
+  try{ programs={cover:compile(shaders.COVER),blur:compile(shaders.BLUR),glass:compile(shaders.GLASS),overlay:compile(overlayShader),samples:compile(samplesShader)}; }
   catch(error){ console.error('Glass shader:',error);root.dataset.optics='fallback';return; }
   const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
@@ -143,6 +153,8 @@ void main(){
   document.body.prepend(source,pageLayer);
   const presentations=new Map();
   const imageTex=gl.createTexture();
+  const samplePoints=gl.createTexture(),sampleWidth=256;
+  let sampleRows=0,sampleCoords,samplePixels;
   let meanLum=.6,pixels=null,sourceStatisticsCurrent=false,imageWidth=0,imageHeight=0;
   function sourceLuminanceNeeded(){
     const presets=window.GlassMaterials.presets;
@@ -181,16 +193,70 @@ void main(){
     }
     meanLum=sum/(24*24);sourceStatisticsCurrent=true;
   }
+  function readAnimatedSourceStatistics(adaptive){
+    const wholeFrame=!sourceStatisticsCurrent;
+    const firstLocal=wholeFrame?24*24:0;
+    const count=firstLocal+adaptive.length*100;
+    if(!count)return;
+    const rows=Math.ceil(count/sampleWidth);
+    if(rows>sampleRows){
+      sampleRows=rows;
+      sampleCoords=new Int32Array(sampleWidth*rows*2);
+      samplePixels=new Uint8Array(sampleWidth*rows*4);
+      bindTex(1,samplePoints);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RG32I,sampleWidth,rows,0,gl.RG_INTEGER,gl.INT,null);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+    }
+    let offset=0;
+    if(wholeFrame){
+      for(let y=0;y<24;y++)for(let x=0;x<24;x++){
+        sampleCoords[offset++]=Math.floor((x+.5)*source.width/24);
+        sampleCoords[offset++]=Math.floor((y+.5)*source.height/24);
+      }
+    }
+    for(const {rect} of adaptive){
+      for(let y=0;y<10;y++)for(let x=0;x<10;x++){
+        sampleCoords[offset++]=localSampleX(rect,x);
+        sampleCoords[offset++]=localSampleY(rect,y);
+      }
+    }
+    // Gather the exact source texels into a small readback. The moving
+    // backdrop, the dimming and all local tones use the same frame.
+    bindTex(1,samplePoints);
+    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,sampleWidth,rows,gl.RG_INTEGER,gl.INT,sampleCoords);
+    const output=rtex('sourceSamples',sampleWidth,sampleRows);
+    drawTo(programs.samples,output.fbo,sampleWidth,rows,L=>{
+      bindTex(0,imageTex);gl.uniform1i(L.u_image,0);
+      bindTex(1,samplePoints);gl.uniform1i(L.u_points,1);
+    });
+    gl.readPixels(0,0,sampleWidth,rows,gl.RGBA,gl.UNSIGNED_BYTE,samplePixels);
+    if(wholeFrame){
+      meanLum=meanSamples(samplePixels,0,firstLocal);
+      sourceStatisticsCurrent=true;
+    }
+    for(let i=0;i<adaptive.length;i++)adaptive[i].lum=meanSamples(samplePixels,firstLocal+i*100,100);
+  }
   const lin=c=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;};
   const luminance=c=>.2126*lin(c[0])+.7152*lin(c[1])+.0722*lin(c[2]);
+  const linearByte=Float64Array.from({length:256},(_,i)=>lin(i));
+  const pixelLuminance=(data,i)=>.2126*linearByte[data[i]]+.7152*linearByte[data[i+1]]+.0722*linearByte[data[i+2]];
+  function meanSamples(data,start,count){
+    let sum=0;
+    for(let i=start;i<start+count;i++)sum+=pixelLuminance(data,i*4);
+    return sum/count;
+  }
+  function localSampleX(rect,x){
+    return clamp(Math.floor((rect.left+left-viewport.left+(x+.5)*rect.width/10)*dpr),0,source.width-1);
+  }
+  function localSampleY(rect,y){
+    return clamp(Math.floor((rect.top+top-viewport.top+(y+.5)*rect.height/10)*dpr),0,source.height-1);
+  }
   function measure(rect){
     // The reference measures linear luminance on a 10×10 grid, with hysteresis.
     let sum=0;
     for(let y=0;y<10;y++)for(let x=0;x<10;x++){
-      const px=clamp(Math.floor((rect.left+left-viewport.left+(x+.5)*rect.width/10)*dpr),0,source.width-1);
-      const py=clamp(Math.floor((rect.top+top-viewport.top+(y+.5)*rect.height/10)*dpr),0,source.height-1);
-      const i=(py*source.width+px)*4;
-      sum+=luminance(pixels.subarray(i,i+3));
+      sum+=pixelLuminance(pixels,(localSampleY(rect,y)*source.width+localSampleX(rect,x))*4);
     }
     return sum/100;
   }
@@ -211,6 +277,7 @@ void main(){
   }
   function collect(){
     const groups=new Map([[pageLayer,new Map()]]);
+    const adaptive=[];
     for(const el of targets){
       const bounds=el.getBoundingClientRect();
       if(!bounds.width || !bounds.height || bounds.bottom<top-96 || bounds.top>top+height+96 || bounds.right<left-96 || bounds.left>left+width+96 || !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))continue;
@@ -223,18 +290,32 @@ void main(){
       if(el.closest('.tabs'))depth+=30;
       if(!layers.has(depth))layers.set(depth,[]);
       const style=getComputedStyle(el),m=window.GlassMaterials.presets.find(p=>p.id===(el.dataset.materialPreview||root.dataset.material))?.p||window.GlassMaterials.presets[5].p;
-      const L=m.appearance==='auto'?measure(rect):0,old=toneMemory.get(el)||0;
-      const tone=m.appearance==='light'?0:m.appearance==='dark'?1:Math.min(rect.width,rect.height)<=96?(old>.5?(L<.22?1:0):(L<.14?1:0)):0;
-      toneMemory.set(el,tone);
-      layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone});
+      const shape={rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone:m.appearance==='dark'?1:0};
+      let segment;
+      layers.get(depth).push(shape);
       if(el.classList.contains('segmented')){
         const selected=el.querySelector('[aria-selected="true"],[aria-pressed="true"]');
         if(selected){
           const level=depth+1;
           if(!layers.has(level))layers.set(level,[]);
           const selectedRect=selected.getBoundingClientRect();
-          layers.get(level).push({rect:{left:selectedRect.left-left,top:selectedRect.top-top,width:selectedRect.width,height:selectedRect.height},r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone});
+          segment={rect:{left:selectedRect.left-left,top:selectedRect.top-top,width:selectedRect.width,height:selectedRect.height},r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone:shape.tone};
+          layers.get(level).push(segment);
         }
+      }
+      if(m.appearance==='auto'&&Math.min(rect.width,rect.height)<=96)adaptive.push({el,rect,shape,segment,lum:0});
+      else toneMemory.set(el,shape.tone);
+    }
+    if(adaptive.length||(!sourceStatisticsCurrent&&sourceLuminanceNeeded())){
+      if(asciiActive||(RAIN&&rainImage))readAnimatedSourceStatistics(adaptive);
+      else{
+        if(!sourceStatisticsCurrent)updateSourceStatistics();
+        for(const lens of adaptive)lens.lum=measure(lens.rect);
+      }
+      for(const {el,shape,segment,lum} of adaptive){
+        shape.tone=lum<((toneMemory.get(el)||0)>.5?.22:.14)?1:0;
+        if(segment)segment.tone=shape.tone;
+        toneMemory.set(el,shape.tone);
       }
     }
     return groups;
@@ -586,7 +667,7 @@ void main(){
       if(canvas.height!==bufferHeight)canvas.height=bufferHeight;
       const changedSource=sourceDirty;
       if(changedSource)uploadSource();
-      if(!sourceStatisticsCurrent && sourceLuminanceNeeded())updateSourceStatistics();
+      const groups=collect();
       rtex('scene',canvas.width,canvas.height,mipLevels(canvas.width,canvas.height));rtex('output',canvas.width,canvas.height);
       const base=rtex('base',canvas.width,canvas.height);
       const crop=[-padX/box.width,-padY/box.height,width/box.width,height/box.height];
@@ -599,7 +680,7 @@ void main(){
       }
       copyFrame(base,fb.scene);
       bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
-      presentGroups(collect(),base);
+      presentGroups(groups,base);
       root.dataset.optics='ready';
       updateLabelContrast();
     }catch(error){console.error('Glass render:',error);root.dataset.optics='fallback';return;}
