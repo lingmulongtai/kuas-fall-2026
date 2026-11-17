@@ -769,7 +769,7 @@ void main(){
   function requestRainBitmap(once=false){
     const frame=document.querySelector('#rain iframe');
     if(RAIN && (once || rainMotionEnabled()) && !document.hidden && !suspended && photo?.naturalWidth && frame?.style.visibility!=='hidden')
-      frame?.contentWindow.postMessage({type:'rain-bitmap-request'},'*');
+      frame?.contentWindow.postMessage({type:'rain-bitmap-request',force:once},'*');
   }
   window.addEventListener('ambiencechange',()=>{if(!RAIN){rainImage?.close();rainImage=null;}sourceDirty=true;resetLabelContrast();invalidate();requestRainBitmap();});
   // The isolated rain document transfers a full resolution bitmap. No changes

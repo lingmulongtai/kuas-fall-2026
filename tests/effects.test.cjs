@@ -561,6 +561,27 @@ test('a temporary bitmap capture failure retries automatically',async()=>{
  assert.equal(replies.length,1);assert.equal(replies[0].image,bitmap);
  state.tick();await flushBitmap();assert.equal(attempts,2);
 });
+
+test('repeated capture requests wait for a fresh rain draw unless restoring a paused frame',async()=>{
+  let captures=0;
+  const state=setupFrame({createBitmap:()=>Promise.resolve({capture:++captures})});
+  const flush=()=>new Promise(resolve=>setImmediate(resolve));
+  state.boot();
+  state.gl.drawArrays();
+  await flush();
+  assert.equal(captures,1);
+  state.message({type:'rain-bitmap-request'});
+  state.message({type:'rain-bitmap-request'});
+  await flush();
+  assert.equal(captures,1);
+  state.gl.drawArrays();
+  await flush();
+  assert.equal(captures,2);
+  state.message({type:'rain-bitmap-request',force:true});
+  await flush();
+  assert.equal(captures,3);
+  assert.equal(state.messages.filter(m=>m.type==='rain-bitmap').length,3);
+});
 test('a changed photograph transfers a fresh bitmap without restarting paused simulation',async()=>{
  let state;state=setupFrame({createBitmap:()=>Promise.resolve({photo:state.photo.src})});
  state.boot();state.texture(state.gl.TEXTURE2,{width:192,height:128});state.texture(state.gl.TEXTURE3,{width:384,height:256});
