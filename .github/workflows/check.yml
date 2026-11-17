@@ -13,6 +13,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --check app.js && node --check effects.js && node --check glass-materials.js && node --check glass-renderer.js
+      - run: node --check app.js && node --check effects.js && node --check glass-materials.js && node --check glass-renderer.js && node --check ascii-animals/engine.js
       - run: node --test tests/*.test.cjs
       - run: node scripts/build.mjs
