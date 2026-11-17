@@ -6,6 +6,7 @@
   'use strict';
   const root=document.documentElement;
   const canvas=document.createElement('canvas');
+  const asciiCanvas=document.getElementById('ascii-background');
   canvas.id='glass-canvas'; canvas.setAttribute('aria-hidden','true');
   document.body.prepend(canvas);
   const reducedTransparency=matchMedia('(prefers-reduced-transparency: reduce)');
@@ -14,6 +15,7 @@
   const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
   let gl,programs,photo=document.querySelector('#wallpaper img'),rainImage=null,raf=0,settleUntil=0,suspended=false;
   let width=0,height=0,left=0,top=0,dpr=1,sourceDirty=true,targets=[],capacity=8;
+  let asciiActive=false;
   const fb={};
   try{ gl=canvas.getContext('webgl2',{antialias:false,alpha:false,premultipliedAlpha:false,preserveDrawingBuffer:false}); }catch(_){}
   if(!gl){ root.dataset.optics='fallback'; return; }
@@ -79,7 +81,7 @@
     if(source.width!==canvas.width)source.width=canvas.width;
     if(source.height!==canvas.height)source.height=canvas.height;
     cx.fillStyle=root.dataset.theme==='dark'?'#171f2b':'#dce6eb';cx.fillRect(0,0,source.width,source.height);
-    const image=RAIN && rainImage ? rainImage : photo;
+    const image=asciiActive ? asciiCanvas : RAIN && rainImage ? rainImage : photo;
     if(image && (image.width || image.naturalWidth)){
       const iw=image.naturalWidth||image.width,ih=image.naturalHeight||image.height;
       const scale=Math.max(source.width/iw,source.height/ih);
@@ -388,6 +390,11 @@
   }).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class','hidden','open','data-auto-ink','data-glass-surface']});
   window.addEventListener('wallpaperchange',event=>{photo=event.detail;rainImage?.close();rainImage=null;sourceDirty=true;resetLabelContrast();invalidate();});
   window.addEventListener('rainreset',()=>{rainImage?.close();rainImage=null;sourceDirty=true;resetLabelContrast();invalidate();});
+  window.addEventListener('asciiframe',()=>{
+    const active=!asciiCanvas.hidden;
+    if(active!==asciiActive)resetLabelContrast();
+    asciiActive=active;sourceDirty=true;invalidate();
+  });
   window.addEventListener('glasschange',()=>{resetLabelContrast();invalidate(true);});
   window.addEventListener('textcolorchange',()=>{resetLabelContrast();invalidate();});
   function requestRainBitmap(once=false){

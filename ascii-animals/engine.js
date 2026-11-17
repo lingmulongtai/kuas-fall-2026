@@ -547,7 +547,7 @@ function create(world, animal, motionPreference) {
         item.y *= R.H / oldHeight;
       }
     }
-    syncPopulation(!oldWidth);
+    syncPopulation(!oldWidth || reducedMotion.matches);
   }
 
   function drawOverlay() {
