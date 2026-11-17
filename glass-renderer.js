@@ -8,7 +8,6 @@
   const canvas=document.createElement('canvas');
   const asciiCanvas=document.getElementById('ascii-background');
   canvas.id='glass-canvas'; canvas.setAttribute('aria-hidden','true');
-  document.body.prepend(canvas);
   const reducedTransparency=matchMedia('(prefers-reduced-transparency: reduce)');
   const contrast=matchMedia('(prefers-contrast: more)');
   const textControls = 'select,input:not([type="file"]):not([type="hidden"]):not([type="range"])';
@@ -17,10 +16,12 @@
   let gl,programs,photo=document.querySelector('#wallpaper img'),rainImage=null,raf=0,settleUntil=0,suspended=false;
   let width=0,height=0,left=0,top=0,dpr=1,sourceDirty=true,targets=[],capacity=8;
   let asciiActive=false;
-  let scrollTimer=0;
+  let viewport, textureLimit, dock;
   const fb={};
-  try{ gl=canvas.getContext('webgl2',{antialias:false,alpha:false,premultipliedAlpha:false,preserveDrawingBuffer:false}); }catch(_){}
+  try{ gl=canvas.getContext('webgl2',{antialias:false,alpha:true,premultipliedAlpha:true,preserveDrawingBuffer:false}); }catch(_){}
   if(!gl){ root.dataset.optics='fallback'; return; }
+  document.body.prepend(canvas);
+  textureLimit=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),...gl.getParameter(gl.MAX_VIEWPORT_DIMS));
   capacity=Math.max(8,Math.min(96,Math.floor((gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS)-32)/7)));
   const shaders=window.GlassMaterials.shaders(capacity);
   function compile(fragment){
@@ -33,7 +34,29 @@
     for(let i=0;i<gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);i++){ const name=gl.getActiveUniform(p,i).name.replace(/\[0\]$/,'');loc[name]=gl.getUniformLocation(p,name); }
     return {p,loc};
   }
-  try{ programs={cover:compile(shaders.COVER),blur:compile(shaders.BLUR),glass:compile(shaders.GLASS)}; }
+  // Encode the smallest premultiplied overlay that recreates the existing
+  // optical result over its backdrop. Unchanged scenery stays transparent.
+  const overlayShader=`#version 300 es
+precision highp float;
+uniform sampler2D u_result,u_under;
+uniform vec4 u_plate;
+uniform float u_radius;
+in vec2 v_uv;
+out vec4 o;
+void main(){
+  vec3 before=texture(u_under,v_uv).rgb;
+  vec3 after=texture(u_result,v_uv).rgb;
+  vec3 diff=after-before;
+  vec3 limit=max(max(diff,0.0)/max(1.0-before,0.001),max(-diff,0.0)/max(before,0.001));
+  float alpha=max(limit.r,max(limit.g,limit.b));
+  if(u_radius>0.0){
+    vec2 q=abs(gl_FragCoord.xy-u_plate.xy)-u_plate.zw+u_radius;
+    float distance=length(max(q,0.0))+min(max(q.x,q.y),0.0)-u_radius;
+    alpha=max(alpha,1.0-smoothstep(-0.5,0.5,distance));
+  }
+  o=vec4(clamp(after-before*(1.0-alpha),0.0,alpha),alpha);
+}`;
+  try{ programs={cover:compile(shaders.COVER),blur:compile(shaders.BLUR),glass:compile(shaders.GLASS),overlay:compile(overlayShader)}; }
   catch(error){ console.error('Glass shader:',error);root.dataset.optics='fallback';return; }
   const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
@@ -70,6 +93,11 @@
     }
   }
   const source=document.createElement('canvas'),cx=source.getContext('2d',{willReadFrequently:true});
+  source.id='glass-background';source.setAttribute('aria-hidden','true');
+  const pageLayer=document.createElement('div');
+  pageLayer.className='glass-page-layer';pageLayer.setAttribute('aria-hidden','true');
+  document.body.prepend(source,pageLayer);
+  const presentations=new Map();
   const imageTex=gl.createTexture();
   let meanLum=.6,pixels=null,sourceStatisticsCurrent=false,imageWidth=0,imageHeight=0;
   function sourceLuminanceNeeded(){
@@ -80,8 +108,8 @@
       materialNeedsStatistics(presets.find(p=>p.id===el.dataset.materialPreview)?.p||presets[5].p));
   }
   function uploadSource(){
-    if(source.width!==canvas.width)source.width=canvas.width;
-    if(source.height!==canvas.height)source.height=canvas.height;
+    if(source.width!==viewport.pixelWidth)source.width=viewport.pixelWidth;
+    if(source.height!==viewport.pixelHeight)source.height=viewport.pixelHeight;
     cx.fillStyle=root.dataset.theme==='dark'?'#171f2b':'#dce6eb';cx.fillRect(0,0,source.width,source.height);
     const image=asciiActive ? asciiCanvas : RAIN && rainImage ? rainImage : photo;
     if(image && (image.width || image.naturalWidth)){
@@ -115,8 +143,8 @@
     // The reference measures linear luminance on a 10×10 grid, with hysteresis.
     let sum=0;
     for(let y=0;y<10;y++)for(let x=0;x<10;x++){
-      const px=clamp(Math.floor((rect.left+(x+.5)*rect.width/10)*dpr),0,source.width-1);
-      const py=clamp(Math.floor((rect.top+(y+.5)*rect.height/10)*dpr),0,source.height-1);
+      const px=clamp(Math.floor((rect.left+left-viewport.left+(x+.5)*rect.width/10)*dpr),0,source.width-1);
+      const py=clamp(Math.floor((rect.top+top-viewport.top+(y+.5)*rect.height/10)*dpr),0,source.height-1);
       const i=(py*source.width+px)*4;
       sum+=luminance(pixels.subarray(i,i+3));
     }
@@ -127,7 +155,7 @@
   function batchSurfaces(shapes,limit){
     const batches=[];
     for(const shape of shapes){
-      const batch=batches.find(batch=>batch.length<limit && batch[0].m===shape.m && batch[0].clip.key===shape.clip.key && batch.every(other=>{
+      const batch=batches.find(batch=>batch.length<limit && batch[0].m===shape.m && batch.every(other=>{
         const a=shape.rect,b=other.rect;
         const dx=Math.max(a.left-b.left-b.width,b.left-a.left-a.width,0);
         const dy=Math.max(a.top-b.top-b.height,b.top-a.top-a.height,0);
@@ -138,20 +166,14 @@
     return batches;
   }
   function collect(){
-    const layers=new Map();
+    const groups=new Map([[pageLayer,new Map()]]);
     for(const el of targets){
       const bounds=el.getBoundingClientRect();
-      if(!bounds.width || !bounds.height || bounds.bottom<top-96 || bounds.top>top+height+96 || !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))continue;
+      if(!bounds.width || !bounds.height || bounds.bottom<top-96 || bounds.top>top+height+96 || bounds.right<left-96 || bounds.left>left+width+96 || !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))continue;
       const rect={left:bounds.left-left,top:bounds.top-top,width:bounds.width,height:bounds.height};
-      let clip={left:0,top:0,width,height,key:'viewport'};
-      const scroller=el.parentElement?.closest('.calendar-scroll,.attendance-editor-scroll');
-      if(scroller){
-        const box=scroller.getBoundingClientRect();
-        const x=Math.max(0,box.left-left),y=Math.max(0,box.top-top);
-        clip={left:x,top:y,width:Math.max(0,Math.min(width,box.right-left)-x),height:Math.max(0,Math.min(height,box.bottom-top)-y)};
-        clip.key=[clip.left,clip.top,clip.width,clip.height].join(',');
-        if(!clip.width || !clip.height || rect.left+rect.width<clip.left || rect.left>clip.left+clip.width || rect.top+rect.height<clip.top || rect.top>clip.top+clip.height)continue;
-      }
+      const host=dock?.contains(el)?dock:el.parentElement?.closest('.calendar-scroll,.attendance-editor-scroll')||pageLayer;
+      if(!groups.has(host))groups.set(host,new Map());
+      const layers=groups.get(host);
       let depth=0,parent=el.parentElement;
       while(parent){if(parent.matches(selectors))depth++;parent=parent.parentElement;}
       if(el.closest('.tabs'))depth+=30;
@@ -160,18 +182,18 @@
       const L=m.appearance==='auto'?measure(rect):0,old=toneMemory.get(el)||0;
       const tone=m.appearance==='light'?0:m.appearance==='dark'?1:Math.min(rect.width,rect.height)<=96?(old>.5?(L<.22?1:0):(L<.14?1:0)):0;
       toneMemory.set(el,tone);
-      layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone,clip});
+      layers.get(depth).push({rect,r:parseFloat(style.borderTopLeftRadius)||0,m,tone});
       if(el.classList.contains('segmented')){
         const selected=el.querySelector('[aria-selected="true"],[aria-pressed="true"]');
         if(selected){
           const level=depth+1;
           if(!layers.has(level))layers.set(level,[]);
           const selectedRect=selected.getBoundingClientRect();
-          layers.get(level).push({rect:{left:selectedRect.left-left,top:selectedRect.top-top,width:selectedRect.width,height:selectedRect.height},r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone,clip});
+          layers.get(level).push({rect:{left:selectedRect.left-left,top:selectedRect.top-top,width:selectedRect.width,height:selectedRect.height},r:parseFloat(getComputedStyle(selected).borderTopLeftRadius)||24,m,tone});
         }
       }
     }
-    return [...layers].sort((a,b)=>a[0]-b[0]).map(entry=>entry[1]);
+    return groups;
   }
   const touch={x:-1e4,y:-1e4,strength:0};
   let inkPixels=null,labels=[],labelLayout=[],labelLayoutDirty=true,inkHistory=new WeakMap(),inkCandidates=new WeakMap(),contrastUrgent=true,lastContrast=-Infinity,contrastTimer=0;
@@ -286,15 +308,6 @@
   }
   function drawLayer(shapes){
     const [s0,s1,s2,m0,m1,m2,m3]=arrays,material=shapes[0].m;
-    const clip=shapes[0].clip;
-    if(clip.key!=='viewport'){
-      gl.bindFramebuffer(gl.READ_FRAMEBUFFER,fb.scene.fbo);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,fb.output.fbo);
-      gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);
-      gl.enable(gl.SCISSOR_TEST);
-      const x=Math.round(clip.left*canvas.width/width),y=Math.round(clip.top*canvas.height/height);
-      const right=Math.round((clip.left+clip.width)*canvas.width/width),bottom=Math.round((clip.top+clip.height)*canvas.height/height);
-      gl.scissor(x,canvas.height-bottom,right-x,bottom-y);
-    }
     for(let i=0;i<shapes.length;i++){
       const {rect:r,m,tone}=shapes[i],o=i*4;
       s0.set([r.left+r.width/2,r.top+r.height/2,r.width/2,r.height/2],o);
@@ -317,10 +330,108 @@
       const q=clamp((meanLum-.12)/.25,0,1);gl.uniform1f(L.u_dimK,material.dim*q*q*(3-2*q));
       gl.uniform1f(L.u_pickLod,Math.max(0,Math.log2(PICK_SIGMA*dpr/SIGMA0)));
     });
-    gl.disable(gl.SCISSOR_TEST);
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER,fb.output.fbo);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,fb.scene.fbo);
-    gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);
+    copyFrame(fb.output,fb.scene);
     bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
+  }
+  function copyFrame(from,to,rect={x:0,y:0,right:canvas.width,bottom:canvas.height}){
+    const {x,y,right,bottom}=rect;
+    if(right<=x || bottom<=y)return;
+    const low=canvas.height-bottom,high=canvas.height-y;
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER,from.fbo);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,to.fbo);
+    gl.blitFramebuffer(x,low,right,high,x,low,right,high,gl.COLOR_BUFFER_BIT,gl.NEAREST);
+  }
+  function renderGroup(layers){
+    for(const [,shapes] of [...layers].sort((a,b)=>a[0]-b[0])){
+      for(const batch of batchSurfaces(shapes,capacity)){
+        if(materialNeedsPyramid(batch[0].m))buildPyramid();
+        drawLayer(batch);
+      }
+    }
+  }
+  function pixelBounds(l,t,r,b){
+    const sx=canvas.width/width,sy=canvas.height/height;
+    return {
+      x:clamp(Math.ceil((l-left)*sx),0,canvas.width),
+      y:clamp(Math.ceil((t-top)*sy),0,canvas.height),
+      right:clamp(Math.floor((r-left)*sx),0,canvas.width),
+      bottom:clamp(Math.floor((b-top)*sy),0,canvas.height)
+    };
+  }
+  function planeFor(host){
+    let plane=presentations.get(host);
+    if(!plane){
+      const surface=document.createElement('canvas');
+      surface.className='glass-plane';surface.setAttribute('aria-hidden','true');
+      host.prepend(surface);
+      plane={surface,context:surface.getContext('2d')};
+      presentations.set(host,plane);
+    }
+    return plane;
+  }
+  function present(host,under,region,origin,plate){
+    const {x,y,right,bottom}=region;
+    const w=right-x,h=bottom-y;
+    if(w<=0 || h<=0)return;
+    const plane=planeFor(host),{surface,context}=plane;
+    const sx=canvas.width/width,sy=canvas.height/height;
+    drawTo(programs.overlay,null,canvas.width,canvas.height,L=>{
+      bindTex(0,fb.scene.tex);gl.uniform1i(L.u_result,0);
+      bindTex(1,under.tex);gl.uniform1i(L.u_under,1);
+      if(plate){
+        gl.uniform4f(L.u_plate,(plate.left-left+plate.width/2)*sx,canvas.height-(plate.top-top+plate.height/2)*sy,plate.width*sx/2,plate.height*sy/2);
+        gl.uniform1f(L.u_radius,Math.min(parseFloat(getComputedStyle(host).borderTopLeftRadius),plate.height/2)*sy);
+      }else gl.uniform1f(L.u_radius,0);
+    });
+    if(surface.width!==w)surface.width=w;
+    if(surface.height!==h)surface.height=h;
+    context.globalCompositeOperation='copy';
+    context.drawImage(canvas,x,y,w,h,0,0,w,h);
+    const position=`left:${left+x/sx-origin.left}px;top:${top+y/sy-origin.top}px;width:${w/sx}px;height:${h/sy}px`;
+    if(plane.position!==position){surface.style.cssText=position;plane.position=position;}
+    surface.hidden=false;
+  }
+  function scrollContent(host,rect,origin){
+    // Size to the real table or calendar board. Counting the previous canvas
+    // in scrollWidth/Height would keep an old extent after the content shrinks.
+    const content=host.querySelector(':scope > table,:scope > .week-board');
+    const bounds=content?.getBoundingClientRect(),style=getComputedStyle(host);
+    return {
+      right:Math.max(rect.left+host.clientLeft+host.clientWidth,(bounds?.right??origin.left)+parseFloat(style.paddingRight)),
+      bottom:Math.max(rect.top+host.clientTop+host.clientHeight,(bounds?.bottom??origin.top)+parseFloat(style.paddingBottom))
+    };
+  }
+  function presentGroups(groups,base){
+    const {left:x,top:y,width:w,height:h}=viewport;
+    renderGroup(groups.get(pageLayer));
+    present(pageLayer,base,pixelBounds(x,top,x+w,top+height),pageLayer.getBoundingClientRect());
+    // Keep the dock above document content even when its labels stay fixed.
+    const hosts=[...groups.keys()].filter(host=>host!==pageLayer&&host!==dock);
+    if(dock&&groups.has(dock))hosts.push(dock);
+    for(const host of hosts){
+      const rect=host.getBoundingClientRect();
+      const under=rtex('under',canvas.width,canvas.height);
+      copyFrame(fb.scene,under);
+      renderGroup(groups.get(host));
+      const origin={left:rect.left+host.clientLeft-host.scrollLeft,top:rect.top+host.clientTop-host.scrollTop};
+      if(host===dock){
+        const region=pixelBounds(Math.max(x,rect.left-96),Math.max(y,rect.top-96),Math.min(x+w,rect.right+96),Math.min(y+h,rect.bottom+96));
+        present(host,under,region,origin,rect);
+      }else{
+        const content=scrollContent(host,rect,origin);
+        const region=pixelBounds(origin.left,origin.top,content.right,content.bottom);
+        present(host,under,region,origin);
+        // Shapes carried outside the scrollport are buffered in the DOM canvas.
+        // Only the visible portion participates in subsequent glass and ink.
+        copyFrame(under,fb.scene);
+        copyFrame(fb.output,fb.scene,pixelBounds(rect.left+host.clientLeft,rect.top+host.clientTop,rect.left+host.clientLeft+host.clientWidth,rect.top+host.clientTop+host.clientHeight));
+        bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
+      }
+    }
+    for(const [host,{surface}] of presentations){
+      if(!host.isConnected)presentations.delete(host);
+      else if(!groups.has(host))surface.hidden=true;
+    }
   }
   function render(){
     raf=0;
@@ -328,48 +439,48 @@
     try{
       // CSS percentages exclude a reserved scrollbar gutter; innerWidth does not.
       // Use the actual painted box for both coordinates and texture resolution.
-      const box=canvas.getBoundingClientRect(),w=box.width,h=box.height;
-      if(!w || !h){root.dataset.optics='fallback';return;}
-      left=box.left;top=box.top;
-      const ratio=Math.min(devicePixelRatio||1,2);
-      if(w!==width || h!==height || ratio!==dpr){width=w;height=h;dpr=ratio;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);sourceDirty=true;}
+      const box=source.getBoundingClientRect();
+      if(!box.width || !box.height){root.dataset.optics='fallback';return;}
+      const ratio=Math.min(devicePixelRatio||1,2,textureLimit/Math.max(box.width,box.height));
+      const pixelWidth=Math.round(box.width*ratio),pixelHeight=Math.round(box.height*ratio);
+      if(source.width!==pixelWidth || source.height!==pixelHeight)sourceDirty=true;
+      viewport={left:box.left,top:box.top,width:box.width,height:box.height,pixelWidth,pixelHeight};
+      const tabs=document.querySelector('.tabs');
+      dock=getComputedStyle(tabs).position==='fixed'?tabs:null;
+      const horizontal=[...document.querySelectorAll('.calendar-scroll,.attendance-editor-scroll')].some(el=>{
+        if(!el.clientWidth)return false;
+        const rect=el.getBoundingClientRect();
+        const origin={left:rect.left+el.clientLeft-el.scrollLeft,top:rect.top+el.clientTop-el.scrollTop};
+        return scrollContent(el,rect,origin).right-origin.left>el.clientWidth+0.5;
+      });
+      const padX=horizontal?Math.min(192,Math.floor((textureLimit/ratio-box.width)/2)):0;
+      const padY=Math.min(256,Math.floor((textureLimit/ratio-box.height)/2));
+      const newLeft=box.left-padX,newTop=box.top-padY;
+      if(touch.strength){touch.x+=left-newLeft;touch.y+=top-newTop;}
+      left=newLeft;top=newTop;dpr=ratio;
+      width=box.width+padX*2;height=box.height+padY*2;
+      const bufferWidth=Math.round(width*ratio),bufferHeight=Math.round(height*ratio);
+      if(canvas.width!==bufferWidth)canvas.width=bufferWidth;
+      if(canvas.height!==bufferHeight)canvas.height=bufferHeight;
       if(sourceDirty)uploadSource();
       if(!sourceStatisticsCurrent && sourceLuminanceNeeded())updateSourceStatistics();
       rtex('scene',canvas.width,canvas.height,mipLevels(canvas.width,canvas.height));rtex('output',canvas.width,canvas.height);
-      drawTo(programs.cover,fb.scene.fbo,canvas.width,canvas.height,L=>{
-        bindTex(0,imageTex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,1,0,0);gl.uniform4f(L.u_rect,0,0,1,1);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
+      const base=rtex('base',canvas.width,canvas.height);
+      drawTo(programs.cover,base.fbo,canvas.width,canvas.height,L=>{
+        bindTex(0,imageTex);gl.uniform1i(L.u_img,0);gl.uniform4f(L.u_fit,1,1,0,0);gl.uniform1i(L.u_un,0);gl.uniform2f(L.u_world,width,height);
+        gl.uniform4f(L.u_rect,-padX/box.width,-padY/box.height,width/box.width,height/box.height);
       });
+      copyFrame(base,fb.scene);
       bindTex(0,fb.scene.tex);gl.generateMipmap(gl.TEXTURE_2D);
-      const layers=collect();
-      for(const shapes of layers){
-        // Each independent control has its own optical container. Preserve the
-        // reference merge value without fusing adjacent buttons or cards.
-        for(const batch of batchSurfaces(shapes,capacity)){
-          if(materialNeedsPyramid(batch[0].m))buildPyramid();
-          drawLayer(batch);
-        }
-      }
+      presentGroups(collect(),base);
       root.dataset.optics='ready';
       updateLabelContrast();
-      gl.bindFramebuffer(gl.READ_FRAMEBUFFER,fb.scene.fbo);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,null);
-      gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);
-      // Keep native text out of the floating mobile dock's reserved space. The
-      // optical texture cannot rasterize DOM text that is scrolling underneath.
-      const dock=document.querySelector('.tabs'),dockRect=dock.getBoundingClientRect();
-      const fixed=getComputedStyle(dock).position==='fixed';
-      for(const el of document.querySelectorAll('main,.foot,.masthead-in')){
-        const cut=fixed?Math.max(0,el.getBoundingClientRect().bottom-dockRect.top+8):0;
-        const value=cut.toFixed(1)+'px';
-        if(el.style.getPropertyValue('--dock-cut')!==value)el.style.setProperty('--dock-cut',value);
-      }
-      root.dataset.optics='ready';
     }catch(error){console.error('Glass render:',error);root.dataset.optics='fallback';return;}
     // WAAPI transforms do not generate style mutations. Follow every frame,
     // including the final settled geometry, with or without animated rain.
     if(performance.now()<settleUntil || document.getAnimations().some(animation=>animation.playState==='running'))invalidate();
   }
   function invalidate(animate=false){
-    if(scrollTimer)return;
     if(animate && motionEnabled())settleUntil=performance.now()+450;
     if(!raf)raf=requestAnimationFrame(render);
   }
@@ -388,6 +499,8 @@
     invalidate();
   }
   new MutationObserver(records=>{
+    records=records.filter(r=>!r.target.matches?.('.glass-plane') &&
+      !(r.type==='childList'&&r.addedNodes.length>0&&!r.removedNodes.length&&[...r.addedNodes].every(node=>node.matches?.('.glass-plane'))));
     if(records.every(r=>r.type==='attributes' && ['data-auto-ink','data-glass-surface','data-optics'].includes(r.attributeName)))return;
     if(records.some(r=>r.type==='childList'))refreshTargets();
     else if(records.some(r=>['class','hidden','open'].includes(r.attributeName)))resetLabelContrast();
@@ -422,31 +535,10 @@
     requestAnimationFrame(()=>requestRainBitmap());
   });
   function layoutChanged(){resetLabelContrast();invalidate();}
-  function duringScroll(){
-    if(!scrollTimer){
-      if(root.dataset.optics!=='ready' && root.dataset.optics!=='scrolling')return;
-      // Native scrolling can present the DOM before a fixed WebGL image is ready.
-      // CSS glass belongs to each element and moves with it on the same frame.
-      root.dataset.optics='scrolling';
-      cancelAnimationFrame(raf);raf=0;
-      clearTimeout(contrastTimer);contrastTimer=0;
-    }
-    clearTimeout(scrollTimer);
-    scrollTimer=setTimeout(()=>{
-      scrollTimer=0;
-      layoutChanged();
-    },140);
-  }
   function hoveredLabelChanged(){labelLayoutDirty=true;contrastUrgent=true;invalidate();}
   window.addEventListener('resize',layoutChanged);
-  new ResizeObserver(layoutChanged).observe(canvas);
-  document.addEventListener('scroll',duringScroll,{passive:true,capture:true});
-  document.addEventListener('wheel',event=>{
-    if(!event.ctrlKey && (event.deltaX || event.deltaY))duringScroll();
-  },{passive:true,capture:true});
-  document.addEventListener('touchmove',event=>{
-    if(event.touches.length===1 && !event.target.closest('input[type="range"]'))duringScroll();
-  },{passive:true,capture:true});
+  new ResizeObserver(layoutChanged).observe(source);
+  document.addEventListener('scroll',()=>{labelLayoutDirty=true;invalidate();},{passive:true,capture:true});
   document.addEventListener('pointerover',hoveredLabelChanged,{passive:true});
   document.addEventListener('pointerout',hoveredLabelChanged,{passive:true});
   document.addEventListener('click',()=>invalidate(true));

@@ -5,8 +5,8 @@ const vm=require('node:vm');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../glass-renderer.js'),'utf8');
 const code=source.slice(source.indexOf('  function batchSurfaces('),source.indexOf('  function collect()'));
 const context=vm.createContext({Math});vm.runInContext(code,context);
-const material={merge:24},clip={key:'viewport'};
-const shape=(left,top,m=material,c=clip)=>({rect:{left,top,width:40,height:40},m,clip:c});
+const material={merge:24};
+const shape=(left,top,m=material)=>({rect:{left,top,width:40,height:40},m});
 test('adjacent compact controls are rendered in separate optical containers',()=>{
   const shapes=[shape(0,0),shape(52,0),shape(104,0),shape(0,52),shape(52,52)];
   const batches=context.batchSurfaces(shapes,96);
@@ -20,9 +20,8 @@ test('adjacent compact controls are rendered in separate optical containers',()=
   assert.ok(batches.length>1);
   assert.equal(material.merge,24,'Preserve the material parameter');
 });
-test('distant controls can share a pass while materials, clips and capacity stay isolated',()=>{
+test('distant controls can share a pass within material and capacity limits',()=>{
   assert.equal(context.batchSurfaces([shape(0,0),shape(80,0)],96).length,1);
   assert.equal(context.batchSurfaces([shape(0,0),shape(80,0)],1).length,2);
   assert.equal(context.batchSurfaces([shape(0,0),shape(80,0,{merge:24})],96).length,2);
-  assert.equal(context.batchSurfaces([shape(0,0),shape(80,0,material,{key:'scroll'})],96).length,2);
 });
