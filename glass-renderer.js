@@ -11,7 +11,8 @@
   document.body.prepend(canvas);
   const reducedTransparency=matchMedia('(prefers-reduced-transparency: reduce)');
   const contrast=matchMedia('(prefers-contrast: more)');
-  const selectors='.masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head,.tabs,.langswitch,.picker button,.day-switch,.timetable-switch,.iconbtn,.nav-w,.panel,.blk,.tt .empty,.now-panel,.now-item,.course-live,.exam-card,.notice-list li,.handouts,.wk,.notice,.sidenote,.preset-card,.preset-lens,select,input:not([type="file"]):not([type="hidden"]),.attendance-editor,summary';
+  const textControls = 'select,input:not([type="file"]):not([type="hidden"]):not([type="range"])';
+  const selectors='.masthead-in,.sec,.weekbar,.dayrow,.chead,.box,.foot p,#view-week>.sec-head,.tabs,.langswitch,.picker button,.day-switch,.timetable-switch,.iconbtn,.nav-w,.panel,.blk,.tt .empty,.now-panel,.now-item,.course-live,.exam-card,.notice-list li,.handouts,.wk,.notice,.sidenote,.preset-card,.preset-lens,.attendance-editor,summary,'+textControls;
   const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
   let gl,programs,photo=document.querySelector('#wallpaper img'),rainImage=null,raf=0,settleUntil=0,suspended=false;
   let width=0,height=0,left=0,top=0,dpr=1,sourceDirty=true,targets=[],capacity=8;
@@ -377,7 +378,7 @@
       if(!text.has(el))text.set(el,{el,nodes:[]});
       text.get(el).nodes.push(node);
     }
-    for(const el of document.querySelectorAll('.ui-icon,select,input:not([type="file"]):not([type="hidden"])'))text.set(el,{el,nodes:[]});
+    for(const el of document.querySelectorAll('.ui-icon,'+textControls))text.set(el,{el,nodes:[]});
     labels=[...text.values()];resetLabelContrast();
     invalidate();
   }
