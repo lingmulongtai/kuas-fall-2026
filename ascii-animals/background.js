@@ -55,6 +55,7 @@
     if (!engine) {
       engine = window.AsciiAnimals?.create(canvas, ASCII_ANIMAL, reducedMotion);
       if (!engine) return;
+      engine.setTuning(ASCII_TUNING);
       document.fonts?.load('600 12px "Geist Mono"').then(() => {
         if (!canvas.hidden && !frameId) { engine.draw(0); publishFrame(); }
       }).catch(() => {});
@@ -73,6 +74,13 @@
   }
 
   window.addEventListener('ambiencechange', refresh);
+  window.addEventListener('asciituningchange', () => {
+    engine?.setTuning(ASCII_TUNING);
+    if (engine && width && height && !canvas.hidden && reducedMotion.matches && !suspended && !document.hidden) {
+      engine.draw(0);
+      publishFrame();
+    }
+  });
   window.addEventListener('resize', resize);
   new ResizeObserver(resize).observe(canvas);
   document.addEventListener('visibilitychange', refresh);
