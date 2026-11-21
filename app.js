@@ -681,7 +681,7 @@ function formatChanges(){
 
 /* ---------- UI 文言 ---------- */
 const T = {
-  eyebrow:{ja:"COURSE PLANNER", en:"COURSE PLANNER"},
+  eyebrow:{ja:"2026年度 秋学期 · 時間割", en:"Fall 2026 · Course planner"},
   title:{ja:"2026年度 秋学期 履修ダッシュボード", en:"Fall 2026 Course Dashboard"},
   sub:{ja:"工学部 機械電気システム工学科 2年 4セメスタ ／ 太秦キャンパス ／ 9月24日〜1月18日",
        en:"Mechanical and Electrical Systems Engineering, Year 2, Semester 4 / Uzumasa Campus / Sep 24 - Jan 18"},
@@ -923,7 +923,7 @@ let COURSE = liveCourseId();
 let DAY = (d=>d<5?d:0)(weekdayOf(todayISO()));
 let RENDERED_DATE = null;
 let TIMETABLE_VIEW = "day";
-let GLASS_PRESET = "prism";
+let GLASS_PRESET = "frosted";
 
 const $ = id => document.getElementById(id);
 const byId = id => COURSES.find(c=>c.id===id);
@@ -2397,7 +2397,7 @@ window.addEventListener("afterprint", ()=>{
   if(savedLang) LANG = savedLang;
   TIMETABLE_VIEW = store.get("timetable-view")==="week" ? "week" : "day";
   const preset=store.get('glass-preset');
-  GLASS_PRESET=window.GlassMaterials?.presets.some(p=>p.id===preset)?preset:'prism';
+  GLASS_PRESET=window.GlassMaterials?.presets.some(p=>p.id===preset)?preset:'frosted';
   document.documentElement.dataset.material=GLASS_PRESET;
   document.documentElement.lang = LANG;
   $("btn-ja").setAttribute("aria-pressed", LANG==="ja");
